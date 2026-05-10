@@ -1,0 +1,666 @@
+// =================================================================
+//  AFRYNTIX - Schéma de base de données
+//  Transport & Logistique Chine -> Afrique de l'Ouest
+// =================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------
+// Utilisateurs & Authentification
+// -----------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  STAFF
+  CLIENT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String
+  phone         String?
+  whatsapp      String?
+  role          Role      @default(CLIENT)
+  active        Boolean   @default(true)
+  emailVerified DateTime?
+  image         String?
+
+  // Adresse client
+  city          String?
+  country       String?
+  address       String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  shipmentsAsClient   Shipment[]      @relation("ShipmentClient")
+  reservations        Reservation[]
+  reservationsHandled Reservation[]   @relation("ReservationHandler")
+  billPaymentsClient    BillPayment[]   @relation("BillPaymentClient")
+  billPaymentsStaff     BillPayment[]   @relation("BillPaymentStaff")
+  billPaymentsCompleted BillPayment[]   @relation("BillPaymentCompletedBy")
+  exchangeRatesSet    ExchangeRate[]
+  staffInvitesSent    StaffInvite[]   @relation("StaffInviteAdmin")
+  staffInviteUsed     StaffInvite?    @relation("StaffInviteUser")
+  envoisCreated       Envoi[]         @relation("EnvoiCreator")
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  sessions            Session[]
+  accounts            Account[]
+}
+
+// Auth.js Session/Account models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Invitation Staff (admin only)
+model StaffInvite {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  token      String   @unique
+  invitedById String
+  invitedBy  User     @relation("StaffInviteAdmin", fields: [invitedById], references: [id])
+  usedById   String?  @unique
+  usedBy     User?    @relation("StaffInviteUser", fields: [usedById], references: [id])
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+// -----------------------------------------------------------------
+// Expéditions (Shipments) - Aérien & Maritime
+// -----------------------------------------------------------------
+
+enum TransportMode {
+  AIR_EXPRESS    // Aérien Express
+  AIR_NORMAL     // Aérien Normal
+  SEA_LCL        // Maritime Groupage
+  SEA_FCL        // Maritime Conteneur complet
+  VEHICLE        // Transport de véhicule
+  BTP_EQUIPMENT  // Engin BTP
+  STORAGE        // Entreposage
+}
+
+enum CargoCategory {
+  ORDINARY     // Colis ordinaire
+  BATTERY      // Avec batterie
+  LIQUID       // Liquide
+  COSMETIC     // Cosmétique
+  POWDER       // Poudre
+  PHONE        // Téléphone
+  COMPUTER     // Ordinateur
+  VEHICLE      // Véhicule
+  BTP          // Engin BTP
+  OTHER
+}
+
+enum ShipmentStatus {
+  REGISTERED              // Enregistré
+  RECEIVED_CHINA          // Reçu en Chine
+  IN_TRANSIT              // En transit
+  ARRIVED_DESTINATION     // Arrivé à destination
+  CUSTOMS_CLEARANCE       // Dédouanement
+  AVAILABLE_FOR_DELIVERY  // Colis Disponible Pour Livraison  *** déclenche notif WhatsApp ***
+  DELIVERED               // Livré
+  CANCELLED               // Annulé
+}
+
+enum PaymentStatus {
+  UNPAID
+  DEPOSIT_PAID    // Acompte 50% payé
+  FULLY_PAID      // Soldé
+  REFUNDED
+}
+
+model Shipment {
+  id              String          @id @default(cuid())
+  trackingNumber  String          @unique  // ex: AFR-A-2026-000123
+  clientId        String?
+  client          User?           @relation("ShipmentClient", fields: [clientId], references: [id])
+
+  // Client sans compte système (free-text)
+  clientName      String?
+  clientPhone     String?
+
+  // Rattachement à un envoi groupé (voyage / batch)
+  envoiId         String?
+  envoi           Envoi?          @relation(fields: [envoiId], references: [id], onDelete: SetNull)
+  containerId     String?
+  container       Container?      @relation(fields: [containerId], references: [id], onDelete: SetNull)
+
+  mode            TransportMode
+  category        CargoCategory
+  description     String?
+
+  // Mesures
+  pieces          Int             @default(1)
+  weightKg        Float?          // poids réel
+  lengthCm        Float?
+  widthCm         Float?
+  heightCm        Float?
+  volumeCBM       Float?          // volume calculé/saisi (maritime)
+  volumetricWeight Float?         // poids volumique calculé (aérien)
+  chargeableWeight Float?         // max(réel, volumique)
+
+  // Origine / Destination
+  originCity      String?         @default("Guangzhou")
+  destinationCity String?
+  destinationCountry String?
+
+  // Receveur
+  recipientName   String?
+  recipientPhone  String?
+  recipientAddress String?
+
+  // Tarification
+  unitPrice       Float?          // prix unitaire appliqué (FCFA/kg ou FCFA/CBM ou FCFA/pcs)
+  totalAmount     Float           // montant total FCFA
+  depositAmount   Float           // 50%
+  remainingAmount Float           // 50%
+  paymentStatus   PaymentStatus   @default(UNPAID)
+  amountPaid      Float           @default(0)
+
+  status          ShipmentStatus  @default(REGISTERED)
+
+  // Photos
+  photos          ShipmentPhoto[]
+
+  // Historique
+  history         ShipmentHistory[]
+  reservation     Reservation?    @relation("ReservationToShipment", fields: [reservationId], references: [id])
+  reservationId   String?         @unique
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([trackingNumber])
+  @@index([clientId])
+  @@index([status])
+  @@index([envoiId])
+  @@index([containerId])
+}
+
+model ShipmentPhoto {
+  id         String   @id @default(cuid())
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  url        String
+  caption    String?
+  createdAt  DateTime @default(now())
+}
+
+model ShipmentHistory {
+  id         String         @id @default(cuid())
+  shipmentId String
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status     ShipmentStatus
+  note       String?
+  location   String?
+  createdAt  DateTime       @default(now())
+  createdBy  String?
+}
+
+// -----------------------------------------------------------------
+// Envois groupés (voyages) — un envoi regroupe N colis (Shipments)
+// Pour le maritime : peut contenir plusieurs Containers
+// Pour l'aérien : porte le MAWB (Master Air Waybill)
+// -----------------------------------------------------------------
+
+enum EnvoiStatus {
+  PLANNED      // Créé, en préparation
+  LOADING      // Chargement en cours en Chine
+  DEPARTED     // Parti de Chine
+  IN_TRANSIT   // En transit (mer / air)
+  ARRIVED      // Arrivé à destination
+  CLEARED      // Dédouané
+  DELIVERED    // Tous les colis livrés
+  CANCELLED
+}
+
+enum Carrier {
+  MSC
+  MAERSK
+  CMA_CGM
+  EVERGREEN
+  COSCO
+  HAPAG_LLOYD
+  ONE
+  AIR_FRANCE
+  ETHIOPIAN
+  EMIRATES
+  TURKISH
+  QATAR
+  KENYA_AIRWAYS
+  ROYAL_AIR_MAROC
+  OTHER
+}
+
+enum ContainerType {
+  TWENTY_GP    // 20'GP
+  FORTY_GP     // 40'GP
+  FORTY_HQ     // 40'HQ (High Cube)
+  FORTY_FIVE   // 45'HQ
+  REEFER_20
+  REEFER_40
+  OPEN_TOP
+  FLAT_RACK
+  OTHER
+}
+
+model Envoi {
+  id             String       @id @default(cuid())
+  reference      String       @unique  // ex: AFR-ENV-2026-000123
+  mode           TransportMode
+  status         EnvoiStatus  @default(PLANNED)
+
+  // Itinéraire
+  origin         String       @default("Guangzhou")
+  destination    String
+  departureDate  DateTime?
+  arrivalDate    DateTime?
+
+  // Identification carrier
+  carrier        Carrier?
+  bookingNumber  String?      // numéro de booking carrier
+  vesselName     String?      // nom du navire (maritime)
+  voyageNumber   String?      // numéro de voyage (maritime)
+  mawb           String?      // Master Air Waybill (aérien)
+  flightNumber   String?      // numéro de vol (aérien)
+
+  notes          String?
+
+  // Relations
+  containers     Container[]
+  shipments      Shipment[]
+  history        EnvoiHistory[]
+
+  createdById    String?
+  createdBy      User?        @relation("EnvoiCreator", fields: [createdById], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([reference])
+  @@index([status])
+  @@index([mode])
+  @@index([departureDate])
+}
+
+model Container {
+  id             String         @id @default(cuid())
+  envoiId        String
+  envoi          Envoi          @relation(fields: [envoiId], references: [id], onDelete: Cascade)
+
+  refInternal    String         @unique  // notre code interne, ex: AFR-CTN-2026-0001
+  carrierNumber  String?        // numéro réel carrier saisi après chargement, ex: MSCU1234567
+  sealNumber     String?
+  type           ContainerType?
+  notes          String?
+
+  shipments      Shipment[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([envoiId])
+  @@index([carrierNumber])
+}
+
+model EnvoiHistory {
+  id        String      @id @default(cuid())
+  envoiId   String
+  envoi     Envoi       @relation(fields: [envoiId], references: [id], onDelete: Cascade)
+  status    EnvoiStatus
+  note      String?
+  createdAt DateTime    @default(now())
+  createdBy String?
+
+  @@index([envoiId])
+}
+
+// -----------------------------------------------------------------
+// Réservations (places pour envois futurs)
+// -----------------------------------------------------------------
+
+enum ReservationStatus {
+  PENDING       // En attente de validation Staff
+  VALIDATED     // Validée par Staff (devient un Shipment)
+  REJECTED      // Rejetée
+  RECEIVED      // Colis reçu en Chine -> shipment créé
+}
+
+model Reservation {
+  id                  String            @id @default(cuid())
+  clientId            String
+  client              User              @relation(fields: [clientId], references: [id])
+
+  scheduleId          String?
+  schedule            ShippingSchedule? @relation(fields: [scheduleId], references: [id])
+
+  mode                TransportMode
+  category            CargoCategory
+  description         String?
+  estimatedWeightKg   Float?
+  estimatedVolumeCBM  Float?
+
+  // Tracking fournisseur (livraison locale Chine)
+  supplierTrackingNumber String?
+  photoUrl            String?           // photo du colis fournie par client
+
+  // Receveur
+  recipientName       String?
+  recipientPhone      String?
+  recipientAddress    String?
+
+  status              ReservationStatus @default(PENDING)
+  rejectionReason     String?
+  validatedById       String?
+  validatedBy         User?             @relation("ReservationHandler", fields: [validatedById], references: [id])
+  validatedAt         DateTime?
+
+  shipment            Shipment?         @relation("ReservationToShipment")
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
+
+// Calendrier d'envois (publié par Admin/Staff)
+model ShippingSchedule {
+  id            String         @id @default(cuid())
+  mode          TransportMode
+  departureDate DateTime
+  arrivalDate   DateTime?
+  cutoffDate    DateTime       // date limite de réservation
+  origin        String         @default("Guangzhou")
+  destination   String
+  capacity      String?        // ex: "1 conteneur 40HQ"
+  notes         String?
+  active        Boolean        @default(true)
+  reservations  Reservation[]
+  createdAt     DateTime       @default(now())
+}
+
+// -----------------------------------------------------------------
+// Tarification (configurable par Admin)
+// -----------------------------------------------------------------
+
+model PricingRule {
+  id          String         @id @default(cuid())
+  mode        TransportMode
+  category    CargoCategory
+  unit        String         // "kg", "pcs", "cbm", "vehicle"
+  pricePerUnit Float         // FCFA
+  minQuantity Float?         // ex: applicable à partir de 5 CBM
+  description String?
+  active      Boolean        @default(true)
+  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime       @default(now())
+
+  @@unique([mode, category, unit, minQuantity])
+}
+
+// -----------------------------------------------------------------
+// Taux de change (Admin only)
+// -----------------------------------------------------------------
+
+enum Currency {
+  XOF   // FCFA
+  RMB   // Yuan
+  EUR
+  USD
+}
+
+model ExchangeRate {
+  id         String   @id @default(cuid())
+  date       DateTime @default(now()) @db.Date
+  fromCcy    Currency
+  toCcy      Currency
+  rate       Float    // 1 fromCcy = rate toCcy
+  setById    String
+  setBy      User     @relation(fields: [setById], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([date, fromCcy, toCcy])
+  @@index([date])
+}
+
+// -----------------------------------------------------------------
+// Paiement de factures / transferts d'argent (Chine)
+// -----------------------------------------------------------------
+
+enum BillPaymentType {
+  INVOICE_PAYMENT   // Paiement de facture fournisseur
+  MONEY_TRANSFER    // Transfert / retrait
+}
+
+enum BillPaymentStatus {
+  PENDING
+  WITHDRAWAL_CODE_SENT  // Code de retrait communiqué au client
+  COMPLETED
+  CANCELLED
+}
+
+model BillPayment {
+  id              String              @id @default(cuid())
+  reference       String              @unique // AFR-PAY-2026-000123
+  type            BillPaymentType
+
+  // Client (compte système, optionnel)
+  clientId        String?
+  client          User?               @relation("BillPaymentClient", fields: [clientId], references: [id])
+
+  // Client sans compte (free-text)
+  clientName      String?
+  clientPhone     String?
+
+  // Staff qui initie (obligatoire - le client ne peut pas initier)
+  initiatedById   String
+  initiatedBy     User                @relation("BillPaymentStaff", fields: [initiatedById], references: [id])
+
+  // Staff qui valide / complète le retrait (renseigné quand le code est utilisé)
+  completedById   String?
+  completedBy     User?               @relation("BillPaymentCompletedBy", fields: [completedById], references: [id])
+
+  // Montants
+  amountSource    Float               // montant en devise source
+  sourceCurrency  Currency
+  amountTarget    Float               // montant converti en devise cible
+  targetCurrency  Currency
+  exchangeRate    Float                // taux appliqué
+  fees            Float                @default(0)
+
+  // Receveur (en Chine pour retrait, ou fournisseur pour facture)
+  recipientName   String
+  recipientPhone  String?
+  recipientId     String?              // pièce d'identité receveur
+  recipientBank   String?
+  recipientAccount String?
+  recipientAddress String?
+  invoiceNumber   String?               // si paiement de facture
+  invoiceUrl      String?               // photo facture
+
+  // Code de retrait (unique, communiqué au client)
+  withdrawalCode  String?               @unique
+
+  // Personne effectivement présente au retrait (peut différer du bénéficiaire)
+  pickupPersonName  String?
+  pickupPersonPhone String?
+  pickupPersonId    String?             // pièce d'identité de la personne présente
+
+  status          BillPaymentStatus     @default(PENDING)
+  notes           String?
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  completedAt     DateTime?
+
+  @@index([clientId])
+  @@index([status])
+  @@index([reference])
+}
+
+// -----------------------------------------------------------------
+// Adresses de l'entreprise (Maritime, Aérien, Réception)
+// -----------------------------------------------------------------
+
+enum AddressType {
+  AIR_WAREHOUSE       // Entrepôt aérien Chine
+  SEA_WAREHOUSE       // Entrepôt maritime Chine
+  RECEPTION           // Adresse de réception (Afrique)
+  OFFICE              // Bureau
+}
+
+model CompanyAddress {
+  id          String      @id @default(cuid())
+  type        AddressType
+  label       String
+  contactName String?
+  phone       String?
+  whatsapp    String?
+  email       String?
+  line1       String
+  line2       String?
+  city        String
+  country     String
+  postalCode  String?
+  notes       String?
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// -----------------------------------------------------------------
+// Services additionnels
+// -----------------------------------------------------------------
+
+enum ServiceType {
+  QUALITY_CONTROL
+  PURCHASING
+  VEHICLE_SALE
+  BTP_SALE
+  TRADING
+  INTRODUCTION
+}
+
+enum ServiceRequestStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ServiceRequest {
+  id          String                @id @default(cuid())
+  reference   String                @unique
+  type        ServiceType
+  clientName  String
+  clientEmail String?
+  clientPhone String
+  message     String
+  budget      String?
+  status      ServiceRequestStatus  @default(REQUESTED)
+  handledById String?
+  notes       String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+}
+
+// -----------------------------------------------------------------
+// Notifications (log des envois WhatsApp)
+// -----------------------------------------------------------------
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model Notification {
+  id         String              @id @default(cuid())
+  userId     String?
+  user       User?               @relation(fields: [userId], references: [id])
+  channel    NotificationChannel @default(WHATSAPP)
+  to         String              // numéro destinataire (ou userId pour IN_APP)
+  template   String              // ex: "shipment_created", "available_for_delivery"
+  title      String?             // titre court (IN_APP)
+  body       String              @db.Text
+  link       String?             // URL cible (IN_APP)
+  status     NotificationStatus  @default(QUEUED)
+  providerId String?             // SID Twilio
+  error      String?             @db.Text
+  readAt     DateTime?           // lu par le client (IN_APP)
+  createdAt  DateTime            @default(now())
+  sentAt     DateTime?
+
+  @@index([userId])
+  @@index([template])
+  @@index([userId, channel, readAt])
+}
+
+// -----------------------------------------------------------------
+// Audit log
+// -----------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+}

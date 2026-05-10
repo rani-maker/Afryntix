@@ -1,0 +1,66 @@
+# ============================================================
+# AFRYNTIX — Render deployment config
+# Avant de committer : remplace YOUR_DOCKERHUB_USERNAME
+# ============================================================
+
+services:
+  - type: web
+    name: afryntix
+    runtime: image
+    image:
+      url: docker.io/YOUR_DOCKERHUB_USERNAME/afryntix:latest
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+
+    envVars:
+      # --- Database Supabase ---
+      - key: DATABASE_URL
+        sync: false                        # à saisir dans le dashboard Render
+
+      - key: DIRECT_URL
+        sync: false
+
+      # --- Auth ---
+      - key: AUTH_SECRET
+        sync: false                        # openssl rand -base64 32
+
+      - key: AUTH_URL
+        value: https://afryntix.onrender.com   # à adapter si domaine custom
+
+      # --- Twilio WhatsApp ---
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+
+      - key: TWILIO_WHATSAPP_FROM
+        value: whatsapp:+15559138795
+
+      # --- App publique ---
+      - key: NEXT_PUBLIC_APP_NAME
+        value: AFRYNTIX
+
+      - key: NEXT_PUBLIC_COMPANY_TAGLINE
+        value: "Transport & Logistique Chine - Afrique de l'Ouest"
+
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://afryntix.onrender.com   # à adapter si domaine custom
+
+      # --- Admin seed ---
+      - key: DEFAULT_ADMIN_EMAIL
+        sync: false
+
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false
+
+      - key: DEFAULT_ADMIN_NAME
+        sync: false
+
+      - key: DEFAULT_ADMIN_PHONE
+        sync: false
+
+      # --- Runtime ---
+      - key: NODE_ENV
+        value: production

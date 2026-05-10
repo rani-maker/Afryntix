@@ -1,0 +1,485 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* AFRYNTIX hi-fi design tokens (raw hex, used by .display, .kicker, .motif-*, surfaces) */
+    --afx-ink: #0a0e0d;
+    --afx-ink-2: #1c2624;
+    --afx-ink-3: #4a5856;
+    --afx-ink-4: #8a9794;
+    --afx-ink-5: #c9d1cf;
+    --afx-bg: #fafbfb;
+    --afx-bg-2: #f1f4f3;
+    --afx-bg-3: #e6ecea;
+    --afx-surface: #ffffff;
+    --afx-line: #e3e8e6;
+    --afx-line-2: #cdd5d2;
+    --afx-night: #051915;
+    --afx-night-2: #0e2b25;
+    --afx-night-soft: #d6f5ed;
+    --afx-mint: #00e2b1;
+    --afx-mint-2: #00c79a;
+    --afx-mint-3: #00a481;
+    --afx-mint-soft: #b8f5e3;
+    --afx-mint-pale: #e8fbf5;
+    --afx-motif: rgba(0, 226, 177, 0.08);
+
+    /* Channel-only versions for Tailwind alpha modifiers (rgb(... / <alpha>)) */
+    --afx-surface-rgb: 255 255 255;
+    --afx-bg-2-rgb: 241 244 243;
+    --afx-night-rgb: 5 25 21;
+    --afx-mint-3-rgb: 0 164 129;
+    --afx-ink-rgb: 10 14 13;
+
+    /* AFRYNTIX brand palette
+       Logo teal sampled at HSL 167 100% 44% (~#17D8A2)
+       Primary uses a slightly darker shade for AA contrast on white */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 167 100% 32%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 167 90% 95%;
+    --accent-foreground: 167 100% 24%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 167 100% 44%;
+    --radius: 0.65rem;
+  }
+
+  .dark {
+    /* AFRYNTIX hi-fi tokens — dark theme */
+    --afx-ink: #f3f6f5;
+    --afx-ink-2: #cdd5d2;
+    --afx-ink-3: #8a9794;
+    --afx-ink-4: #5b6663;
+    --afx-ink-5: #2d3634;
+    --afx-bg: #060a09;
+    --afx-bg-2: #0d1413;
+    --afx-bg-3: #161e1c;
+    --afx-surface: #0c1110;
+    --afx-line: rgba(255, 255, 255, 0.08);
+    --afx-line-2: rgba(255, 255, 255, 0.16);
+    /* keep brand mint constant; soften the night-soft chip background for contrast */
+    --afx-night-soft: rgba(0, 226, 177, 0.18);
+    --afx-motif: rgba(0, 226, 177, 0.12);
+
+    /* Channel-only versions — flip surface/bg/ink, keep brand night/mint constant */
+    --afx-surface-rgb: 12 17 16;
+    --afx-bg-2-rgb: 13 20 19;
+    --afx-ink-rgb: 243 246 245;
+
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 167 100% 44%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 167 100% 44%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.015em;
+  }
+}
+
+/* ===========================
+   AFRYNTIX hi-fi utility classes
+   Editorial typography (Fraunces display × Inter body), African-inspired motifs,
+   surfaces, kicker, step-dots, KPI, progress bar.
+   Available globally — to be used by the public/dashboard pages we redesign.
+   =========================== */
+.font-display {
+  font-family: var(--font-sans-brand), ui-sans-serif, system-ui, sans-serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+.font-cn {
+  font-family: "Noto Serif SC", serif;
+  font-weight: 700;
+}
+
+.afx-h0 {
+  font-family: var(--font-sans-brand), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(56px, 7vw, 88px);
+  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.afx-h1 {
+  font-family: var(--font-sans-brand), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.afx-h2 {
+  font-family: var(--font-sans-brand), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.afx-num {
+  font-family: var(--font-sans-brand), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.afx-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--afx-mint-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.afx-kicker::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--afx-mint);
+}
+
+/* Wax / kente-inspired motifs — subtle geometric patterns */
+.afx-motif-bg {
+  background-image:
+    linear-gradient(45deg, var(--afx-motif) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--afx-motif) 25%, transparent 25%);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+}
+.afx-motif-stripe {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 8px,
+    rgba(0, 226, 177, 0.18) 8px,
+    rgba(0, 226, 177, 0.18) 9px,
+    transparent 9px,
+    transparent 12px,
+    rgba(5, 25, 21, 0.1) 12px,
+    rgba(5, 25, 21, 0.1) 13px,
+    transparent 13px,
+    transparent 22px
+  );
+}
+.afx-motif-diamond {
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--afx-mint) 1.2px, transparent 1.5px),
+    linear-gradient(45deg, transparent 47%, var(--afx-mint-soft) 47%, var(--afx-mint-soft) 53%, transparent 53%),
+    linear-gradient(-45deg, transparent 47%, var(--afx-mint-soft) 47%, var(--afx-mint-soft) 53%, transparent 53%);
+  background-size: 24px 24px;
+}
+
+/* World-map style background for the night surfaces */
+.afx-world {
+  background-color: var(--afx-night);
+  background-image:
+    radial-gradient(circle at 25% 35%, rgba(255, 255, 255, 0.04) 0, transparent 1.2px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 0, transparent 1.2px);
+  background-size: 16px 16px;
+}
+
+/* Surfaces */
+.afx-surface-night {
+  background: var(--afx-night);
+  color: #fff;
+}
+.afx-surface-mint {
+  background: var(--afx-mint);
+  color: #0a0e0d; /* fixed dark — bright-mint background is theme-invariant */
+}
+.afx-surface-mint-soft {
+  background: var(--afx-mint-soft);
+  color: #0a0e0d; /* fixed dark — pale-mint background is theme-invariant */
+}
+
+/* Step dots — used in tracking timeline */
+.afx-step-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--afx-surface);
+  border: 2px solid var(--afx-line-2);
+  flex-shrink: 0;
+}
+.afx-step-dot.done {
+  background: var(--afx-mint-3);
+  border-color: var(--afx-mint-3);
+}
+.afx-step-dot.now {
+  background: var(--afx-night);
+  border-color: var(--afx-night);
+  position: relative;
+}
+.afx-step-dot.now::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--afx-night);
+  border-radius: 50%;
+  animation: afx-pulse 2s ease-out infinite;
+}
+.dark .afx-step-dot.now {
+  background: var(--afx-mint);
+  border-color: var(--afx-mint);
+}
+.dark .afx-step-dot.now::after {
+  border-color: var(--afx-mint);
+}
+@keyframes afx-pulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* Hero banner — slow horizontal pan between 2 stacked images */
+.afx-banner-track {
+  display: flex;
+  width: 200%;
+  height: 100%;
+  animation: afx-banner-pan 18s ease-in-out infinite alternate;
+}
+.afx-banner-track > * {
+  width: 50%;
+  height: 100%;
+  position: relative;
+  flex-shrink: 0;
+}
+@keyframes afx-banner-pan {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .afx-banner-track {
+    animation: none;
+  }
+}
+
+/* Progress bar */
+.afx-pbar {
+  height: 6px;
+  background: var(--afx-bg-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.afx-pbar > div {
+  height: 100%;
+  background: var(--afx-mint-3);
+  border-radius: 3px;
+}
+
+/* Logo mark — black square with mint accent, matches public/logo.png brand */
+.afx-logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #000;
+  color: var(--afx-mint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans-brand), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1.5px var(--afx-mint);
+}
+.afx-logo-mark::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--afx-mint);
+}
+
+/* Status badges */
+.status-registered { @apply bg-blue-50 text-blue-700 ring-blue-200; }
+.status-received { @apply bg-cyan-50 text-cyan-700 ring-cyan-200; }
+.status-transit { @apply bg-amber-50 text-amber-700 ring-amber-200; }
+.status-arrived { @apply bg-purple-50 text-purple-700 ring-purple-200; }
+.status-customs { @apply bg-orange-50 text-orange-700 ring-orange-200; }
+.status-available { @apply bg-emerald-50 text-emerald-700 ring-emerald-200; }
+.status-delivered { @apply bg-green-50 text-green-700 ring-green-200; }
+.status-cancelled { @apply bg-red-50 text-red-700 ring-red-200; }
+
+/* ===========================
+   Dashboard theme (Voltics-inspired, scoped)
+   Applied to .theme-dashboard wrapper only — leaves public pages untouched.
+   Also overrides shadcn CSS vars so Card/Button/Badge/Input adopt the theme automatically.
+   =========================== */
+.theme-dashboard {
+  --dash-bg: #0a0a0a;
+  --dash-surface: #141414;
+  --dash-surface-2: #1c1c1c;
+  --dash-border: rgba(255, 255, 255, 0.06);
+  --dash-border-strong: rgba(255, 255, 255, 0.12);
+  --dash-hover: rgba(255, 255, 255, 0.04);
+  --dash-hover-strong: rgba(255, 255, 255, 0.08);
+  --dash-text: #fafafa;
+  --dash-text-muted: #a1a1a1;
+  --dash-text-dim: #737373;
+
+  /* Accent = mint AFRYNTIX (logo teal) */
+  --dash-accent: 167 100% 44%;
+  --dash-accent-soft: 167 100% 44% / 0.12;
+  --dash-accent-border: 167 100% 44% / 0.45;
+
+  /* Override shadcn tokens so all UI primitives adapt */
+  --background: 0 0% 4%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 167 100% 44%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 11%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 11%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 167 100% 44% / 0.12;
+  --accent-foreground: 162 80% 65%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 100% / 0.08;
+  --input: 0 0% 100% / 0.08;
+  --ring: 167 100% 44%;
+
+  background-color: var(--dash-bg);
+  color: var(--dash-text);
+}
+
+.theme-dashboard.theme-light {
+  --dash-bg: #f7f7f5;
+  --dash-surface: #ffffff;
+  --dash-surface-2: #fafafa;
+  --dash-border: rgba(10, 10, 10, 0.06);
+  --dash-border-strong: rgba(10, 10, 10, 0.12);
+  --dash-hover: rgba(10, 10, 10, 0.04);
+  --dash-hover-strong: rgba(10, 10, 10, 0.08);
+  --dash-text: #0a0a0a;
+  --dash-text-muted: #525252;
+  --dash-text-dim: #737373;
+
+  /* Light shadcn tokens */
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 167 100% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 167 90% 95%;
+  --accent-foreground: 167 100% 24%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 167 100% 44%;
+}
+
+.theme-dashboard ::selection {
+  background-color: hsl(var(--dash-accent) / 0.35);
+}
+
+/* Custom scrollbar inside dashboard */
+.theme-dashboard *::-webkit-scrollbar { width: 10px; height: 10px; }
+.theme-dashboard *::-webkit-scrollbar-track { background: transparent; }
+.theme-dashboard *::-webkit-scrollbar-thumb {
+  background: var(--dash-border-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.theme-dashboard *::-webkit-scrollbar-thumb:hover { background: var(--dash-text-dim); background-clip: padding-box; }
+
+@keyframes dash-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+.theme-dashboard .dash-pulse-dot {
+  animation: dash-pulse 1.6s ease-in-out infinite;
+}
+
+/* Map marker pulse */
+@keyframes afryntixPulse {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Leaflet popups themed */
+.leaflet-container .leaflet-popup-content-wrapper {
+  background: #141414;
+  color: #fafafa;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+}
+.leaflet-container .leaflet-popup-tip {
+  background: #141414;
+}
+.leaflet-container .leaflet-popup-content {
+  margin: 10px 14px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: rgba(255,255,255,0.6);
+}

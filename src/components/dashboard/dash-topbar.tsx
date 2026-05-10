@@ -1,0 +1,142 @@
+"use client";
+
+import { Calendar, ChevronDown, LogOut, Radio } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
+import { TopbarPill } from "./ui/topbar-pill";
+import { ThemeToggle } from "./ui/theme-toggle";
+import { NotificationsBell } from "./notifications-bell";
+
+function formatDateFR(d: Date) {
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function DashTopbar({
+  title,
+  subtitle,
+  user,
+  status,
+}: {
+  title: string;
+  subtitle?: string;
+  user: { name: string; email: string; role: string };
+  status?: { label: string; tone?: "live" | "neutral" };
+}) {
+  const [today, setToday] = useState<string>("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setToday(formatDateFR(new Date()));
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
+
+  const initials = (user.name || user.email || "?")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <header className="sticky top-0 z-30 h-16 border-b border-[var(--dash-border)] bg-[var(--dash-bg)]/75 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--dash-bg)]/65 px-6 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="min-w-0">
+          <h1 className="text-[15px] font-semibold leading-tight text-[var(--dash-text)] tracking-tight truncate">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="text-xs text-[var(--dash-text-muted)] mt-0.5 truncate">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {status && (
+          <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-[var(--dash-border)] bg-[var(--dash-surface)] px-3 py-1.5 text-xs font-medium text-[var(--dash-text)]">
+            <Radio
+              className={`h-3.5 w-3.5 ${
+                status.tone === "live"
+                  ? "text-[hsl(var(--dash-accent))] dash-pulse-dot"
+                  : "text-[var(--dash-text-muted)]"
+              }`}
+            />
+            {status.label}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2.5">
+        {today && (
+          <TopbarPill icon={<Calendar />} className="hidden sm:inline-flex">
+            {today}
+          </TopbarPill>
+        )}
+
+        <div className="hidden sm:block">
+          <ThemeToggle />
+        </div>
+
+        <NotificationsBell />
+
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="inline-flex items-center gap-2.5 rounded-full border border-[var(--dash-border)] bg-[var(--dash-surface)] py-1.5 pl-1.5 pr-3 hover:border-[var(--dash-border-strong)] transition-colors"
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-[hsl(var(--dash-accent-soft))] text-[hsl(var(--dash-accent))] text-xs font-semibold">
+              {initials || "?"}
+            </span>
+            <div className="text-left hidden sm:block">
+              <div className="text-[13px] font-medium leading-none text-[var(--dash-text)]">
+                {user.name || "Utilisateur"}
+              </div>
+              <div className="text-[11px] text-[var(--dash-text-muted)] mt-0.5 leading-none truncate max-w-[180px]">
+                {user.email}
+              </div>
+            </div>
+            <ChevronDown className="h-4 w-4 text-[var(--dash-text-muted)]" />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[var(--dash-border)] bg-[var(--dash-surface)] shadow-2xl shadow-black/40 overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-[var(--dash-border)]">
+                <div className="text-[13px] font-medium text-[var(--dash-text)]">
+                  {user.name || "Utilisateur"}
+                </div>
+                <div className="text-[11px] text-[var(--dash-text-muted)] truncate">
+                  {user.email}
+                </div>
+                <div className="mt-2 inline-flex items-center rounded-full bg-[hsl(var(--dash-accent-soft))] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--dash-accent))]">
+                  {user.role}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[var(--dash-text-muted)] hover:bg-[var(--dash-hover)] hover:text-[var(--dash-text)] transition-colors"
+              >
+                <LogOut className="h-4 w-4" /> Déconnexion
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

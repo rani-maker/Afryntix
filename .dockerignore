@@ -1,0 +1,13 @@
+.git
+.gitignore
+.github
+.next
+node_modules
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+.DS_Store
+prisma/migrations
+DEPLOY.md
+*.md
