@@ -158,7 +158,7 @@ export function shipmentAvailableTemplate(args: {
 
   const paymentLine = args.depositPaid
     ? `💵 *Solde à régler à la réception :* *${formatXOF(args.remainingAmount)}*`
-    : `⚠️ *Facture totale à régler :* *${formatXOF(args.totalAmount)}*\n_(Acompte de 50% non encore reçu — merci de régulariser avant la livraison)_`;
+    : `⚠️ *Acompte (50%) non encore reçu.*\nMerci d'apporter la *somme totale : ${formatXOF(args.totalAmount)}* lors du retrait.`;
 
   return `${BRAND_HEADER}
 
@@ -171,11 +171,16 @@ Bonjour *${args.recipientName}*,
 ${paymentLine}
 ━━━━━━━━━━━━━━━━━━━
 
-📲 *Contactez-nous pour organiser votre livraison.*
-
-🏢 *Bureau AFRYNTIX Abidjan :*
-Angré Château, à 250 m du commissariat du 40ème Arr.
+📲 *Contactez-nous pour organiser votre livraison :*
+🏢 Bureau AFRYNTIX Abidjan — Angré Château
+À 250 m du commissariat du 40ème Arr.
 📞 *+225 07 06 26 04 05*
+
+━━━━━━━━━━━━━━━━━━━
+🗓️ *Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la facture 3 jours après notification de disponibilité.*
+
+⛔ *NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.*
+━━━━━━━━━━━━━━━━━━━
 
 🔍 Suivre le colis :
 ${appUrl}/tracking/${args.trackingNumber}
