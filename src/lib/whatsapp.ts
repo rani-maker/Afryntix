@@ -127,7 +127,11 @@ Bonjour *${args.clientName}*,
 💰 *Tarification :*
 • Total : *${formatXOF(args.totalAmount)}*
 • Acompte (50%) : ${formatXOF(args.depositAmount)}
-• Solde à la livraison : ${formatXOF(args.remainingAmount)}
+• Solde à la réception : ${formatXOF(args.remainingAmount)}
+━━━━━━━━━━━━━━━━━━━
+
+⚠️ *Veuillez procéder au paiement de votre acompte de 50% si ce n'est pas encore fait.*
+📲 Voir AFRYNTIX Abidjan : *+225 07 06 26 04 05*
 ━━━━━━━━━━━━━━━━━━━
 
 🔍 *Suivez votre colis en temps réel :*
