@@ -126,9 +126,9 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     });
   }
 
-  // Notification WhatsApp au CLIENT (expéditeur) — confirmation d'enregistrement
-  const notifyTo = client ? client.whatsapp || client.phone : data.clientPhone || null;
-  const notifyName = client ? client.name : data.clientName || "Client";
+  // Notification WhatsApp au DESTINATAIRE — confirmation d'enregistrement
+  const notifyTo = data.recipientPhone || (client ? client.whatsapp || client.phone : data.clientPhone) || null;
+  const notifyName = data.recipientName || (client ? client.name : data.clientName) || "Destinataire";
   if (notifyTo) {
     await sendWhatsApp({
       to: notifyTo,

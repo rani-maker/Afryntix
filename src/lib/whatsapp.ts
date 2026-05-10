@@ -88,10 +88,10 @@ export async function sendWhatsApp({ to, body, template, userId }: SendArgs) {
 // Templates de messages
 // =============================================================
 
-const BRAND_HEADER = `🟢 *AFRYNTIX* — Transport & Logistique Chine 🇨🇳 ↔ Afrique 🌍`;
-const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━\n📞 Côte d'Ivoire : +225 07 06 26 04 05\n📞 Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
+const BRAND_HEADER = `*AFRYNTIX* — Transport & Logistique Chine 🇨🇳 ↔ Afrique de l'Ouest`;
+const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━\nTél. Côte d'Ivoire : +225 07 06 26 04 05\nTél. Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
 
-// ── Colis enregistré (envoyé au CLIENT expéditeur) ────────────
+// ── Colis enregistré (envoyé au DESTINATAIRE) ─────────────────
 type ShipmentCreatedArgs = {
   clientName: string;
   trackingNumber: string;
@@ -106,35 +106,29 @@ type ShipmentCreatedArgs = {
 
 export function shipmentCreatedTemplate(args: ShipmentCreatedArgs): string {
   const appUrl = getAppUrl();
-  const destinationLine = args.destinationCity
-    ? `\n📍 *Destination :* ${args.destinationCity}`
-    : "";
-  const recipientLine =
-    args.recipientName
-      ? `\n👤 *Destinataire :* ${args.recipientName}${args.recipientPhone ? ` (${args.recipientPhone})` : ""}`
-      : "";
+  const greeting = args.recipientName || args.clientName;
+  const senderLine = args.recipientName ? `\nExpéditeur : ${args.clientName}` : "";
+  const destinationLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
 
   return `${BRAND_HEADER}
 
-Bonjour *${args.clientName}*,
+Bonjour *${greeting}*,
 
-✅ Votre colis a été *enregistré avec succès* dans notre système.
+Un colis a été enregistré à votre nom dans notre système.
 
 ━━━━━━━━━━━━━━━━━━━
-📦 *N° de suivi :* \`${args.trackingNumber}\`
-🚚 *Mode :* ${args.mode}${destinationLine}${recipientLine}
+N° de suivi : \`${args.trackingNumber}\`
+Mode : ${args.mode}${destinationLine}${senderLine}
 
-💰 *Tarification :*
-• Total : *${formatXOF(args.totalAmount)}*
-• Acompte (50%) : ${formatXOF(args.depositAmount)}
-• Solde à la réception : ${formatXOF(args.remainingAmount)}
+Tarif total : *${formatXOF(args.totalAmount)}*
+Acompte (50%) : ${formatXOF(args.depositAmount)}
+Solde à la réception : ${formatXOF(args.remainingAmount)}
 ━━━━━━━━━━━━━━━━━━━
 
-⚠️ *Veuillez procéder au paiement de votre acompte de 50% si ce n'est pas encore fait.*
-📲 Voir AFRYNTIX Abidjan : *+225 07 06 26 04 05*
-━━━━━━━━━━━━━━━━━━━
+Veuillez procéder au paiement de l'acompte de 50% si ce n'est pas encore fait.
+AFRYNTIX Abidjan : +225 07 06 26 04 05
 
-🔍 *Suivez votre colis en temps réel :*
+Suivez votre colis en temps réel :
 ${appUrl}/tracking/${args.trackingNumber}
 ${BRAND_FOOTER}`;
 }
@@ -157,32 +151,32 @@ export function shipmentAvailableTemplate(args: {
     : "";
 
   const paymentLine = args.depositPaid
-    ? `💵 *Solde à régler à la réception :* *${formatXOF(args.remainingAmount)}*`
-    : `⚠️ *Acompte (50%) non encore reçu.*\nMerci d'apporter la *somme totale : ${formatXOF(args.totalAmount)}* lors du retrait.`;
+    ? `Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
+    : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter la somme totale : *${formatXOF(args.totalAmount)}* lors du retrait.`;
 
   return `${BRAND_HEADER}
 
 Bonjour *${args.recipientName}*,
 
-🎉 *Votre colis est arrivé et disponible pour livraison !*
+Votre colis est arrivé et disponible pour livraison.
 
 ━━━━━━━━━━━━━━━━━━━
-📦 *N° de suivi :* \`${args.trackingNumber}\`${pickupLine}
+N° de suivi : \`${args.trackingNumber}\`${pickupLine}
 ${paymentLine}
 ━━━━━━━━━━━━━━━━━━━
 
-📲 *Contactez-nous pour organiser votre livraison :*
-🏢 Bureau AFRYNTIX Abidjan — Angré Château
+Contactez-nous pour organiser votre livraison :
+Bureau AFRYNTIX Abidjan — Angré Château
 À 250 m du commissariat du 40ème Arr.
-📞 *+225 07 06 26 04 05*
++225 07 06 26 04 05
 
 ━━━━━━━━━━━━━━━━━━━
-🗓️ *Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la facture 3 jours après notification de disponibilité.*
+Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la facture 3 jours après notification de disponibilité.
 
-⛔ *NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.*
+NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.
 ━━━━━━━━━━━━━━━━━━━
 
-🔍 Suivre le colis :
+Suivre le colis :
 ${appUrl}/tracking/${args.trackingNumber}
 ${BRAND_FOOTER}`;
 }
