@@ -126,21 +126,23 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     });
   }
 
-  // Notification WhatsApp - tracking + montant
+  // Notification WhatsApp au CLIENT (expéditeur) — confirmation d'enregistrement
   const notifyTo = client ? client.whatsapp || client.phone : data.clientPhone || null;
   const notifyName = client ? client.name : data.clientName || "Client";
   if (notifyTo) {
-    const body = shipmentCreatedTemplate({
-      clientName: notifyName,
-      trackingNumber,
-      totalAmount: pricing.totalAmount,
-      depositAmount: pricing.depositAmount,
-      remainingAmount: pricing.remainingAmount,
-      mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
-    });
     await sendWhatsApp({
       to: notifyTo,
-      body,
+      body: shipmentCreatedTemplate({
+        clientName: notifyName,
+        trackingNumber,
+        totalAmount: pricing.totalAmount,
+        depositAmount: pricing.depositAmount,
+        remainingAmount: pricing.remainingAmount,
+        mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
+        recipientName: data.recipientName,
+        recipientPhone: data.recipientPhone,
+        destinationCity: data.destinationCity,
+      }),
       template: "shipment_created",
       userId: client?.id,
     });
@@ -193,21 +195,27 @@ export async function updateShipmentStatus(input: {
     },
   });
 
-  // Notification WhatsApp si statut = AVAILABLE_FOR_DELIVERY
+  // Notification WhatsApp si statut = AVAILABLE_FOR_DELIVERY → envoyée au DESTINATAIRE
   if (input.status === "AVAILABLE_FOR_DELIVERY") {
-    const recipient = shipment.client
-      ? shipment.client.whatsapp || shipment.client.phone
-      : shipment.clientPhone;
-    const recipientName = shipment.client?.name ?? shipment.clientName ?? "Client";
-    if (recipient) {
+    // Priorité : recipientPhone du colis → sinon téléphone du client
+    const recipientPhone =
+      shipment.recipientPhone ||
+      (shipment.client ? shipment.client.whatsapp || shipment.client.phone : shipment.clientPhone);
+    const recipientName =
+      shipment.recipientName ||
+      shipment.client?.name ||
+      shipment.clientName ||
+      "Destinataire";
+    if (recipientPhone) {
       const remaining = Math.max(0, shipment.remainingAmount - Math.max(0, shipment.amountPaid - shipment.depositAmount));
       await sendWhatsApp({
-        to: recipient,
+        to: recipientPhone,
         body: shipmentAvailableTemplate({
-          clientName: recipientName,
+          recipientName,
           trackingNumber: shipment.trackingNumber,
           remainingAmount: remaining,
           pickupAddress: input.location,
+          destinationCity: shipment.destinationCity ?? undefined,
         }),
         template: "available_for_delivery",
         userId: shipment.clientId ?? undefined,

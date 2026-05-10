@@ -3,15 +3,12 @@ import { formatXOF, getAppUrl } from "./utils";
 
 // =============================================================
 // Provider actif : UltraMsg
-// Twilio conservé en commentaire — voir section TWILIO ci-dessous
 // =============================================================
 
-// ── UltraMsg ──────────────────────────────────────────────────
 const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE_ID;
 const ULTRAMSG_TOKEN    = process.env.ULTRAMSG_TOKEN;
 
 function normalizePhone(phone: string): string {
-  // Supprime espaces, tirets, parenthèses et le préfixe "whatsapp:"
   const cleaned = phone
     .replace(/\s/g, "")
     .replace(/[-()]/g, "")
@@ -25,18 +22,19 @@ async function sendViaUltraMsg(to: string, body: string): Promise<string> {
     throw new Error("ULTRAMSG_INSTANCE_ID ou ULTRAMSG_TOKEN non défini.");
   }
 
-  const url = `https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      token: ULTRAMSG_TOKEN,
-      to: normalizePhone(to),
-      body,
-      priority: 10,
-    }),
-  });
+  const res = await fetch(
+    `https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: ULTRAMSG_TOKEN,
+        to: normalizePhone(to),
+        body,
+        priority: 10,
+      }),
+    }
+  );
 
   if (!res.ok) {
     const text = await res.text();
@@ -44,15 +42,9 @@ async function sendViaUltraMsg(to: string, body: string): Promise<string> {
   }
 
   const data = (await res.json()) as { sent?: string; id?: string; error?: string };
-
-  if (data.error) {
-    throw new Error(`UltraMsg erreur: ${data.error}`);
-  }
-
+  if (data.error) throw new Error(`UltraMsg erreur: ${data.error}`);
   return data.id ?? "ultramsg-ok";
 }
-
-// ── Type commun ───────────────────────────────────────────────
 
 type SendArgs = {
   to: string;
@@ -61,100 +53,45 @@ type SendArgs = {
   userId?: string;
 };
 
-// ── Fonction principale ───────────────────────────────────────
-
 export async function sendWhatsApp({ to, body, template, userId }: SendArgs) {
-  // Log immédiat en DB — toujours, même si l'envoi échoue
   const notification = await prisma.notification.create({
-    data: {
-      userId,
-      to,
-      body,
-      template,
-      channel: "WHATSAPP",
-      status: "QUEUED",
-    },
+    data: { userId, to, body, template, channel: "WHATSAPP", status: "QUEUED" },
   });
 
   if (!ULTRAMSG_INSTANCE || !ULTRAMSG_TOKEN) {
     console.warn(
-      `[WhatsApp] UltraMsg non configuré — notification ${notification.id} en attente.`,
-      "Renseigner ULTRAMSG_INSTANCE_ID et ULTRAMSG_TOKEN dans .env.local",
+      `[WhatsApp] UltraMsg non configuré — notification ${notification.id} en attente.`
     );
     return notification;
   }
 
   try {
     const providerId = await sendViaUltraMsg(to, body);
-
     await prisma.notification.update({
       where: { id: notification.id },
-      data: {
-        status: "SENT",
-        providerId,
-        sentAt: new Date(),
-      },
+      data: { status: "SENT", providerId, sentAt: new Date() },
     });
-
-    console.log(`[WhatsApp] ✅ Envoyé via UltraMsg — id: ${providerId}`);
+    console.log(`[WhatsApp] ✅ Envoyé — id: ${providerId}`);
     return notification;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[WhatsApp] ❌ Erreur d'envoi UltraMsg:", errorMessage);
-
+    console.error("[WhatsApp] ❌ Erreur UltraMsg:", errorMessage);
     await prisma.notification.update({
       where: { id: notification.id },
-      data: {
-        status: "FAILED",
-        error: errorMessage,
-      },
+      data: { status: "FAILED", error: errorMessage },
     });
-
     return notification;
   }
 }
 
 // =============================================================
-// TWILIO — RÉSERVÉ POUR ACTIVATION ULTÉRIEURE
-// Décommenter et reconfigurer quand le Business Profile Meta
-// sera validé. Remplacer aussi l'appel sendViaUltraMsg() dans
-// sendWhatsApp() par sendViaTwilio().
-// =============================================================
-//
-// import twilio from "twilio";
-//
-// const TWILIO_SID   = process.env.TWILIO_ACCOUNT_SID;
-// const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-// const TWILIO_FROM  = process.env.TWILIO_WHATSAPP_FROM; // "whatsapp:+15559138795"
-//
-// let twilioClient: twilio.Twilio | null = null;
-// if (TWILIO_SID && TWILIO_TOKEN) {
-//   twilioClient = twilio(TWILIO_SID, TWILIO_TOKEN);
-// }
-//
-// function normalizeTwilioPhone(phone: string): string {
-//   const cleaned = phone.replace(/\s/g, "").replace(/[-()]/g, "");
-//   if (cleaned.startsWith("whatsapp:")) return cleaned;
-//   if (cleaned.startsWith("+")) return `whatsapp:${cleaned}`;
-//   return `whatsapp:+${cleaned}`;
-// }
-//
-// async function sendViaTwilio(to: string, body: string): Promise<string> {
-//   if (!twilioClient || !TWILIO_FROM) {
-//     throw new Error("Twilio non configuré.");
-//   }
-//   const msg = await twilioClient.messages.create({
-//     from: TWILIO_FROM,
-//     to: normalizeTwilioPhone(to),
-//     body,
-//   });
-//   return msg.sid;
-// }
-
-// =============================================================
 // Templates de messages
 // =============================================================
 
+const BRAND_HEADER = `🟢 *AFRYNTIX* — Transport & Logistique Chine 🇨🇳 ↔ Afrique 🌍`;
+const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━\n📞 Côte d'Ivoire : +225 07 06 26 04 05\n📞 Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
+
+// ── Colis enregistré (envoyé au CLIENT expéditeur) ────────────
 type ShipmentCreatedArgs = {
   clientName: string;
   trackingNumber: string;
@@ -162,50 +99,105 @@ type ShipmentCreatedArgs = {
   depositAmount: number;
   remainingAmount: number;
   mode: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  destinationCity?: string;
 };
 
 export function shipmentCreatedTemplate(args: ShipmentCreatedArgs): string {
-  return `🚢 *AFRYNTIX - Confirmation d'enregistrement*
+  const appUrl = getAppUrl();
+  const destinationLine = args.destinationCity
+    ? `\n📍 *Destination :* ${args.destinationCity}`
+    : "";
+  const recipientLine =
+    args.recipientName
+      ? `\n👤 *Destinataire :* ${args.recipientName}${args.recipientPhone ? ` (${args.recipientPhone})` : ""}`
+      : "";
 
-Bonjour ${args.clientName},
+  return `${BRAND_HEADER}
 
-Votre colis a été enregistré avec succès.
+Bonjour *${args.clientName}*,
 
-📦 *Numéro de suivi :* ${args.trackingNumber}
-🚚 *Mode :* ${args.mode}
+✅ Votre colis a été *enregistré avec succès* dans notre système.
+
+━━━━━━━━━━━━━━━━━━━
+📦 *N° de suivi :* \`${args.trackingNumber}\`
+🚚 *Mode :* ${args.mode}${destinationLine}${recipientLine}
 
 💰 *Tarification :*
-• Montant total : ${formatXOF(args.totalAmount)}
-• Acompte 50% : ${formatXOF(args.depositAmount)}
-• Solde à la réception : ${formatXOF(args.remainingAmount)}
+• Total : *${formatXOF(args.totalAmount)}*
+• Acompte (50%) : ${formatXOF(args.depositAmount)}
+• Solde à la livraison : ${formatXOF(args.remainingAmount)}
+━━━━━━━━━━━━━━━━━━━
 
-Suivez votre colis en temps réel sur :
-${getAppUrl()}/tracking/${args.trackingNumber}
-
-Merci de votre confiance.
-*L'équipe AFRYNTIX*`;
+🔍 *Suivez votre colis en temps réel :*
+${appUrl}/tracking/${args.trackingNumber}
+${BRAND_FOOTER}`;
 }
 
+// ── Colis disponible (envoyé au DESTINATAIRE) ─────────────────
 export function shipmentAvailableTemplate(args: {
-  clientName: string;
+  recipientName: string;
   trackingNumber: string;
   remainingAmount: number;
   pickupAddress?: string;
+  destinationCity?: string;
 }): string {
-  return `✅ *AFRYNTIX - Colis Disponible Pour Livraison*
+  const appUrl = getAppUrl();
+  const pickupLine = args.pickupAddress
+    ? `\n📍 *Adresse de retrait :*\n${args.pickupAddress}`
+    : args.destinationCity
+    ? `\n📍 *Ville :* ${args.destinationCity}`
+    : "";
 
-Bonjour ${args.clientName},
+  return `${BRAND_HEADER}
 
-Bonne nouvelle ! Votre colis *${args.trackingNumber}* est désormais *disponible pour livraison*.
+Bonjour *${args.recipientName}*,
 
-💵 *Solde à régler :* ${formatXOF(args.remainingAmount)}
+🎉 *Votre colis est arrivé et disponible pour livraison !*
 
-${args.pickupAddress ? `📍 *Adresse de retrait :*\n${args.pickupAddress}\n` : ""}
-Merci de prendre contact avec nos équipes pour organiser la livraison.
+━━━━━━━━━━━━━━━━━━━
+📦 *N° de suivi :* \`${args.trackingNumber}\`${pickupLine}
+💵 *Solde à régler :* *${formatXOF(args.remainingAmount)}*
+━━━━━━━━━━━━━━━━━━━
 
-*L'équipe AFRYNTIX*`;
+📲 *Contactez-nous pour organiser votre livraison.*
+
+🔍 Suivre le colis :
+${appUrl}/tracking/${args.trackingNumber}
+${BRAND_FOOTER}`;
 }
 
+// ── Notification de statut générique (envoyé au CLIENT) ───────
+export function shipmentStatusTemplate(args: {
+  clientName: string;
+  trackingNumber: string;
+  statusLabel: string;
+  statusIcon: string;
+  location?: string;
+  note?: string;
+}): string {
+  const appUrl = getAppUrl();
+  const locationLine = args.location ? `\n📍 *Localisation :* ${args.location}` : "";
+  const noteLine = args.note ? `\n💬 ${args.note}` : "";
+
+  return `${BRAND_HEADER}
+
+Bonjour *${args.clientName}*,
+
+${args.statusIcon} *Mise à jour de votre colis*
+
+━━━━━━━━━━━━━━━━━━━
+📦 *N° de suivi :* \`${args.trackingNumber}\`
+🔄 *Statut :* ${args.statusLabel}${locationLine}${noteLine}
+━━━━━━━━━━━━━━━━━━━
+
+🔍 Suivre en temps réel :
+${appUrl}/tracking/${args.trackingNumber}
+${BRAND_FOOTER}`;
+}
+
+// ── Code de retrait (envoyé au CLIENT) ────────────────────────
 export function withdrawalCodeTemplate(args: {
   clientName: string;
   reference: string;
@@ -214,39 +206,44 @@ export function withdrawalCodeTemplate(args: {
   currency: string;
   recipientName: string;
 }): string {
-  return `💳 *AFRYNTIX - Code de Retrait*
+  const appUrl = getAppUrl();
 
-Bonjour ${args.clientName},
+  return `${BRAND_HEADER}
 
-Votre opération de transfert a été initiée.
+Bonjour *${args.clientName}*,
 
-🔖 *Référence :* ${args.reference}
+💳 *Votre opération de transfert est initiée.*
+
+━━━━━━━━━━━━━━━━━━━
+🔖 *Référence :* \`${args.reference}\`
 🔐 *Code de retrait :* *${args.withdrawalCode}*
 💰 *Montant :* ${args.amount} ${args.currency}
 👤 *Bénéficiaire :* ${args.recipientName}
+━━━━━━━━━━━━━━━━━━━
 
-🔎 Vérifiez le statut à tout moment :
-${getAppUrl()}/withdraw/${args.withdrawalCode}
+🔎 Vérifier le statut :
+${appUrl}/withdraw/${args.withdrawalCode}
 
-⚠️ *Conservez ce code confidentiellement.* Il sera demandé pour le retrait en Chine.
-
-*L'équipe AFRYNTIX*`;
+⚠️ *Partagez ce code uniquement avec le bénéficiaire.* Il sera exigé pour le retrait en Chine.
+${BRAND_FOOTER}`;
 }
 
+// ── Réservation validée (envoyé au CLIENT) ────────────────────
 export function reservationValidatedTemplate(args: {
   clientName: string;
   reservationId: string;
   trackingNumber: string;
 }): string {
-  return `✅ *AFRYNTIX - Réservation Validée*
+  return `${BRAND_HEADER}
 
-Bonjour ${args.clientName},
+Bonjour *${args.clientName}*,
 
-Votre réservation a été validée par notre équipe.
+✅ *Votre réservation a été validée par notre équipe.*
 
-📦 *Numéro de suivi :* ${args.trackingNumber}
+━━━━━━━━━━━━━━━━━━━
+📦 *N° de suivi :* \`${args.trackingNumber}\`
+━━━━━━━━━━━━━━━━━━━
 
-Vous pouvez désormais suivre votre colis dès qu'il sera réceptionné en Chine.
-
-*L'équipe AFRYNTIX*`;
+Votre colis sera suivi dès sa réception en Chine. Nous vous notifierons à chaque étape.
+${BRAND_FOOTER}`;
 }

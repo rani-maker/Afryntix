@@ -10,7 +10,12 @@ export function cn(...inputs: ClassValue[]) {
  * En production : définir NEXT_PUBLIC_APP_URL=https://afryntix.com
  */
 export function getAppUrl(): string {
-  const url = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Côté serveur : préférer APP_URL (non-public, défini au runtime) pour que
+  // les liens WhatsApp pointent bien vers la prod et non localhost.
+  const url =
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000";
   return url.replace(/\/$/, "");
 }
 

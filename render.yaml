@@ -45,6 +45,10 @@ services:
       - key: NEXT_PUBLIC_APP_URL
         value: https://afryntix.onrender.com   # à adapter si domaine custom
 
+      # APP_URL — utilisé côté serveur pour les liens WhatsApp (runtime, non exposé au client)
+      - key: APP_URL
+        value: https://www.afryntix.com   # à adapter si domaine custom
+
       # --- Admin seed ---
       - key: DEFAULT_ADMIN_EMAIL
         sync: false
