@@ -6,9 +6,9 @@
 services:
   - type: web
     name: afryntix
-    runtime: image
-    image:
-      url: docker.io/ranidr/afryntix:latest
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
     region: frankfurt
     healthCheckPath: /api/health
