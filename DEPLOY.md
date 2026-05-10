@@ -98,7 +98,7 @@ docker build -t afryntix .
 docker run -p 3000:3000 \
   -e DATABASE_URL="..." \
   -e AUTH_SECRET="..." \
-  -e AUTH_URL="http://localhost:3001" \
+  -e AUTH_URL="http://localhost:3000" \
   afryntix
 
 # Tester le health check

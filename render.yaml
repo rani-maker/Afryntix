@@ -8,7 +8,7 @@ services:
     name: afryntix
     runtime: image
     image:
-      url: docker.io/YOUR_DOCKERHUB_USERNAME/afryntix:latest
+      url: docker.io/ranidr/afryntix:latest
     plan: free
     region: frankfurt
     healthCheckPath: /api/health
@@ -28,15 +28,12 @@ services:
       - key: AUTH_URL
         value: https://afryntix.onrender.com   # à adapter si domaine custom
 
-      # --- Twilio WhatsApp ---
-      - key: TWILIO_ACCOUNT_SID
-        sync: false
+      # --- UltraMsg WhatsApp ---
+      - key: ULTRAMSG_INSTANCE_ID
+        sync: false                        # ex: instance174294
 
-      - key: TWILIO_AUTH_TOKEN
-        sync: false
-
-      - key: TWILIO_WHATSAPP_FROM
-        value: whatsapp:+15559138795
+      - key: ULTRAMSG_TOKEN
+        sync: false                        # token UltraMsg
 
       # --- App publique ---
       - key: NEXT_PUBLIC_APP_NAME
