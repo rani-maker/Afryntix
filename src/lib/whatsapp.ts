@@ -88,8 +88,17 @@ export async function sendWhatsApp({ to, body, template, userId }: SendArgs) {
 // Templates de messages
 // =============================================================
 
-const BRAND_HEADER = `*AFRYNTIX* — Transport & Logistique Chine 🇨🇳 ↔ Afrique de l'Ouest`;
-const BRAND_FOOTER = `\n━━━━━━━━━━━━━━━━━━━\nTél. Côte d'Ivoire : +225 07 06 26 04 05\nTél. Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
+const BRAND_HEADER = `*AFRYNTIX*`;
+const BRAND_FOOTER = `━━━━━━━━━━━━━━━━━━━\nTél. Côte d'Ivoire : +225 07 06 26 04 05\nTél. Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
+
+function modeEmoji(modeKey: string): string {
+  if (modeKey.startsWith("AIR")) return "✈️";
+  if (modeKey.startsWith("SEA")) return "🚢";
+  if (modeKey === "VEHICLE") return "🚗";
+  if (modeKey === "BTP_EQUIPMENT") return "🏗️";
+  if (modeKey === "STORAGE") return "🏭";
+  return "📦";
+}
 
 // ── Colis enregistré (envoyé au DESTINATAIRE) ─────────────────
 type ShipmentCreatedArgs = {
@@ -99,6 +108,7 @@ type ShipmentCreatedArgs = {
   depositAmount: number;
   remainingAmount: number;
   mode: string;
+  modeKey: string;
   recipientName?: string;
   recipientPhone?: string;
   destinationCity?: string;
@@ -111,25 +121,18 @@ export function shipmentCreatedTemplate(args: ShipmentCreatedArgs): string {
   const destinationLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
 
   return `${BRAND_HEADER}
-
 Bonjour *${greeting}*,
-
-Un colis a été enregistré à votre nom dans notre système.
-
+Un colis a été enregistré à votre nom en provenance de Chine.
 ━━━━━━━━━━━━━━━━━━━
-N° de suivi : \`${args.trackingNumber}\`
-Mode : ${args.mode}${destinationLine}${senderLine}
-
-Tarif total : *${formatXOF(args.totalAmount)}*
+📦 Colis : \`${args.trackingNumber}\`
+${modeEmoji(args.modeKey)} Mode : ${args.mode}${destinationLine}${senderLine}
+💰 Tarif total : *${formatXOF(args.totalAmount)}*
 Acompte (50%) : ${formatXOF(args.depositAmount)}
 Solde à la réception : ${formatXOF(args.remainingAmount)}
 ━━━━━━━━━━━━━━━━━━━
-
 Veuillez procéder au paiement de l'acompte de 50% si ce n'est pas encore fait.
 AFRYNTIX Abidjan : +225 07 06 26 04 05
-
-Suivez votre colis en temps réel :
-${appUrl}/tracking/${args.trackingNumber}
+Suivez votre colis : ${appUrl}/tracking/${args.trackingNumber}
 ${BRAND_FOOTER}`;
 }
 
@@ -145,39 +148,31 @@ export function shipmentAvailableTemplate(args: {
 }): string {
   const appUrl = getAppUrl();
   const pickupLine = args.pickupAddress
-    ? `\n📍 *Adresse de retrait :*\n${args.pickupAddress}`
+    ? `\nAdresse de retrait : ${args.pickupAddress}`
     : args.destinationCity
-    ? `\n📍 *Ville :* ${args.destinationCity}`
+    ? `\nVille : ${args.destinationCity}`
     : "";
 
   const paymentLine = args.depositPaid
-    ? `Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
+    ? `💰 Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
     : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter la somme totale : *${formatXOF(args.totalAmount)}* lors du retrait.`;
 
   return `${BRAND_HEADER}
-
 Bonjour *${args.recipientName}*,
-
 Votre colis est arrivé et disponible pour livraison.
-
 ━━━━━━━━━━━━━━━━━━━
-N° de suivi : \`${args.trackingNumber}\`${pickupLine}
+📦 Colis : \`${args.trackingNumber}\`${pickupLine}
 ${paymentLine}
 ━━━━━━━━━━━━━━━━━━━
-
 Contactez-nous pour organiser votre livraison :
 Bureau AFRYNTIX Abidjan — Angré Château
 À 250 m du commissariat du 40ème Arr.
 +225 07 06 26 04 05
-
 ━━━━━━━━━━━━━━━━━━━
 Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la facture 3 jours après notification de disponibilité.
-
 NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.
 ━━━━━━━━━━━━━━━━━━━
-
-Suivre le colis :
-${appUrl}/tracking/${args.trackingNumber}
+Suivre le colis : ${appUrl}/tracking/${args.trackingNumber}
 ${BRAND_FOOTER}`;
 }
 

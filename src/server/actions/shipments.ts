@@ -139,6 +139,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
         depositAmount: pricing.depositAmount,
         remainingAmount: pricing.remainingAmount,
         mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
+        modeKey: data.mode,
         recipientName: data.recipientName,
         recipientPhone: data.recipientPhone,
         destinationCity: data.destinationCity,
