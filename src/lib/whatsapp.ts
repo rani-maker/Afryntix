@@ -144,6 +144,8 @@ export function shipmentAvailableTemplate(args: {
   recipientName: string;
   trackingNumber: string;
   remainingAmount: number;
+  totalAmount: number;
+  depositPaid: boolean;
   pickupAddress?: string;
   destinationCity?: string;
 }): string {
@@ -154,6 +156,10 @@ export function shipmentAvailableTemplate(args: {
     ? `\n📍 *Ville :* ${args.destinationCity}`
     : "";
 
+  const paymentLine = args.depositPaid
+    ? `💵 *Solde à régler à la réception :* *${formatXOF(args.remainingAmount)}*`
+    : `⚠️ *Facture totale à régler :* *${formatXOF(args.totalAmount)}*\n_(Acompte de 50% non encore reçu — merci de régulariser avant la livraison)_`;
+
   return `${BRAND_HEADER}
 
 Bonjour *${args.recipientName}*,
@@ -162,10 +168,14 @@ Bonjour *${args.recipientName}*,
 
 ━━━━━━━━━━━━━━━━━━━
 📦 *N° de suivi :* \`${args.trackingNumber}\`${pickupLine}
-💵 *Solde à régler :* *${formatXOF(args.remainingAmount)}*
+${paymentLine}
 ━━━━━━━━━━━━━━━━━━━
 
 📲 *Contactez-nous pour organiser votre livraison.*
+
+🏢 *Bureau AFRYNTIX Abidjan :*
+Angré Château, à 250 m du commissariat du 40ème Arr.
+📞 *+225 07 06 26 04 05*
 
 🔍 Suivre le colis :
 ${appUrl}/tracking/${args.trackingNumber}

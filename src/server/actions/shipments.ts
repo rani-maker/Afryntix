@@ -207,13 +207,16 @@ export async function updateShipmentStatus(input: {
       shipment.clientName ||
       "Destinataire";
     if (recipientPhone) {
-      const remaining = Math.max(0, shipment.remainingAmount - Math.max(0, shipment.amountPaid - shipment.depositAmount));
+      const depositPaid = shipment.amountPaid >= shipment.depositAmount;
+      const remaining = Math.max(0, shipment.totalAmount - shipment.amountPaid);
       await sendWhatsApp({
         to: recipientPhone,
         body: shipmentAvailableTemplate({
           recipientName,
           trackingNumber: shipment.trackingNumber,
           remainingAmount: remaining,
+          totalAmount: shipment.totalAmount,
+          depositPaid,
           pickupAddress: input.location,
           destinationCity: shipment.destinationCity ?? undefined,
         }),
