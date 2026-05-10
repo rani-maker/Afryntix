@@ -1,46 +1,35 @@
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
-import { MapPin, Phone, MessageCircle, Mail, Building2, Plane, Ship, Briefcase, AlertTriangle, Copy } from "lucide-react";
+import {
+  MapPin,
+  Phone,
+  MessageCircle,
+  Mail,
+  Building2,
+  Plane,
+  Ship,
+  Briefcase,
+  AlertTriangle,
+} from "lucide-react";
 import { PublicHeader } from "@/components/public-header";
 
-const TYPE_META: Record<
-  string,
-  { label: string; kicker: string; icon: typeof Plane }
-> = {
-  AIR_WAREHOUSE: {
-    label: "Entrepôt aérien (Chine)",
-    kicker: "FRET AÉRIEN · 空运仓库",
-    icon: Plane,
-  },
-  SEA_WAREHOUSE: {
-    label: "Entrepôt maritime (Chine)",
-    kicker: "FRET MARITIME · 海运仓库",
-    icon: Ship,
-  },
-  RECEPTION: {
-    label: "Réception (Afrique)",
-    kicker: "RETRAIT EN AO",
-    icon: Building2,
-  },
-  OFFICE: {
-    label: "Bureau",
-    kicker: "BUREAU",
-    icon: Briefcase,
-  },
+const TYPE_META: Record<string, { label: string; kicker: string; icon: typeof Plane }> = {
+  AIR_WAREHOUSE:  { label: "Entrepôt aérien (Chine)",   kicker: "FRET AÉRIEN · 空运仓库",  icon: Plane     },
+  SEA_WAREHOUSE:  { label: "Entrepôt maritime (Chine)",  kicker: "FRET MARITIME · 海运仓库", icon: Ship      },
+  RECEPTION:      { label: "Réception (Afrique)",        kicker: "RETRAIT EN AO",            icon: Building2 },
+  OFFICE:         { label: "Bureau",                     kicker: "BUREAU",                   icon: Briefcase },
 };
 
 const GROUP_ORDER = ["AIR_WAREHOUSE", "SEA_WAREHOUSE", "RECEPTION", "OFFICE"] as const;
 
-// ── Shipping Mark template (statique — même pour tous les entrepôts) ──
 const SHIPPING_MARK_LINES = [
-  { label: "NOM",               hint: "Votre nom complet" },
-  { label: "NUMÉRO",            hint: "Votre numéro WhatsApp" },
-  { label: "Adresse",           hint: "Ville / pays de livraison" },
-  { label: "Natures du Colis",  hint: "Ex : vêtements, électronique…" },
-  { label: "Mode d'Envoi",      hint: "Aérien / Maritime" },
+  { label: "NOM",              hint: "Votre nom complet" },
+  { label: "NUMÉRO",           hint: "Votre numéro WhatsApp" },
+  { label: "Adresse",          hint: "Ville / pays de livraison" },
+  { label: "Natures du Colis", hint: "Ex : vêtements, électronique…" },
+  { label: "Mode d'Envoi",     hint: "Aérien / Maritime" },
 ];
 
-// Adresses statiques — affichées si la DB n'est pas encore configurée
 const STATIC_ADDRESSES = [
   {
     id: "static-sea",
@@ -55,7 +44,7 @@ const STATIC_ADDRESSES = [
     postalCode: null,
     city: "Foshan 佛山",
     country: "Chine",
-    notes: "⚠️ OBLIGATOIRE : Écrire l'入仓号 AFRYNTIX + NOM + TÉLÉPHONE sur le colis et joindre un bon de commande en chinois. 没有入仓号仓库拒收货物 — Tout colis sans code d'entrée sera refusé.",
+    notes: "Maritime uniquement : ajouter 入仓号 AFRYNTIX + NOM + TÉLÉPHONE sur le colis. Joindre un bon de commande en chinois (装箱单). Tout colis sans code d'entrée sera refusé.",
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -73,7 +62,7 @@ const STATIC_ADDRESSES = [
     postalCode: null,
     city: "Guangzhou 广州",
     country: "Chine",
-    notes: "⚠️ OBLIGATOIRE : Coller le Shipping Mark COMPLET sur chaque colis (NOM, NUMÉRO, Adresse, Nature, Mode). Colis sans Shipping Mark = refusé.",
+    notes: "Coller le Shipping Mark COMPLET sur chaque colis (NOM, NUMÉRO, Adresse, Nature, Mode). Colis sans Shipping Mark = refusé.",
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -126,7 +115,7 @@ export default async function PublicAddressesPage() {
     });
     if (dbAddresses.length > 0) addresses = dbAddresses;
   } catch {
-    // DB non configurée — on utilise les adresses statiques
+    // DB non configurée — adresses statiques
   }
 
   const grouped = GROUP_ORDER.map((type) => ({
@@ -138,118 +127,114 @@ export default async function PublicAddressesPage() {
     <main className="min-h-screen bg-[var(--afx-bg)]">
       <PublicHeader active="/addresses" />
 
-      {/* Hero */}
+      {/* ── Hero ─────────────────────────────────────────── */}
       <section className="relative overflow-hidden isolate">
         <div className="absolute inset-0 -z-10" aria-hidden="true">
-          <Image
-            src="/images/banner-1.jpg"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover opacity-60"
-          />
+          <Image src="/images/banner-1.jpg" alt="" fill priority sizes="100vw"
+            className="object-cover opacity-60" />
           <div className="absolute inset-0 bg-white/80 dark:bg-black/80" />
         </div>
         <div className="container px-6 md:px-12 pt-16 pb-10 relative">
-          <div className="flex flex-col gap-4 max-w-3xl">
-            <span className="afx-kicker">地址 · ADRESSES & SHIPPING MARK</span>
-            <h1 className="afx-h1">
-              Nos <span className="italic text-mint-3">adresses</span><br />
-              de réception.
-            </h1>
-            <p className="text-lg text-ink-2 leading-relaxed">
-              Faites livrer vos colis chinois directement à nos entrepôts selon le
-              mode de transport choisi. Nos équipes sur place réceptionnent,
-              consolident et expédient.
-            </p>
+          <div className="grid lg:grid-cols-[1fr_auto] gap-8 items-end">
+            <div className="flex flex-col gap-4 max-w-3xl">
+              <span className="afx-kicker">地址 · ADRESSES & SHIPPING MARK</span>
+              <h1 className="afx-h1">
+                Nos <span className="italic text-mint-3">adresses</span>
+                <br />de réception.
+              </h1>
+              <p className="text-lg text-ink-2 leading-relaxed max-w-[560px]">
+                Faites livrer vos colis à nos entrepôts selon le mode de transport
+                choisi. Nos équipes réceptionnent, consolident et expédient.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       <div className="afx-motif-stripe h-2" />
 
-      {/* ══ AVERTISSEMENT SHIPPING MARK ══════════════════════════════════════ */}
-      <section className="container px-6 md:px-12 pt-10 pb-2">
-        <div className="rounded-2xl border-2 border-red-500 bg-red-50 dark:bg-red-950/40 px-6 py-5 flex gap-4 items-start">
-          <AlertTriangle className="h-6 w-6 text-red-600 shrink-0 mt-0.5" />
-          <div className="flex flex-col gap-1">
-            <p className="font-bold text-red-700 dark:text-red-400 text-base leading-snug">
-              ⚠️ TOUT COLIS SANS SHIPPING MARK SERA REFUSÉ À L&apos;ENTREPÔT
+      {/* ── Avertissement ────────────────────────────────── */}
+      <section className="afx-surface-night py-10 px-6 md:px-12">
+        <div className="container flex flex-col md:flex-row items-start gap-5">
+          <div className="w-12 h-12 rounded-2xl bg-mint/15 text-mint grid place-items-center shrink-0">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="font-display text-xl font-bold text-white leading-snug">
+              Tout colis sans Shipping Mark sera refusé à l&apos;entrepôt
             </p>
-            <p className="text-sm text-red-600 dark:text-red-300">
-              Chaque colis doit obligatoirement porter l&apos;étiquette <strong>SHIPPING MARK</strong> avec votre
-              nom, numéro WhatsApp, adresse de livraison, nature du colis et mode d&apos;envoi —
+            <p className="text-white/70 text-[15px] leading-relaxed">
+              Chaque colis doit porter l&apos;étiquette <strong className="text-mint">SHIPPING MARK</strong> avec
+              votre nom, numéro WhatsApp, adresse de livraison, nature du colis et mode d&apos;envoi —
               collée ou écrite lisiblement sur l&apos;emballage extérieur.
             </p>
-            <p className="text-sm text-red-500 dark:text-red-400 font-medium mt-0.5">
+            <p className="text-mint/80 text-sm font-medium mt-1">
               亲！务必在外包装写明入仓号和客人的名字和电话！没有入仓号仓库拒收货物！
             </p>
           </div>
         </div>
       </section>
 
-      {/* ══ SHIPPING MARK TEMPLATE ══════════════════════════════════════════ */}
-      <section className="container px-6 md:px-12 py-8">
-        <div className="flex flex-col gap-4 max-w-2xl">
-          <div className="flex flex-col gap-1">
+      {/* ── Shipping Mark Template ────────────────────────── */}
+      <section className="container px-6 md:px-12 py-12">
+        <div className="grid lg:grid-cols-[1fr_420px] gap-10 items-start">
+          <div className="flex flex-col gap-3">
             <span className="afx-kicker">🏷️ MODÈLE D&apos;ÉTIQUETTE · SHIPPING MARK</span>
-            <h2 className="font-display text-2xl md:text-3xl font-semibold tracking-tight">
-              À coller sur chaque colis.
-            </h2>
-            <p className="text-sm text-ink-2">
-              Imprimez ou écrivez ces informations sur une feuille et collez-la sur
-              l&apos;emballage extérieur de chaque colis avant l&apos;envoi à l&apos;entrepôt.
+            <h2 className="afx-h2">À coller sur chaque colis.</h2>
+            <p className="text-[15px] text-ink-2 leading-relaxed max-w-md">
+              Imprimez ou écrivez ces informations et collez-les sur l&apos;emballage
+              extérieur de chaque colis avant l&apos;envoi à l&apos;entrepôt.
             </p>
+            {/* Note maritime */}
+            <div className="mt-2 rounded-xl border border-line bg-surface-2 px-5 py-4 flex items-start gap-3">
+              <Ship className="h-4 w-4 text-mint-3 shrink-0 mt-0.5" />
+              <p className="text-[13px] text-ink-2 leading-relaxed">
+                <span className="font-semibold text-ink">Maritime uniquement :</span> ajouter{" "}
+                <span className="font-mono font-bold text-mint-3 bg-mint-soft px-1.5 py-0.5 rounded text-[12px]">
+                  入仓号 : AFRYNTIX
+                </span>{" "}
+                sur le colis et joindre un bon de commande en chinois (装箱单) à l&apos;extérieur.
+              </p>
+            </div>
           </div>
 
           {/* Label visuel */}
-          <div className="rounded-2xl border-2 border-dashed border-ink-3 bg-surface p-6 font-mono text-sm space-y-2 shadow-sm">
-            {/* En-tête AFRYNTIX */}
-            <div className="text-center pb-3 border-b border-ink-3/30">
-              <div className="font-display text-2xl font-black tracking-widest text-ink">
-                AFRYNTIX
+          <div className="rounded-2xl border border-line bg-surface shadow-brand-md overflow-hidden">
+            <div className="afx-motif-stripe h-1.5" />
+            <div className="p-6 flex flex-col gap-3">
+              <div className="text-center pb-4 border-b border-line">
+                <div className="font-display text-2xl font-black tracking-widest text-ink">
+                  AFRYNTIX
+                </div>
+                <div className="text-[11px] text-ink-3 mt-0.5 uppercase tracking-widest">
+                  Transport &amp; Logistique Chine — Afrique de l&apos;Ouest
+                </div>
               </div>
-              <div className="text-xs text-ink-3 mt-0.5">Transport &amp; Logistique Chine — Afrique de l&apos;Ouest</div>
+              {SHIPPING_MARK_LINES.map(({ label, hint }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <span className="text-[13px] font-bold text-ink w-36 shrink-0">{label} :</span>
+                  <span className="text-[13px] text-ink-3 border-b border-line flex-1 pb-0.5">
+                    {hint}
+                  </span>
+                </div>
+              ))}
+              <p className="text-[11px] text-ink-3 pt-2 border-t border-line text-center">
+                Reproduire sur chaque colis du même envoi
+              </p>
             </div>
-
-            {/* Lignes du shipping mark */}
-            {SHIPPING_MARK_LINES.map(({ label, hint }) => (
-              <div key={label} className="flex items-start gap-2">
-                <span className="font-bold text-ink w-36 shrink-0">{label} :</span>
-                <span className="text-ink-3 border-b border-ink-3/40 flex-1 pb-0.5">
-                  {hint}
-                </span>
-              </div>
-            ))}
-
-            <div className="pt-3 border-t border-ink-3/30 flex items-center gap-2 text-xs text-ink-3">
-              <Copy className="h-3.5 w-3.5" />
-              <span>Reproduire sur chaque colis du même envoi</span>
-            </div>
-          </div>
-
-          {/* Pour le maritime : mention 入仓号 */}
-          <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-5 py-3 text-sm text-amber-800 dark:text-amber-300">
-            <span className="font-bold">Maritime uniquement :</span> ajouter également{" "}
-            <span className="font-mono font-bold bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">
-              入仓号 : AFRYNTIX
-            </span>{" "}
-            sur le colis et joindre un <strong>bon de commande en chinois</strong> (装箱单) à l&apos;extérieur.
           </div>
         </div>
       </section>
 
-      <div className="afx-motif-stripe h-1 opacity-50" />
+      <div className="afx-motif-stripe h-1 opacity-40" />
 
-      {/* ══ LISTE DES ADRESSES ══════════════════════════════════════════════ */}
-      <section className="container px-6 md:px-12 py-10 flex flex-col gap-12">
+      {/* ── Adresses ─────────────────────────────────────── */}
+      <section className="container px-6 md:px-12 py-12 flex flex-col gap-14">
         {grouped.length === 0 ? (
           <div className="rounded-2xl border border-line bg-surface p-10 text-center">
             <MapPin className="h-8 w-8 text-mint-3 mx-auto mb-3" />
             <p className="text-ink-2">
-              Aucune adresse n&apos;est encore publiée. Contactez-nous via WhatsApp
-              pour les obtenir.
+              Aucune adresse publiée pour l&apos;instant. Contactez-nous via WhatsApp.
             </p>
           </div>
         ) : (
@@ -258,10 +243,11 @@ export default async function PublicAddressesPage() {
             const Icon = meta.icon;
             return (
               <div key={g.type} className="flex flex-col gap-5">
-                <div className="flex items-end justify-between flex-wrap gap-3">
-                  <div className="flex flex-col gap-2">
+                {/* Section header */}
+                <div className="flex items-end justify-between flex-wrap gap-3 pb-3 border-b border-line">
+                  <div className="flex flex-col gap-1.5">
                     <span className="afx-kicker">{meta.kicker}</span>
-                    <h2 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">
+                    <h2 className="font-display text-3xl md:text-[38px] font-semibold tracking-tight leading-tight">
                       {meta.label}
                     </h2>
                   </div>
@@ -270,65 +256,70 @@ export default async function PublicAddressesPage() {
                   </span>
                 </div>
 
+                {/* Cards */}
                 <div className="grid md:grid-cols-2 gap-4">
                   {g.items.map((a) => (
                     <article
                       key={a.id}
-                      className="rounded-2xl border border-line bg-surface overflow-hidden transition-shadow hover:shadow-brand-md"
+                      className="rounded-2xl border border-line bg-surface overflow-hidden transition-shadow hover:shadow-brand-md flex flex-col"
                     >
+                      {/* Top: icon + adresse */}
                       <div className="flex items-start gap-4 p-6">
                         <div className="w-11 h-11 rounded-xl bg-mint-soft text-mint-3 grid place-items-center shrink-0">
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[18px] font-bold text-ink tracking-tight">
+                          <div className="text-[17px] font-bold text-ink tracking-tight leading-snug">
                             {a.label}
                           </div>
-                          <div className="text-sm text-ink-2 mt-2 leading-relaxed space-y-0.5">
-                            <div className="font-medium">{a.line1}</div>
+                          <div className="text-[13px] text-ink-2 mt-2 leading-relaxed space-y-0.5">
+                            <div>{a.line1}</div>
                             {a.line2 && (
                               <div className="font-semibold text-mint-3">{a.line2}</div>
                             )}
                             <div className="text-ink-3">
-                              {[a.postalCode, a.city, a.country]
-                                .filter(Boolean)
-                                .join(", ")}
+                              {[a.postalCode, a.city, a.country].filter(Boolean).join(", ")}
                             </div>
                           </div>
                         </div>
                       </div>
 
+                      {/* Contact */}
                       {(a.contactName || a.phone || a.whatsapp || a.email) && (
-                        <div className="border-t border-line bg-surface-2/40 px-6 py-4 flex flex-col gap-1.5">
+                        <div className="border-t border-line bg-surface-2/50 px-6 py-4 flex flex-col gap-1.5">
                           {a.contactName && (
-                            <div className="text-[13px] font-semibold text-ink">
-                              {a.contactName}
-                            </div>
+                            <div className="text-[13px] font-semibold text-ink">{a.contactName}</div>
                           )}
                           {a.phone && (
-                            <div className="flex items-center gap-2 text-[13px] text-ink-2">
-                              <Phone className="h-3.5 w-3.5 text-ink-3" />
+                            <a href={`tel:${a.phone}`}
+                              className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-mint-3 transition-colors">
+                              <Phone className="h-3.5 w-3.5 text-ink-3 shrink-0" />
                               <span className="font-mono">{a.phone}</span>
-                            </div>
+                            </a>
                           )}
                           {a.whatsapp && a.whatsapp !== a.phone && (
-                            <div className="flex items-center gap-2 text-[13px] text-ink-2">
-                              <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                            <a href={`https://wa.me/${a.whatsapp.replace(/\D/g, "")}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-mint-3 transition-colors">
+                              <MessageCircle className="h-3.5 w-3.5 text-[#25D366] shrink-0" />
                               <span className="font-mono">{a.whatsapp}</span>
-                            </div>
+                            </a>
                           )}
                           {a.email && (
-                            <div className="flex items-center gap-2 text-[13px] text-ink-2">
-                              <Mail className="h-3.5 w-3.5 text-ink-3" />
+                            <a href={`mailto:${a.email}`}
+                              className="flex items-center gap-2 text-[13px] text-ink-2 hover:text-mint-3 transition-colors">
+                              <Mail className="h-3.5 w-3.5 text-ink-3 shrink-0" />
                               <span>{a.email}</span>
-                            </div>
+                            </a>
                           )}
                         </div>
                       )}
 
+                      {/* Note */}
                       {a.notes && (
-                        <div className="border-t border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-6 py-3">
-                          <p className="text-[12px] text-red-700 dark:text-red-400 font-medium">
+                        <div className="border-t border-line bg-surface-2/30 px-6 py-3 mt-auto">
+                          <p className="text-[12px] text-ink-3 leading-relaxed">
+                            <span className="font-semibold text-ink-2">⚠️ </span>
                             {a.notes}
                           </p>
                         </div>
@@ -341,6 +332,24 @@ export default async function PublicAddressesPage() {
           })
         )}
       </section>
+
+      {/* ── Footer bar ───────────────────────────────────── */}
+      <footer className="border-t border-line bg-surface-2/60 px-6 md:px-12 py-8 mt-4">
+        <div className="container flex flex-wrap items-center justify-between gap-4">
+          <span className="text-[13px] text-ink-3">
+            © {new Date().getFullYear()} AFRYNTIX SAS · Transport &amp; Logistique Chine – Afrique de l&apos;Ouest
+          </span>
+          <div className="flex items-center gap-4 text-[13px] text-ink-3">
+            <a href="tel:+2250706260405" className="hover:text-mint-3 transition-colors">
+              +225 07 06 26 04 05
+            </a>
+            <span>·</span>
+            <a href="tel:+8619066500468" className="hover:text-mint-3 transition-colors">
+              +86 190 6650 0468
+            </a>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

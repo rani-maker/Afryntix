@@ -14,6 +14,7 @@
 | Docker Hub | https://hub.docker.com | ✅ |
 | Supabase | https://supabase.com | ✅ (500 MB) |
 | Render | https://render.com | ✅ (cold start) |
+| UltraMsg | https://ultramsg.com | ✅ (trial) |
 
 ---
 
@@ -73,7 +74,37 @@ npm run db:seed
 
 ---
 
-## ÉTAPE 2 — Docker Hub
+## ÉTAPE 2 — UltraMsg (notifications WhatsApp)
+
+### 2.1 Créer et configurer l'instance
+
+1. Connecte-toi sur [app.ultramsg.com](https://app.ultramsg.com)
+2. **Create Instance** → donne un nom (ex: `afryntix`)
+3. **Scan the QR code** avec WhatsApp depuis le téléphone qui enverra les notifications
+4. Attendre que le statut passe à **Connected**
+
+### 2.2 Récupérer les credentials
+
+Dans le dashboard UltraMsg → **Instance Settings** :
+
+| Variable | Où trouver |
+|---|---|
+| `ULTRAMSG_INSTANCE_ID` | En haut de la page (ex: `instance174294`) |
+| `ULTRAMSG_TOKEN` | Champ "Token" (ex: `qk77uh2wszpn79g9`) |
+
+### 2.3 Tester l'envoi (optionnel)
+
+```bash
+curl -X POST "https://api.ultramsg.com/instance174294/messages/chat" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=qk77uh2wszpn79g9&to=+2250768271382&body=Test+AFRYNTIX+✅"
+```
+
+> ✅ Les notifications WhatsApp sont envoyées automatiquement à chaque changement de statut d'expédition.
+
+---
+
+## ÉTAPE 3 — Docker Hub
 
 ### 2.1 Créer le compte et le repository
 
@@ -92,23 +123,27 @@ npm run db:seed
 
 ```bash
 # Dans le répertoire AFRYNTIX
-docker build -t afryntix .
+docker build --no-cache --security-opt seccomp=unconfined -t ranidr/afryntix:latest .
 
 # Vérifier que le container démarre
 docker run -p 3000:3000 \
   -e DATABASE_URL="..." \
   -e AUTH_SECRET="..." \
   -e AUTH_URL="http://localhost:3000" \
-  afryntix
+  -e ULTRAMSG_INSTANCE_ID="instance174294" \
+  -e ULTRAMSG_TOKEN="..." \
+  ranidr/afryntix:latest
 
 # Tester le health check
 curl http://localhost:3000/api/health
 # → {"status":"ok","timestamp":"..."}
 ```
 
+> ⚠️ **Sur Mac avec Docker Desktop** : le flag `--security-opt seccomp=unconfined` est requis pour le build local (problème de profil seccomp). Il n'est pas nécessaire sur Render.
+
 ---
 
-## ÉTAPE 3 — GitHub
+## ÉTAPE 4 — GitHub
 
 ### 3.1 Créer le repository GitHub
 
@@ -141,7 +176,7 @@ Le workflow `Docker Build & Push → Render Deploy` doit se lancer automatiqueme
 
 ---
 
-## ÉTAPE 4 — Render
+## ÉTAPE 5 — Render
 
 ### 4.1 Créer le service
 
@@ -172,12 +207,12 @@ image:
 | `DIRECT_URL` | Connexion directe Supabase (port 5432) |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `AUTH_URL` | `https://afryntix.onrender.com` |
-| `TWILIO_ACCOUNT_SID` | Depuis Twilio Console |
-| `TWILIO_AUTH_TOKEN` | Depuis Twilio Console |
+| `ULTRAMSG_INSTANCE_ID` | ID d'instance UltraMsg (ex: `instance174294`) |
+| `ULTRAMSG_TOKEN` | Token UltraMsg depuis le dashboard |
 | `DEFAULT_ADMIN_EMAIL` | Email admin |
 | `DEFAULT_ADMIN_PASSWORD` | Mot de passe admin fort |
 | `DEFAULT_ADMIN_NAME` | Nom admin |
-| `DEFAULT_ADMIN_PHONE` | Téléphone admin |
+| `DEFAULT_ADMIN_PHONE` | Téléphone admin (format international ex: +2250706260405) |
 
 ### 4.4 Récupérer le Deploy Hook URL
 
@@ -197,19 +232,20 @@ Mettre à jour ces variables dans Render :
 
 ---
 
-## ÉTAPE 5 — Premier déploiement complet
+## ÉTAPE 6 — Premier déploiement complet
 
 Ordre des opérations :
 
 ```
 1. Supabase créé + schéma initialisé (db:push + seed)
-2. Docker Hub : repo créé + token généré
-3. GitHub : secrets ajoutés (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
-4. Render : service créé + variables d'environnement saisies
-5. GitHub : secrets ajoutés (RENDER_DEPLOY_HOOK_URL)
-6. git push origin main  →  workflow déclenché automatiquement
-7. Vérifier sur Render : Logs → "✓ Listening on port 3000"
-8. Tester : https://afryntix.onrender.com/api/health
+2. UltraMsg : instance créée + QR code scanné + statut Connected
+3. Docker Hub : repo créé + token généré
+4. GitHub : secrets ajoutés (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
+5. Render : service créé + variables d'environnement saisies (dont ULTRAMSG_*)
+6. GitHub : secrets ajoutés (RENDER_DEPLOY_HOOK_URL)
+7. git push origin main  →  workflow déclenché automatiquement
+8. Vérifier sur Render : Logs → "✓ Listening on port 3000"
+9. Tester : https://afryntix.onrender.com/api/health
 ```
 
 ---

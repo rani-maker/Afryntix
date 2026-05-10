@@ -2,8 +2,7 @@
 # AFRYNTIX — Dockerfile multi-stage (Next.js 15 standalone)
 # ============================================================
 
-FROM public.ecr.aws/docker/library/node:20-alpine AS base
-RUN apk add --no-cache libc6-compat openssl
+FROM public.ecr.aws/docker/library/node:20-slim AS base
 
 # ---- Dépendances ----
 FROM base AS deps
@@ -34,8 +33,7 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 --ingroup nodejs nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
