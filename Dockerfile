@@ -3,6 +3,7 @@
 # ============================================================
 
 FROM public.ecr.aws/docker/library/node:20-slim AS base
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # ---- Dépendances ----
 FROM base AS deps
