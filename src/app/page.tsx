@@ -345,6 +345,10 @@ export default function HomePage() {
               © {new Date().getFullYear()} AFRYNTIX SAS · {t("footer.copyright")}
             </span>
             <div className="flex items-center gap-3 text-[13px] text-ink-3">
+              <Link href="/privacy" className="hover:text-mint-3 transition-colors">
+                Confidentialité
+              </Link>
+              <span>·</span>
               <span>FR · 中文</span>
               <span>XOF · CNY · €</span>
             </div>
