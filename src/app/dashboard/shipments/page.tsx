@@ -18,7 +18,7 @@ export default async function ClientShipmentsPage() {
       <CardHeader>
         <CardTitle>Mes expéditions ({shipments.length})</CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 overflow-x-auto">
         <ShipmentsTable rows={shipments} />
       </CardContent>
     </Card>

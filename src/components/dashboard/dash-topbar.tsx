@@ -1,11 +1,12 @@
 "use client";
 
-import { Calendar, ChevronDown, LogOut, Radio } from "lucide-react";
+import { Calendar, ChevronDown, LogOut, Menu, Radio } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { TopbarPill } from "./ui/topbar-pill";
 import { ThemeToggle } from "./ui/theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
+import { useDashTheme } from "./ui/theme-provider";
 
 function formatDateFR(d: Date) {
   return d.toLocaleDateString("fr-FR", {
@@ -29,6 +30,7 @@ export function DashTopbar({
   const [today, setToday] = useState<string>("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const { setMobileNavOpen } = useDashTheme();
 
   useEffect(() => {
     setToday(formatDateFR(new Date()));
@@ -54,8 +56,16 @@ export function DashTopbar({
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b border-[var(--dash-border)] bg-[var(--dash-bg)]/75 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--dash-bg)]/65 px-6 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-4 min-w-0">
+    <header className="sticky top-0 z-30 h-16 border-b border-[var(--dash-border)] bg-[var(--dash-bg)]/75 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--dash-bg)]/65 px-4 md:px-6 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="Ouvrir le menu"
+          className="md:hidden grid h-8 w-8 place-items-center rounded-lg text-[var(--dash-text-muted)] hover:bg-[var(--dash-hover)] hover:text-[var(--dash-text)] transition-colors shrink-0"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <div className="min-w-0">
           <h1 className="text-[15px] font-semibold leading-tight text-[var(--dash-text)] tracking-tight truncate">
             {title}

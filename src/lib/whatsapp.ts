@@ -88,7 +88,9 @@ export async function sendWhatsApp({ to, body, template, userId }: SendArgs) {
 // Templates de messages
 // =============================================================
 
-const BRAND_HEADER = `*AFRYNTIX*`;
+function brandHeader(subject: string): string {
+  return `*AFRYNTIX — ${subject}*`;
+}
 const BRAND_FOOTER = `━━━━━━━━━━━━━━━━━━━\nTél. Côte d'Ivoire : +225 07 06 26 04 05\nTél. Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
 
 function modeEmoji(modeKey: string): string {
@@ -120,18 +122,18 @@ export function shipmentCreatedTemplate(args: ShipmentCreatedArgs): string {
   const senderLine = args.recipientName ? `\nExpéditeur : ${args.clientName}` : "";
   const destinationLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
 
-  return `${BRAND_HEADER}
+  return `${brandHeader("Enregistrement de votre colis")}
 Bonjour *${greeting}*,
 Un colis a été enregistré à votre nom en provenance de Chine.
 ━━━━━━━━━━━━━━━━━━━
-📦 Colis : \`${args.trackingNumber}\`
+📦 N° de Suivi : \`${args.trackingNumber}\`
 ${modeEmoji(args.modeKey)} Mode : ${args.mode}${destinationLine}${senderLine}
 💰 Tarif total : *${formatXOF(args.totalAmount)}*
 Acompte (50%) : ${formatXOF(args.depositAmount)}
 Solde à la réception : ${formatXOF(args.remainingAmount)}
 ━━━━━━━━━━━━━━━━━━━
 Veuillez procéder au paiement de l'acompte de 50% si ce n'est pas encore fait.
-AFRYNTIX Abidjan : +225 07 06 26 04 05
+Contactez le Bureau d'Abidjan
 Suivez votre colis : ${appUrl}/tracking/${args.trackingNumber}
 ${BRAND_FOOTER}`;
 }
@@ -157,11 +159,11 @@ export function shipmentAvailableTemplate(args: {
     ? `💰 Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
     : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter la somme totale : *${formatXOF(args.totalAmount)}* lors du retrait.`;
 
-  return `${BRAND_HEADER}
+  return `${brandHeader("Disponibilité de votre colis")}
 Bonjour *${args.recipientName}*,
 Votre colis est arrivé et disponible pour livraison.
 ━━━━━━━━━━━━━━━━━━━
-📦 Colis : \`${args.trackingNumber}\`${pickupLine}
+📦 N° de Suivi : \`${args.trackingNumber}\`${pickupLine}
 ${paymentLine}
 ━━━━━━━━━━━━━━━━━━━
 Contactez-nous pour organiser votre livraison :
@@ -189,7 +191,7 @@ export function shipmentStatusTemplate(args: {
   const locationLine = args.location ? `\n📍 *Localisation :* ${args.location}` : "";
   const noteLine = args.note ? `\n💬 ${args.note}` : "";
 
-  return `${BRAND_HEADER}
+  return `${brandHeader("Mise à jour de votre expédition")}
 
 Bonjour *${args.clientName}*,
 
@@ -216,7 +218,7 @@ export function withdrawalCodeTemplate(args: {
 }): string {
   const appUrl = getAppUrl();
 
-  return `${BRAND_HEADER}
+  return `${brandHeader("Code de retrait")}
 
 Bonjour *${args.clientName}*,
 
@@ -242,7 +244,7 @@ export function reservationValidatedTemplate(args: {
   reservationId: string;
   trackingNumber: string;
 }): string {
-  return `${BRAND_HEADER}
+  return `${brandHeader("Réservation validée")}
 
 Bonjour *${args.clientName}*,
 

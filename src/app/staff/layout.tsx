@@ -41,7 +41,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
             status={{ label: "Connecté en direct", tone: "live" }}
             user={{ name: session.user.name, email: session.user.email, role: session.user.role }}
           />
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
     </DashThemeProvider>

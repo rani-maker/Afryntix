@@ -83,7 +83,7 @@ export function ClientDashShell({
             status={{ label: t("dash.topbar.live"), tone: "live" }}
             user={user}
           />
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
     </DashThemeProvider>

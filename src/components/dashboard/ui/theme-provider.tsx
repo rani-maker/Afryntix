@@ -21,6 +21,8 @@ type Ctx = {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
+  mobileNavOpen: boolean;
+  setMobileNavOpen: (v: boolean) => void;
 };
 
 const DashThemeContext = createContext<Ctx | null>(null);
@@ -28,6 +30,7 @@ const DashThemeContext = createContext<Ctx | null>(null);
 export function DashThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<DashTheme>("dark");
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export function DashThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <DashThemeContext.Provider
-      value={{ theme, toggle, setTheme, sidebarCollapsed, toggleSidebar, setSidebarCollapsed }}
+      value={{ theme, toggle, setTheme, sidebarCollapsed, toggleSidebar, setSidebarCollapsed, mobileNavOpen, setMobileNavOpen }}
     >
       <div
         className={`theme-dashboard ${theme === "light" ? "theme-light" : ""} min-h-screen`}
