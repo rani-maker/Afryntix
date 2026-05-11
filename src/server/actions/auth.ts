@@ -8,7 +8,8 @@ import { revalidatePath } from "next/cache";
 import { getAppUrl } from "@/lib/utils";
 
 export async function serverSignOut() {
-  await signOut({ redirectTo: "/" });
+  const landingUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "/";
+  await signOut({ redirectTo: landingUrl });
 }
 
 const RegisterSchema = z.object({

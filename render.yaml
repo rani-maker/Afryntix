@@ -26,7 +26,7 @@ services:
         sync: false                        # openssl rand -base64 32
 
       - key: AUTH_URL
-        value: https://afryntix.onrender.com   # à adapter si domaine custom
+        value: https://www.afryntix.com
 
       # --- UltraMsg WhatsApp ---
       - key: ULTRAMSG_INSTANCE_ID
@@ -43,7 +43,7 @@ services:
         value: "Transport & Logistique Chine - Afrique de l'Ouest"
 
       - key: NEXT_PUBLIC_APP_URL
-        value: https://afryntix.onrender.com   # à adapter si domaine custom
+        value: https://www.afryntix.com
 
       # APP_URL — utilisé côté serveur pour les liens WhatsApp (runtime, non exposé au client)
       - key: APP_URL
