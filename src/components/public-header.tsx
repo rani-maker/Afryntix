@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { serverSignOut } from "@/server/actions/auth";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
@@ -70,7 +71,7 @@ export function PublicHeader({ active }: { active?: string }) {
                   <Link href={dashHref}>Tableau de bord</Link>
                 </Button>
                 <Button size="sm" className="rounded-full bg-night text-white hover:bg-night-2"
-                  onClick={() => signOut({ callbackUrl: "/" })}>
+                  onClick={() => serverSignOut()}>
                   Déconnexion
                 </Button>
               </>
@@ -126,7 +127,7 @@ export function PublicHeader({ active }: { active?: string }) {
                   <LayoutDashboard className="h-4 w-4 text-mint-3 shrink-0" />
                   Tableau de bord
                 </Link>
-                <button onClick={() => { setOpen(false); signOut({ callbackUrl: "/" }); }}
+                <button onClick={() => { setOpen(false); serverSignOut(); }}
                   className="flex items-center gap-3 h-12 px-3 rounded-xl text-[15px] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink transition-colors w-full text-left">
                   <LogOut className="h-4 w-4 text-ink-3 shrink-0" />
                   Déconnexion

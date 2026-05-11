@@ -224,26 +224,44 @@ export async function setExchangeRate(input: unknown): Promise<Result> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  await prisma.exchangeRate.upsert({
-    where: {
-      date_fromCcy_toCcy: {
+  const inverseRate = 1 / parsed.data.rate;
+
+  await prisma.$transaction([
+    prisma.exchangeRate.upsert({
+      where: {
+        date_fromCcy_toCcy: {
+          date: today,
+          fromCcy: parsed.data.fromCcy as Currency,
+          toCcy: parsed.data.toCcy as Currency,
+        },
+      },
+      update: { rate: parsed.data.rate, setById: session.user.id },
+      create: {
         date: today,
         fromCcy: parsed.data.fromCcy as Currency,
         toCcy: parsed.data.toCcy as Currency,
+        rate: parsed.data.rate,
+        setById: session.user.id,
       },
-    },
-    update: {
-      rate: parsed.data.rate,
-      setById: session.user.id,
-    },
-    create: {
-      date: today,
-      fromCcy: parsed.data.fromCcy as Currency,
-      toCcy: parsed.data.toCcy as Currency,
-      rate: parsed.data.rate,
-      setById: session.user.id,
-    },
-  });
+    }),
+    prisma.exchangeRate.upsert({
+      where: {
+        date_fromCcy_toCcy: {
+          date: today,
+          fromCcy: parsed.data.toCcy as Currency,
+          toCcy: parsed.data.fromCcy as Currency,
+        },
+      },
+      update: { rate: inverseRate, setById: session.user.id },
+      create: {
+        date: today,
+        fromCcy: parsed.data.toCcy as Currency,
+        toCcy: parsed.data.fromCcy as Currency,
+        rate: inverseRate,
+        setById: session.user.id,
+      },
+    }),
+  ]);
 
   revalidatePath("/admin/exchange-rates");
   revalidatePath("/staff/payments");

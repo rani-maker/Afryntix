@@ -1,8 +1,8 @@
 "use client";
 
 import { Calendar, ChevronDown, LogOut, Menu, Radio } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
+import { serverSignOut } from "@/server/actions/auth";
 import { TopbarPill } from "./ui/topbar-pill";
 import { ThemeToggle } from "./ui/theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
@@ -138,7 +138,7 @@ export function DashTopbar({
               </div>
               <button
                 type="button"
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => serverSignOut()}
                 className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[var(--dash-text-muted)] hover:bg-[var(--dash-hover)] hover:text-[var(--dash-text)] transition-colors"
               >
                 <LogOut className="h-4 w-4" /> Déconnexion

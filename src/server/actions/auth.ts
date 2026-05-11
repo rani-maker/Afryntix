@@ -2,10 +2,14 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { auth, requireRole } from "@/auth";
+import { auth, requireRole, signOut } from "@/auth";
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getAppUrl } from "@/lib/utils";
+
+export async function serverSignOut() {
+  await signOut({ redirectTo: "/" });
+}
 
 const RegisterSchema = z.object({
   name: z.string().min(2),

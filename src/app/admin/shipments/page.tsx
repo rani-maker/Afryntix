@@ -60,6 +60,7 @@ export default async function AdminShipmentsPage({
           rows={shipments}
           showClient
           manageHref={(id) => `/staff/shipments/${id}`}
+          showDelete
         />
       </CardContent>
     </Card>

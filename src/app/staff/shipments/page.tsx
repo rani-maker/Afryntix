@@ -77,6 +77,7 @@ export default async function StaffShipmentsPage({
           rows={rows}
           showClient
           manageHref={(id) => `/staff/shipments/${id}`}
+          showDelete
         />
       </CardContent>
     </Card>

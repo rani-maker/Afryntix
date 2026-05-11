@@ -4,6 +4,7 @@ import { ShipmentStatusBadge, PaymentStatusBadge } from "./status-badge";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { formatDate, formatXOF } from "@/lib/utils";
 import type { Shipment, ShipmentStatus, PaymentStatus, TransportMode } from "@prisma/client";
+import { DeleteShipmentButton } from "./delete-shipment-button";
 
 type Row = Pick<
   Shipment,
@@ -18,10 +19,12 @@ export function ShipmentsTable({
   rows,
   showClient = false,
   manageHref,
+  showDelete = false,
 }: {
   rows: Row[];
   showClient?: boolean;
   manageHref?: (id: string) => string;
+  showDelete?: boolean;
 }) {
   if (rows.length === 0) {
     return <div className="text-sm text-muted-foreground py-6 text-center">Aucune expédition.</div>;
@@ -37,7 +40,7 @@ export function ShipmentsTable({
           <TableHead>Paiement</TableHead>
           <TableHead className="text-right">Montant</TableHead>
           <TableHead>Créé le</TableHead>
-          {manageHref && <TableHead className="text-right">Action</TableHead>}
+          {(manageHref || showDelete) && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -72,14 +75,16 @@ export function ShipmentsTable({
               )}
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">{formatDate(s.createdAt)}</TableCell>
-            {manageHref && (
+            {(manageHref || showDelete) && (
               <TableCell className="text-right">
-                <Link
-                  href={manageHref(s.id)}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Gérer
-                </Link>
+                <span className="inline-flex items-center justify-end gap-3">
+                  {manageHref && (
+                    <Link href={manageHref(s.id)} className="text-sm text-primary hover:underline">
+                      Gérer
+                    </Link>
+                  )}
+                  {showDelete && <DeleteShipmentButton id={s.id} />}
+                </span>
               </TableCell>
             )}
           </TableRow>

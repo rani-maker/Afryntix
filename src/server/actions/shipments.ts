@@ -275,3 +275,17 @@ export async function recordShipmentPayment(input: {
   revalidatePath("/admin/shipments");
   return { success: true };
 }
+
+export async function deleteShipment(id: string): Promise<Result> {
+  await requireRole("STAFF", "ADMIN");
+  const shipment = await prisma.shipment.findUnique({ where: { id }, select: { id: true, envoiId: true } });
+  if (!shipment) return { success: false, error: "Colis introuvable." };
+  if (shipment.envoiId) return { success: false, error: "Ce colis est rattaché à un envoi. Détachez-le d'abord." };
+
+  await prisma.shipment.delete({ where: { id } });
+
+  revalidatePath("/staff/shipments");
+  revalidatePath("/admin/shipments");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

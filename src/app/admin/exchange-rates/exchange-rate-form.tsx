@@ -29,7 +29,8 @@ export function ExchangeRateForm() {
       setError(res.error);
       return;
     }
-    setSuccess(`Taux ${fromCcy}→${toCcy} = ${rate} enregistré pour aujourd'hui.`);
+    const inv = (1 / Number(rate)).toFixed(6);
+    setSuccess(`Taux ${fromCcy}→${toCcy} = ${rate} enregistré. Inverse ${toCcy}→${fromCcy} = ${inv} créé automatiquement.`);
     setRate("");
     router.refresh();
   }
