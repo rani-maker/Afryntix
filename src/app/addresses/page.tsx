@@ -1,5 +1,20 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+
+export const metadata: Metadata = {
+  title: "Adresses des entrepôts",
+  description:
+    "Adresses AFRYNTIX en Chine (Guangzhou, Foshan) et en Côte d'Ivoire (Abidjan). Envoyez vos colis directement à nos entrepôts en Chine.",
+  openGraph: {
+    title: "Adresses des entrepôts | AFRYNTIX",
+    description:
+      "Adresses AFRYNTIX en Chine (Guangzhou, Foshan) et en Côte d'Ivoire (Abidjan). Envoyez vos colis directement à nos entrepôts en Chine.",
+    url: "/addresses",
+    images: [{ url: "/images/entrepot.jpg", width: 1200, height: 630, alt: "Entrepôts AFRYNTIX" }],
+  },
+  alternates: { canonical: "/addresses" },
+};
 import {
   MapPin,
   Phone,

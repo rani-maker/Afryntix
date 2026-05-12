@@ -20,10 +20,61 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const APP_URL = "https://www.afryntix.com";
+
 export const metadata: Metadata = {
-  title: "AFRYNTIX - Transport & Logistique Chine - Afrique de l'Ouest",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "AFRYNTIX — Transport & Logistique Chine · Afrique de l'Ouest",
+    template: "%s | AFRYNTIX",
+  },
   description:
-    "Fret aérien, fret maritime, envoi express, transport de véhicules et engins BTP, paiement de factures Chine ↔ Afrique de l'Ouest.",
+    "Fret aérien, fret maritime, envoi express, transport de véhicules et engins BTP, paiement de factures fournisseurs Chine ↔ Côte d'Ivoire et Afrique de l'Ouest.",
+  keywords: [
+    "transport Chine Afrique",
+    "fret maritime Chine Côte d'Ivoire",
+    "fret aérien Chine Abidjan",
+    "logistique Chine Afrique de l'Ouest",
+    "expédition colis Chine",
+    "import Chine Abidjan",
+    "AFRYNTIX",
+    "transit Guangzhou Abidjan",
+  ],
+  authors: [{ name: "AFRYNTIX SARL", url: APP_URL }],
+  creator: "AFRYNTIX SARL",
+  publisher: "AFRYNTIX SARL",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  openGraph: {
+    type: "website",
+    locale: "fr_CI",
+    url: APP_URL,
+    siteName: "AFRYNTIX",
+    title: "AFRYNTIX — Transport & Logistique Chine · Afrique de l'Ouest",
+    description:
+      "Fret aérien, fret maritime, envoi express, transport de véhicules et engins BTP, paiement de factures fournisseurs Chine ↔ Côte d'Ivoire et Afrique de l'Ouest.",
+    images: [
+      {
+        url: "/images/banner-1.jpg",
+        width: 1200,
+        height: 630,
+        alt: "AFRYNTIX — Transport & Logistique Chine · Afrique de l'Ouest",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AFRYNTIX — Transport & Logistique Chine · Afrique de l'Ouest",
+    description:
+      "Fret aérien, fret maritime, envoi express, transport de véhicules et engins BTP Chine ↔ Afrique de l'Ouest.",
+    images: ["/images/banner-1.jpg"],
+  },
+  alternates: {
+    canonical: APP_URL,
+  },
 };
 
 const themeInitScript = `
