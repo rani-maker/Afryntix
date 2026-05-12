@@ -147,6 +147,8 @@ export function shipmentAvailableTemplate(args: {
   depositPaid: boolean;
   pickupAddress?: string;
   destinationCity?: string;
+  factureReference?: string;
+  enTransit?: { trackingNumber: string; envoiReference?: string | null }[];
 }): string {
   const appUrl = getAppUrl();
   const pickupLine = args.pickupAddress
@@ -159,12 +161,23 @@ export function shipmentAvailableTemplate(args: {
     ? `💰 Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
     : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter la somme totale : *${formatXOF(args.totalAmount)}* lors du retrait.`;
 
+  const factureLine = args.factureReference ? `\n📋 Facture : *${args.factureReference}*` : "";
+
+  const transitSection =
+    args.enTransit && args.enTransit.length > 0
+      ? `\n━━━━━━━━━━━━━━━━━━━\nℹ️ ${args.enTransit.length} autre(s) colis en transit :\n` +
+        args.enTransit
+          .map((c) => `   • \`${c.trackingNumber}\`${c.envoiReference ? ` (${c.envoiReference})` : ""}`)
+          .join("\n") +
+        "\n   Vous serez notifié à leur arrivée."
+      : "";
+
   return `${brandHeader("Disponibilité de votre colis")}
 Bonjour *${args.recipientName}*,
 Votre colis est arrivé et disponible pour livraison.
 ━━━━━━━━━━━━━━━━━━━
-📦 N° de Suivi : \`${args.trackingNumber}\`${pickupLine}
-${paymentLine}
+📦 N° de Suivi : \`${args.trackingNumber}\`${pickupLine}${factureLine}
+${paymentLine}${transitSection}
 ━━━━━━━━━━━━━━━━━━━
 Contactez-nous pour organiser votre livraison :
 Bureau AFRYNTIX Abidjan — Angré Château
@@ -175,6 +188,64 @@ Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la
 NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.
 ━━━━━━━━━━━━━━━━━━━
 Suivre le colis : ${appUrl}/tracking/${args.trackingNumber}
+${BRAND_FOOTER}`;
+}
+
+// ── Plusieurs colis disponibles (même ShippingMark, envoyé au DESTINATAIRE) ─
+export function shipmentsAvailableTemplate(args: {
+  recipientName: string;
+  colis: { trackingNumber: string; description?: string | null; mode: string; modeKey: string }[];
+  factureReference: string;
+  totalAmount: number;
+  amountPaid: number;
+  remainingAmount: number;
+  depositPaid: boolean;
+  enTransit?: { trackingNumber: string; envoiReference?: string | null }[];
+  destinationCity?: string;
+}): string {
+  const appUrl = getAppUrl();
+  const count = args.colis.length;
+  const colisLines = args.colis
+    .map((c, i) => `📦 Colis ${i + 1} : \`${c.trackingNumber}\`${c.description ? ` — ${c.description}` : ""} (${modeEmoji(c.modeKey)} ${c.mode})`)
+    .join("\n");
+
+  const pickupLine = args.destinationCity ? `\nVille : ${args.destinationCity}` : "";
+
+  const paymentLine = args.depositPaid
+    ? `💰 Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
+    : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter le montant total : *${formatXOF(args.totalAmount)}*`;
+
+  const transitSection =
+    args.enTransit && args.enTransit.length > 0
+      ? `\nℹ️ ${args.enTransit.length} autre(s) colis en transit :\n` +
+        args.enTransit
+          .map((c) => `   • \`${c.trackingNumber}\`${c.envoiReference ? ` (${c.envoiReference})` : ""}`)
+          .join("\n") +
+        "\n   Vous serez notifié à leur arrivée avec leur facture."
+      : "";
+
+  const trackingLinks = args.colis
+    .map((c) => `${appUrl}/tracking/${c.trackingNumber}`)
+    .join("\n");
+
+  return `${brandHeader(`Disponibilité de ${count} colis`)}
+Bonjour *${args.recipientName}*,
+*${count} colis* sont arrivés et disponibles pour livraison.${pickupLine}
+━━━━━━━━━━━━━━━━━━━
+${colisLines}
+━━━━━━━━━━━━━━━━━━━
+📋 Facture : *${args.factureReference}*
+${paymentLine}${transitSection}
+━━━━━━━━━━━━━━━━━━━
+Contactez-nous pour organiser votre livraison :
+Bureau AFRYNTIX Abidjan — Angré Château
+À 250 m du commissariat du 40ème Arr.
++225 07 06 26 04 05
+━━━━━━━━━━━━━━━━━━━
+Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés 3 jours après cette notification.
+━━━━━━━━━━━━━━━━━━━
+Suivre vos colis :
+${trackingLinks}
 ${BRAND_FOOTER}`;
 }
 

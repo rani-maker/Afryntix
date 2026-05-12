@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,18 @@ import {
 } from "@/lib/pricing";
 import { formatXOF } from "@/lib/utils";
 import { createShipment } from "@/server/actions/shipments";
+import { searchShippingMarks } from "@/server/actions/shippingMarks";
 import type { TransportMode, CargoCategory } from "@prisma/client";
 
 type Client = { id: string; name: string; email: string; phone: string | null };
+
+type ShippingMarkResult = {
+  id: string;
+  name: string;
+  phone: string;
+  _count: { shipments: number };
+  user: { id: string; name: string; email: string } | null;
+};
 
 type Initial = {
   reservationId?: string;
@@ -56,9 +65,43 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const [description, setDescription] = useState("");
   const [overrideUnitPrice, setOverrideUnitPrice] = useState("");
 
+  // Shipping Mark search
+  const [markSuggestions, setMarkSuggestions] = useState<ShippingMarkResult[]>([]);
+  const [markSearchLoading, setMarkSearchLoading] = useState(false);
+  const [selectedMark, setSelectedMark] = useState<ShippingMarkResult | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ trackingNumber: string; id: string } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Recherche de shipping mark quand le staff tape nom + téléphone destinataire
+  const searchQuery = recipientName.trim() || clientName.trim();
+  const debouncedSearch = useCallback(
+    async (q: string) => {
+      if (q.length < 3) { setMarkSuggestions([]); return; }
+      setMarkSearchLoading(true);
+      try {
+        const results = await searchShippingMarks(q);
+        setMarkSuggestions(results as ShippingMarkResult[]);
+      } finally {
+        setMarkSearchLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (selectedMark) return;
+    const timer = setTimeout(() => debouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearch, selectedMark]);
+
+  function applyMark(mark: ShippingMarkResult) {
+    setSelectedMark(mark);
+    setMarkSuggestions([]);
+    if (!recipientName) setRecipientName(mark.name);
+    if (!recipientPhone) setRecipientPhone(mark.phone);
+  }
 
   const preview: PricingResult | { error: string } | null = useMemo(() => {
     try {
@@ -134,7 +177,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
           <Button variant="outline" onClick={() => router.push(`/tracking/${success.trackingNumber}`)}>
             Voir le suivi
           </Button>
-          <Button variant="ghost" onClick={() => setSuccess(null)}>
+          <Button variant="ghost" onClick={() => { setSuccess(null); setSelectedMark(null); }}>
             Nouvelle expédition
           </Button>
         </div>
@@ -182,12 +225,12 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
           </div>
         ) : (
           <div className="space-y-1.5">
-            <Label htmlFor="clientName">Nom du client</Label>
+            <Label htmlFor="clientName">Nom du client (Shipping Mark)</Label>
             <Input
               id="clientName"
               required
               value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
+              onChange={(e) => { setClientName(e.target.value); setSelectedMark(null); }}
               placeholder="ex: Awa Diop"
             />
           </div>
@@ -215,6 +258,84 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
           </div>
         </div>
       )}
+
+      {/* Section destinataire + recherche Shipping Mark */}
+      <div className="rounded-md border bg-muted/20 p-4 space-y-3">
+        <div className="text-sm font-semibold text-muted-foreground">Destinataire (Shipping Mark)</div>
+
+        {selectedMark && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex items-start justify-between gap-3">
+            <div className="text-sm">
+              <span className="font-semibold text-blue-900">{selectedMark.name}</span>
+              <span className="text-blue-700"> · {selectedMark.phone}</span>
+              <span className="ml-2 text-xs text-blue-600">
+                {selectedMark._count.shipments} colis existant{selectedMark._count.shipments > 1 ? "s" : ""}
+              </span>
+              {selectedMark.user && (
+                <span className="ml-2 text-xs text-blue-500">· Compte: {selectedMark.user.name}</span>
+              )}
+            </div>
+            <button type="button" onClick={() => { setSelectedMark(null); setRecipientName(""); setRecipientPhone(""); }} className="text-xs text-blue-700 underline shrink-0">
+              Changer
+            </button>
+          </div>
+        )}
+
+        {/* Suggestions de shipping marks existants */}
+        {!selectedMark && markSuggestions.length > 0 && (
+          <div className="rounded-md border bg-background shadow-sm divide-y text-sm">
+            <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium">Shipping marks existants</div>
+            {markSuggestions.map((mark) => (
+              <button
+                key={mark.id}
+                type="button"
+                onClick={() => applyMark(mark)}
+                className="w-full text-left px-3 py-2 hover:bg-muted/50 flex items-center justify-between"
+              >
+                <span>
+                  <span className="font-medium">{mark.name}</span>
+                  <span className="text-muted-foreground ml-2">{mark.phone}</span>
+                </span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {mark._count.shipments} colis
+                  {mark.user ? ` · ${mark.user.name}` : ""}
+                </span>
+              </button>
+            ))}
+            {markSearchLoading && <div className="px-3 py-2 text-xs text-muted-foreground">Recherche…</div>}
+          </div>
+        )}
+
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="recipientName">Nom destinataire</Label>
+            <Input
+              id="recipientName"
+              value={recipientName}
+              onChange={(e) => { setRecipientName(e.target.value); setSelectedMark(null); }}
+              placeholder="ex: KONÉ Mamadou"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="recipientPhone">Téléphone destinataire</Label>
+            <Input
+              id="recipientPhone"
+              value={recipientPhone}
+              onChange={(e) => { setRecipientPhone(e.target.value); setSelectedMark(null); }}
+              placeholder="ex: +225 07 00 00 00 00"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="overrideUnitPrice">Prix unitaire personnalisé (FCFA)</Label>
+            <Input id="overrideUnitPrice" type="number" step="any" value={overrideUnitPrice} onChange={(e) => setOverrideUnitPrice(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="recipientAddress">Adresse destinataire</Label>
+          <Textarea id="recipientAddress" value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} rows={2} />
+        </div>
+      </div>
 
       <div className="grid sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
@@ -268,26 +389,6 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="recipientName">Nom du destinataire</Label>
-          <Input id="recipientName" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="recipientPhone">Téléphone destinataire</Label>
-          <Input id="recipientPhone" value={recipientPhone} onChange={(e) => setRecipientPhone(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="overrideUnitPrice">Prix unitaire personnalisé (FCFA)</Label>
-          <Input id="overrideUnitPrice" type="number" step="any" value={overrideUnitPrice} onChange={(e) => setOverrideUnitPrice(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="recipientAddress">Adresse destinataire</Label>
-        <Textarea id="recipientAddress" value={recipientAddress} onChange={(e) => setRecipientAddress(e.target.value)} rows={2} />
-      </div>
-
       <div className="space-y-1.5">
         <Label htmlFor="description">Description du contenu</Label>
         <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
@@ -306,11 +407,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   );
 }
 
-function PricingPreview({
-  preview,
-}: {
-  preview: PricingResult | { error: string } | null;
-}) {
+function PricingPreview({ preview }: { preview: PricingResult | { error: string } | null }) {
   if (!preview) return null;
   if ("error" in preview) {
     return (
