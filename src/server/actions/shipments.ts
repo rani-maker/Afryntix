@@ -4,13 +4,19 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, auth } from "@/auth";
 import { generateTrackingNumber } from "@/lib/utils";
 import { computePrice, trackingPrefix, TRANSPORT_MODE_LABELS, SHIPMENT_STATUS_LABELS } from "@/lib/pricing";
-import { sendWhatsApp, shipmentCreatedTemplate, shipmentAvailableTemplate } from "@/lib/whatsapp";
+import {
+  sendWhatsApp,
+  shipmentAvailableTemplate,
+  shipmentsAvailableTemplate,
+} from "@/lib/whatsapp";
 import {
   notifyInApp,
   inAppShipmentCreated,
   inAppShipmentAvailable,
   inAppShipmentStatus,
 } from "@/lib/notifications";
+import { upsertShippingMark } from "./shippingMarks";
+import { getOrCreateFactureForShipments } from "./factures";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory, ShipmentStatus } from "@prisma/client";
 
@@ -73,12 +79,32 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul." };
   }
 
-  // Génération du tracking number (avec retry sur conflit)
+  // Générer le numéro de suivi
   let trackingNumber = generateTrackingNumber(trackingPrefix(data.mode as TransportMode));
   for (let i = 0; i < 5; i++) {
     const exists = await prisma.shipment.findUnique({ where: { trackingNumber } });
     if (!exists) break;
     trackingNumber = generateTrackingNumber(trackingPrefix(data.mode as TransportMode));
+  }
+
+  // Upsert du ShippingMark — nom/téléphone du destinataire (physique sur les cartons)
+  // Priorité : recipientName+recipientPhone si renseignés, sinon clientName+clientPhone
+  const markName = data.recipientName || (client ? client.name : data.clientName) || null;
+  const markPhone = data.recipientPhone || (client ? client.whatsapp || client.phone : data.clientPhone) || null;
+
+  let shippingMarkId: string | null = null;
+  if (markName && markPhone) {
+    const mark = await upsertShippingMark({ name: markName, phone: markPhone });
+    if (mark) {
+      shippingMarkId = mark.id;
+      // Lier au compte client si pas encore fait
+      if (client && !mark.userId) {
+        await prisma.shippingMark.update({
+          where: { id: mark.id },
+          data: { userId: client.id },
+        });
+      }
+    }
   }
 
   const chargeableWeight = pricing.unit === "kg" ? pricing.chargeableQuantity : undefined;
@@ -89,6 +115,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       clientId: data.clientId || null,
       clientName: data.clientId ? null : data.clientName,
       clientPhone: data.clientId ? null : data.clientPhone,
+      shippingMarkId,
       mode: data.mode as TransportMode,
       category: data.category as CargoCategory,
       description: data.description,
@@ -118,7 +145,6 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     },
   });
 
-  // Si lié à une réservation, marquer celle-ci comme RECEIVED
   if (data.reservationId) {
     await prisma.reservation.update({
       where: { id: data.reservationId },
@@ -126,39 +152,16 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     });
   }
 
-  // Notification WhatsApp au DESTINATAIRE — confirmation d'enregistrement
-  const notifyTo = data.recipientPhone || (client ? client.whatsapp || client.phone : data.clientPhone) || null;
-  const notifyName = data.recipientName || (client ? client.name : data.clientName) || "Destinataire";
-  if (notifyTo) {
-    await sendWhatsApp({
-      to: notifyTo,
-      body: shipmentCreatedTemplate({
-        clientName: notifyName,
-        trackingNumber,
-        totalAmount: pricing.totalAmount,
-        depositAmount: pricing.depositAmount,
-        remainingAmount: pricing.remainingAmount,
-        mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
-        modeKey: data.mode,
-        recipientName: data.recipientName,
-        recipientPhone: data.recipientPhone,
-        destinationCity: data.destinationCity,
-      }),
-      template: "shipment_created",
-      userId: client?.id,
-    });
-  }
+  // Pas de WhatsApp automatique à l'enregistrement.
+  // Le staff envoie l'avis de réception manuellement depuis la page Shipping Mark
+  // une fois tous les colis de la journée enregistrés (action sendReceptionNotice).
 
   if (client?.id) {
     const tpl = inAppShipmentCreated({
       trackingNumber,
       mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
     });
-    await notifyInApp({
-      userId: client.id,
-      template: "shipment_created",
-      ...tpl,
-    });
+    await notifyInApp({ userId: client.id, template: "shipment_created", ...tpl });
   }
 
   revalidatePath("/staff/shipments");
@@ -177,7 +180,7 @@ export async function updateShipmentStatus(input: {
 
   const shipment = await prisma.shipment.findUnique({
     where: { id: input.shipmentId },
-    include: { client: true },
+    include: { client: true, shippingMark: true },
   });
   if (!shipment) return { success: false, error: "Expédition introuvable." };
 
@@ -196,38 +199,11 @@ export async function updateShipmentStatus(input: {
     },
   });
 
-  // Notification WhatsApp si statut = AVAILABLE_FOR_DELIVERY → envoyée au DESTINATAIRE
   if (input.status === "AVAILABLE_FOR_DELIVERY") {
-    // Priorité : recipientPhone du colis → sinon téléphone du client
-    const recipientPhone =
-      shipment.recipientPhone ||
-      (shipment.client ? shipment.client.whatsapp || shipment.client.phone : shipment.clientPhone);
-    const recipientName =
-      shipment.recipientName ||
-      shipment.client?.name ||
-      shipment.clientName ||
-      "Destinataire";
-    if (recipientPhone) {
-      const depositPaid = shipment.amountPaid >= shipment.depositAmount;
-      const remaining = Math.max(0, shipment.totalAmount - shipment.amountPaid);
-      await sendWhatsApp({
-        to: recipientPhone,
-        body: shipmentAvailableTemplate({
-          recipientName,
-          trackingNumber: shipment.trackingNumber,
-          remainingAmount: remaining,
-          totalAmount: shipment.totalAmount,
-          depositPaid,
-          pickupAddress: input.location,
-          destinationCity: shipment.destinationCity ?? undefined,
-        }),
-        template: "available_for_delivery",
-        userId: shipment.clientId ?? undefined,
-      });
-    }
+    await handleAvailableForDelivery(shipment, input.location);
   }
 
-  // Notification in-app pour le client à chaque changement de statut
+  // Notification in-app pour le client
   if (shipment.clientId) {
     const tpl =
       input.status === "AVAILABLE_FOR_DELIVERY"
@@ -253,6 +229,130 @@ export async function updateShipmentStatus(input: {
   return { success: true };
 }
 
+async function handleAvailableForDelivery(
+  shipment: {
+    id: string;
+    trackingNumber: string;
+    shippingMarkId: string | null;
+    clientId: string | null;
+    clientName: string | null;
+    clientPhone: string | null;
+    recipientName: string | null;
+    recipientPhone: string | null;
+    envoiId: string | null;
+    totalAmount: number;
+    depositAmount: number;
+    amountPaid: number;
+    remainingAmount: number;
+    mode: TransportMode;
+    description: string | null;
+    destinationCity: string | null;
+    shippingMark: { id: string; name: string; phone: string; whatsapp: string | null } | null;
+    client: { name: string; whatsapp: string | null; phone: string | null } | null;
+  },
+  location?: string,
+) {
+  const recipientPhone =
+    shipment.recipientPhone ||
+    (shipment.client ? shipment.client.whatsapp || shipment.client.phone : shipment.clientPhone);
+  const recipientName =
+    shipment.recipientName || shipment.shippingMark?.name || shipment.client?.name || shipment.clientName || "Destinataire";
+
+  if (!recipientPhone) return;
+
+  // Chercher les autres colis disponibles du même ShippingMark + même Envoi
+  const groupedShipments = shipment.shippingMarkId && shipment.envoiId
+    ? await prisma.shipment.findMany({
+        where: {
+          shippingMarkId: shipment.shippingMarkId,
+          envoiId: shipment.envoiId,
+          status: "AVAILABLE_FOR_DELIVERY",
+          id: { not: shipment.id },
+        },
+        select: { id: true, trackingNumber: true, totalAmount: true, depositAmount: true, amountPaid: true, remainingAmount: true, description: true, mode: true },
+      })
+    : [];
+
+  // Tous les colis de ce ShippingMark encore en transit (pour informer le client)
+  const enTransitShipments = shipment.shippingMarkId
+    ? await prisma.shipment.findMany({
+        where: {
+          shippingMarkId: shipment.shippingMarkId,
+          status: { in: ["REGISTERED", "RECEIVED_CHINA", "IN_TRANSIT", "CUSTOMS_CLEARANCE"] },
+        },
+        select: { trackingNumber: true, envoi: { select: { reference: true } } },
+      })
+    : [];
+
+  const allAvailableForThisMark = [shipment, ...groupedShipments];
+  const allIds = allAvailableForThisMark.map((s) => s.id);
+
+  // Créer/mettre à jour la Facture groupée
+  const facture = await getOrCreateFactureForShipments({
+    shipmentIds: allIds,
+    shippingMarkId: shipment.shippingMarkId ?? undefined,
+    clientId: shipment.clientId ?? undefined,
+    envoiId: shipment.envoiId ?? undefined,
+  });
+
+  const totalPaid = allAvailableForThisMark.reduce((sum, s) => sum + s.amountPaid, 0);
+  const totalAmount = allAvailableForThisMark.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalDeposit = allAvailableForThisMark.reduce((sum, s) => sum + s.depositAmount, 0);
+  const totalRemaining = Math.max(0, totalAmount - totalPaid);
+  const depositPaid = totalPaid >= totalDeposit;
+
+  if (allAvailableForThisMark.length > 1) {
+    // Template multi-colis
+    await sendWhatsApp({
+      to: recipientPhone,
+      body: shipmentsAvailableTemplate({
+        recipientName,
+        colis: allAvailableForThisMark.map((s) => ({
+          trackingNumber: s.trackingNumber,
+          description: s.description,
+          mode: TRANSPORT_MODE_LABELS[s.mode],
+          modeKey: s.mode,
+        })),
+        factureReference: facture.reference,
+        totalAmount,
+        amountPaid: totalPaid,
+        remainingAmount: totalRemaining,
+        depositPaid,
+        enTransit: enTransitShipments.map((s) => ({
+          trackingNumber: s.trackingNumber,
+          envoiReference: s.envoi?.reference ?? null,
+        })),
+        destinationCity: shipment.destinationCity ?? undefined,
+      }),
+      template: "available_for_delivery",
+      userId: shipment.clientId ?? undefined,
+    });
+  } else {
+    // Template colis unique (avec référence facture en note)
+    const depositPaidSingle = shipment.amountPaid >= shipment.depositAmount;
+    const remainingSingle = Math.max(0, shipment.totalAmount - shipment.amountPaid);
+    await sendWhatsApp({
+      to: recipientPhone,
+      body: shipmentAvailableTemplate({
+        recipientName,
+        trackingNumber: shipment.trackingNumber,
+        remainingAmount: remainingSingle,
+        totalAmount: shipment.totalAmount,
+        depositPaid: depositPaidSingle,
+        pickupAddress: location,
+        destinationCity: shipment.destinationCity ?? undefined,
+        factureReference: facture.reference,
+        enTransit: enTransitShipments.map((s) => ({
+          trackingNumber: s.trackingNumber,
+          envoiReference: s.envoi?.reference ?? null,
+        })),
+      }),
+      template: "available_for_delivery",
+      userId: shipment.clientId ?? undefined,
+    });
+  }
+}
+
 export async function recordShipmentPayment(input: {
   shipmentId: string;
   amount: number;
@@ -270,6 +370,25 @@ export async function recordShipmentPayment(input: {
     where: { id: input.shipmentId },
     data: { amountPaid: newPaid, paymentStatus },
   });
+
+  // Mettre à jour la facture liée si elle existe
+  if (shipment.factureId) {
+    const facture = await prisma.facture.findUnique({
+      where: { id: shipment.factureId },
+      select: { amountPaid: true, totalAmount: true, depositAmount: true },
+    });
+    if (facture) {
+      const newFacturePaid = facture.amountPaid + input.amount;
+      const newFactureRemaining = Math.max(0, facture.totalAmount - newFacturePaid);
+      let factureStatus: "UNPAID" | "DEPOSIT_PAID" | "FULLY_PAID" | "REFUNDED" = "UNPAID";
+      if (newFacturePaid >= facture.totalAmount) factureStatus = "FULLY_PAID";
+      else if (newFacturePaid >= facture.depositAmount) factureStatus = "DEPOSIT_PAID";
+      await prisma.facture.update({
+        where: { id: shipment.factureId },
+        data: { amountPaid: newFacturePaid, remainingAmount: newFactureRemaining, status: factureStatus },
+      });
+    }
+  }
 
   revalidatePath("/staff/shipments");
   revalidatePath("/admin/shipments");

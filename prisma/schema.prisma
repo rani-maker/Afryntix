@@ -58,6 +58,8 @@ model User {
   notifications       Notification[]
   sessions            Session[]
   accounts            Account[]
+  shippingMark        ShippingMark?
+  factures            Facture[]       @relation("FactureClient")
 }
 
 // Auth.js Session/Account models
@@ -169,6 +171,14 @@ model Shipment {
   containerId     String?
   container       Container?      @relation(fields: [containerId], references: [id], onDelete: SetNull)
 
+  // Shipping Mark (identité physique du client sur les cartons)
+  shippingMarkId  String?
+  shippingMark    ShippingMark?   @relation(fields: [shippingMarkId], references: [id], onDelete: SetNull)
+
+  // Facture groupée (peut regrouper plusieurs colis du même ShippingMark)
+  factureId       String?
+  facture         Facture?        @relation(fields: [factureId], references: [id], onDelete: SetNull)
+
   mode            TransportMode
   category        CargoCategory
   description     String?
@@ -203,6 +213,9 @@ model Shipment {
 
   status          ShipmentStatus  @default(REGISTERED)
 
+  // Notification d'enregistrement envoyée manuellement par le staff
+  registrationNotifiedAt DateTime?
+
   // Photos
   photos          ShipmentPhoto[]
 
@@ -219,6 +232,8 @@ model Shipment {
   @@index([status])
   @@index([envoiId])
   @@index([containerId])
+  @@index([shippingMarkId])
+  @@index([factureId])
 }
 
 model ShipmentPhoto {
@@ -314,6 +329,7 @@ model Envoi {
   containers     Container[]
   shipments      Shipment[]
   history        EnvoiHistory[]
+  factures       Facture[]
 
   createdById    String?
   createdBy      User?        @relation("EnvoiCreator", fields: [createdById], references: [id])
@@ -355,6 +371,71 @@ model EnvoiHistory {
   createdAt DateTime    @default(now())
   createdBy String?
 
+  @@index([envoiId])
+}
+
+// -----------------------------------------------------------------
+// Shipping Mark — identité physique du client sur les cartons
+// Un ShippingMark = Nom + Tel inscrits sur les colis par le client/fournisseur
+// Peut exister sans compte système (clientId nullable)
+// -----------------------------------------------------------------
+
+model ShippingMark {
+  id          String     @id @default(cuid())
+  name        String
+  phone       String
+  whatsapp    String?
+  notes       String?
+
+  // Lien optionnel vers un compte système
+  userId      String?    @unique
+  user        User?      @relation(fields: [userId], references: [id])
+
+  shipments   Shipment[]
+  factures    Facture[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([name, phone])
+  @@index([phone])
+}
+
+// -----------------------------------------------------------------
+// Facture — document de facturation groupé pour N colis d'un même
+// ShippingMark arrivés sur le même envoi (ou regroupés manuellement)
+// -----------------------------------------------------------------
+
+model Facture {
+  id              String        @id @default(cuid())
+  reference       String        @unique   // AFR-FAC-2026-000123
+
+  shippingMarkId  String?
+  shippingMark    ShippingMark? @relation(fields: [shippingMarkId], references: [id], onDelete: SetNull)
+  clientId        String?
+  client          User?         @relation("FactureClient", fields: [clientId], references: [id], onDelete: SetNull)
+
+  // Voyage auquel cette facture est rattachée (optionnel)
+  envoiId         String?
+  envoi           Envoi?        @relation(fields: [envoiId], references: [id], onDelete: SetNull)
+
+  // Colis couverts (N colis → 1 facture)
+  shipments       Shipment[]
+
+  // Montants agrégés (somme des totalAmount des colis liés)
+  totalAmount     Float
+  depositAmount   Float                   // 50%
+  amountPaid      Float         @default(0)
+  remainingAmount Float
+  status          PaymentStatus @default(UNPAID)
+
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([shippingMarkId])
+  @@index([clientId])
+  @@index([status])
   @@index([envoiId])
 }
 

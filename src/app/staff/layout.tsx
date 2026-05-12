@@ -12,11 +12,13 @@ import {
   Briefcase,
   CalendarRange,
   Ship,
+  Tag,
 } from "lucide-react";
 
 const items: DashNavItem[] = [
   { href: "/staff", label: "Vue d'ensemble", icon: <LayoutDashboard />, exact: true, section: "Pilotage" },
   { href: "/staff/shipments", label: "Expéditions (colis)", icon: <Package />, section: "Opérations" },
+  { href: "/staff/shipping-marks", label: "Shipping Marks", icon: <Tag />, section: "Opérations" },
   { href: "/staff/envois", label: "Envois (voyages)", icon: <Ship />, section: "Opérations" },
   { href: "/staff/reservations", label: "Réservations", icon: <ClipboardList />, section: "Opérations" },
   { href: "/staff/services", label: "Demandes de service", icon: <Briefcase />, section: "Opérations" },

@@ -102,39 +102,55 @@ function modeEmoji(modeKey: string): string {
   return "📦";
 }
 
-// ── Colis enregistré (envoyé au DESTINATAIRE) ─────────────────
-type ShipmentCreatedArgs = {
-  clientName: string;
+// ── Avis de réception groupé (envoyé manuellement par le staff) ──────────────
+type ReceptionColisArgs = {
   trackingNumber: string;
-  totalAmount: number;
-  depositAmount: number;
-  remainingAmount: number;
+  description?: string | null;
   mode: string;
   modeKey: string;
-  recipientName?: string;
-  recipientPhone?: string;
-  destinationCity?: string;
+  totalAmount: number;
+  depositAmount: number;
+  destinationCity?: string | null;
 };
 
-export function shipmentCreatedTemplate(args: ShipmentCreatedArgs): string {
+export function receptionNoticeTemplate(args: {
+  recipientName: string;
+  colis: ReceptionColisArgs[];
+  totalDeposit: number;
+  totalAmount: number;
+  destinationCity?: string;
+}): string {
   const appUrl = getAppUrl();
-  const greeting = args.recipientName || args.clientName;
-  const senderLine = args.recipientName ? `\nExpéditeur : ${args.clientName}` : "";
-  const destinationLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
+  const count = args.colis.length;
+  const destLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
 
-  return `${brandHeader("Enregistrement de votre colis")}
-Bonjour *${greeting}*,
-Un colis a été enregistré à votre nom en provenance de Chine.
+  const colisLines = args.colis
+    .map(
+      (c, i) =>
+        `📦 Colis ${i + 1} : \`${c.trackingNumber}\`\n` +
+        `   ${modeEmoji(c.modeKey)} ${c.mode}${c.description ? ` — ${c.description}` : ""}\n` +
+        `   Acompte : ${formatXOF(c.depositAmount)} · Total : ${formatXOF(c.totalAmount)}`,
+    )
+    .join("\n");
+
+  const trackingLinks = args.colis
+    .map((c) => `${appUrl}/tracking/${c.trackingNumber}`)
+    .join("\n");
+
+  return `${brandHeader(`Avis de réception — ${count} colis`)}
+Bonjour *${args.recipientName}*,
+*${count} colis* ont été reçus à notre entrepôt de Guangzhou et enregistrés à votre nom.${destLine}
 ━━━━━━━━━━━━━━━━━━━
-📦 N° de Suivi : \`${args.trackingNumber}\`
-${modeEmoji(args.modeKey)} Mode : ${args.mode}${destinationLine}${senderLine}
-💰 Tarif total : *${formatXOF(args.totalAmount)}*
-Acompte (50%) : ${formatXOF(args.depositAmount)}
-Solde à la réception : ${formatXOF(args.remainingAmount)}
+${colisLines}
 ━━━━━━━━━━━━━━━━━━━
-Veuillez procéder au paiement de l'acompte de 50% si ce n'est pas encore fait.
-Contactez le Bureau d'Abidjan
-Suivez votre colis : ${appUrl}/tracking/${args.trackingNumber}
+💰 Total acomptes à verser : *${formatXOF(args.totalDeposit)}*
+   (50% du montant total de ${formatXOF(args.totalAmount)})
+━━━━━━━━━━━━━━━━━━━
+Veuillez procéder au règlement des acomptes dès que possible.
+Contactez le Bureau d'Abidjan : +225 07 06 26 04 05
+━━━━━━━━━━━━━━━━━━━
+Suivre vos colis :
+${trackingLinks}
 ${BRAND_FOOTER}`;
 }
 
@@ -147,6 +163,8 @@ export function shipmentAvailableTemplate(args: {
   depositPaid: boolean;
   pickupAddress?: string;
   destinationCity?: string;
+  factureReference?: string;
+  enTransit?: { trackingNumber: string; envoiReference?: string | null }[];
 }): string {
   const appUrl = getAppUrl();
   const pickupLine = args.pickupAddress
@@ -159,12 +177,23 @@ export function shipmentAvailableTemplate(args: {
     ? `💰 Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
     : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter la somme totale : *${formatXOF(args.totalAmount)}* lors du retrait.`;
 
+  const factureLine = args.factureReference ? `\n📋 Facture : *${args.factureReference}*` : "";
+
+  const transitSection =
+    args.enTransit && args.enTransit.length > 0
+      ? `\n━━━━━━━━━━━━━━━━━━━\nℹ️ ${args.enTransit.length} autre(s) colis en transit :\n` +
+        args.enTransit
+          .map((c) => `   • \`${c.trackingNumber}\`${c.envoiReference ? ` (${c.envoiReference})` : ""}`)
+          .join("\n") +
+        "\n   Vous serez notifié à leur arrivée."
+      : "";
+
   return `${brandHeader("Disponibilité de votre colis")}
 Bonjour *${args.recipientName}*,
 Votre colis est arrivé et disponible pour livraison.
 ━━━━━━━━━━━━━━━━━━━
-📦 N° de Suivi : \`${args.trackingNumber}\`${pickupLine}
-${paymentLine}
+📦 N° de Suivi : \`${args.trackingNumber}\`${pickupLine}${factureLine}
+${paymentLine}${transitSection}
 ━━━━━━━━━━━━━━━━━━━
 Contactez-nous pour organiser votre livraison :
 Bureau AFRYNTIX Abidjan — Angré Château
@@ -175,6 +204,64 @@ Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la
 NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.
 ━━━━━━━━━━━━━━━━━━━
 Suivre le colis : ${appUrl}/tracking/${args.trackingNumber}
+${BRAND_FOOTER}`;
+}
+
+// ── Plusieurs colis disponibles (même ShippingMark, envoyé au DESTINATAIRE) ─
+export function shipmentsAvailableTemplate(args: {
+  recipientName: string;
+  colis: { trackingNumber: string; description?: string | null; mode: string; modeKey: string }[];
+  factureReference: string;
+  totalAmount: number;
+  amountPaid: number;
+  remainingAmount: number;
+  depositPaid: boolean;
+  enTransit?: { trackingNumber: string; envoiReference?: string | null }[];
+  destinationCity?: string;
+}): string {
+  const appUrl = getAppUrl();
+  const count = args.colis.length;
+  const colisLines = args.colis
+    .map((c, i) => `📦 Colis ${i + 1} : \`${c.trackingNumber}\`${c.description ? ` — ${c.description}` : ""} (${modeEmoji(c.modeKey)} ${c.mode})`)
+    .join("\n");
+
+  const pickupLine = args.destinationCity ? `\nVille : ${args.destinationCity}` : "";
+
+  const paymentLine = args.depositPaid
+    ? `💰 Solde à régler à la réception : *${formatXOF(args.remainingAmount)}*`
+    : `⚠️ Acompte (50%) non encore reçu.\nMerci d'apporter le montant total : *${formatXOF(args.totalAmount)}*`;
+
+  const transitSection =
+    args.enTransit && args.enTransit.length > 0
+      ? `\nℹ️ ${args.enTransit.length} autre(s) colis en transit :\n` +
+        args.enTransit
+          .map((c) => `   • \`${c.trackingNumber}\`${c.envoiReference ? ` (${c.envoiReference})` : ""}`)
+          .join("\n") +
+        "\n   Vous serez notifié à leur arrivée avec leur facture."
+      : "";
+
+  const trackingLinks = args.colis
+    .map((c) => `${appUrl}/tracking/${c.trackingNumber}`)
+    .join("\n");
+
+  return `${brandHeader(`Disponibilité de ${count} colis`)}
+Bonjour *${args.recipientName}*,
+*${count} colis* sont arrivés et disponibles pour livraison.${pickupLine}
+━━━━━━━━━━━━━━━━━━━
+${colisLines}
+━━━━━━━━━━━━━━━━━━━
+📋 Facture : *${args.factureReference}*
+${paymentLine}${transitSection}
+━━━━━━━━━━━━━━━━━━━
+Contactez-nous pour organiser votre livraison :
+Bureau AFRYNTIX Abidjan — Angré Château
+À 250 m du commissariat du 40ème Arr.
++225 07 06 26 04 05
+━━━━━━━━━━━━━━━━━━━
+Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés 3 jours après cette notification.
+━━━━━━━━━━━━━━━━━━━
+Suivre vos colis :
+${trackingLinks}
 ${BRAND_FOOTER}`;
 }
 
