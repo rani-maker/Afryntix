@@ -12,12 +12,19 @@ export async function serverSignOut() {
   await signOut({ redirectTo: landingUrl });
 }
 
+const phoneSchema = z
+  .string()
+  .min(8)
+  .refine((v) => v.startsWith("+"), {
+    message: "Le numéro de téléphone doit commencer par l'indicatif du pays (ex : +225).",
+  });
+
 const RegisterSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  phone: z.string().min(6),
-  whatsapp: z.string().optional(),
+  phone: phoneSchema,
+  whatsapp: phoneSchema.optional().or(z.literal("")),
   city: z.string().optional(),
   country: z.string().optional(),
 });
@@ -113,8 +120,8 @@ export async function acceptStaffInvite(input: {
 
 const ProfileSchema = z.object({
   name: z.string().min(2),
-  phone: z.string().min(6),
-  whatsapp: z.string().optional(),
+  phone: phoneSchema,
+  whatsapp: phoneSchema.optional().or(z.literal("")),
   city: z.string().optional(),
   country: z.string().optional(),
   address: z.string().optional(),

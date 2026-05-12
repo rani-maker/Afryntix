@@ -91,7 +91,7 @@ export async function sendWhatsApp({ to, body, template, userId }: SendArgs) {
 function brandHeader(subject: string): string {
   return `*AFRYNTIX — ${subject}*`;
 }
-const BRAND_FOOTER = `━━━━━━━━━━━━━━━━━━━\nTél. Côte d'Ivoire : +225 07 06 26 04 05\nTél. Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
+const BRAND_FOOTER = `━━━━━━━━━━━━━━━━━━━\nTél. Côte d'Ivoire : +225 0706260405\nTél. Chine : +86 190 6650 0468\n_L'équipe AFRYNTIX_`;
 
 function modeEmoji(modeKey: string): string {
   if (modeKey.startsWith("AIR")) return "✈️";
@@ -147,7 +147,7 @@ ${colisLines}
    (50% du montant total de ${formatXOF(args.totalAmount)})
 ━━━━━━━━━━━━━━━━━━━
 Veuillez procéder au règlement des acomptes dès que possible.
-Contactez le Bureau d'Abidjan : +225 07 06 26 04 05
+Contactez le Bureau d'Abidjan : +225 0706260405
 ━━━━━━━━━━━━━━━━━━━
 Suivre vos colis :
 ${trackingLinks}
@@ -198,7 +198,7 @@ ${paymentLine}${transitSection}
 Contactez-nous pour organiser votre livraison :
 Bureau AFRYNTIX Abidjan — Angré Château
 À 250 m du commissariat du 40ème Arr.
-+225 07 06 26 04 05
++225 0706260405
 ━━━━━━━━━━━━━━━━━━━
 Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés à la facture 3 jours après notification de disponibilité.
 NB : Après 10 jours sans récupération, AFRYNTIX SARL n'est plus responsable de la maintenance et de la sécurité de votre colis.
@@ -256,7 +256,7 @@ ${paymentLine}${transitSection}
 Contactez-nous pour organiser votre livraison :
 Bureau AFRYNTIX Abidjan — Angré Château
 À 250 m du commissariat du 40ème Arr.
-+225 07 06 26 04 05
++225 0706260405
 ━━━━━━━━━━━━━━━━━━━
 Des frais de magasinage de 2 000 XOF/jour et 1 500 XOF/CBM seront ajoutés 3 jours après cette notification.
 ━━━━━━━━━━━━━━━━━━━

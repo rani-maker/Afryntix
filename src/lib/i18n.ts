@@ -172,7 +172,7 @@ const dict = {
     "footer.office.cn": "Bureau Chine · 中国办公室",
     "footer.copyright": "Logistique Chine ↔ Afrique de l'Ouest",
     "footer.office.abj.address": "Abidjan Angré château, à 250 m du 40ème Arr.",
-    "footer.office.abj.phone": "Afryntix ABJ : +225 07 06 26 04 05",
+    "footer.office.abj.phone": "Afryntix ABJ : +225 0706260405",
     "footer.office.cn.phone": "Afryntix Chine : +86 190 6650 0468",
 
     // Login / Register
@@ -424,7 +424,7 @@ const dict = {
     "footer.office.cn": "中国办公室",
     "footer.copyright": "中国 ↔ 西非物流",
     "footer.office.abj.address": "阿比让 Angré château,距 40 区 250 米。",
-    "footer.office.abj.phone": "Afryntix 阿比让:+225 07 06 26 04 05",
+    "footer.office.abj.phone": "Afryntix 阿比让:+225 0706260405",
     "footer.office.cn.phone": "Afryntix 中国:+86 190 6650 0468",
 
     // Login / Register
@@ -676,7 +676,7 @@ const dict = {
     "footer.office.cn": "Oficina China · 中国办公室",
     "footer.copyright": "Logística China ↔ África Occidental",
     "footer.office.abj.address": "Abidján Angré château, a 250 m del Distrito 40.",
-    "footer.office.abj.phone": "Afryntix Abidján: +225 07 06 26 04 05",
+    "footer.office.abj.phone": "Afryntix Abidján: +225 0706260405",
     "footer.office.cn.phone": "Afryntix China: +86 190 6650 0468",
 
     // Login / Register
