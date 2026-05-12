@@ -81,7 +81,7 @@ export default async function ClientShipmentsPage() {
                   ))}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Pour régler cette facture, contactez AFRYNTIX Abidjan au +225 07 06 26 04 05
+                  Pour régler cette facture, contactez AFRYNTIX Abidjan au +225 0706260405
                 </div>
               </div>
             ))}

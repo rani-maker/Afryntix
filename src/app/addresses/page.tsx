@@ -356,7 +356,7 @@ export default async function PublicAddressesPage() {
           </span>
           <div className="flex items-center gap-4 text-[13px] text-ink-3">
             <a href="tel:+2250706260405" className="hover:text-mint-3 transition-colors">
-              +225 07 06 26 04 05
+              +225 0706260405
             </a>
             <span>·</span>
             <a href="tel:+8619066500468" className="hover:text-mint-3 transition-colors">

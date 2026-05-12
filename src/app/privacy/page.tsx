@@ -225,7 +225,7 @@ export default function PrivacyPage() {
               <li>
                 <strong>WhatsApp :</strong>{" "}
                 <a href="tel:+2250706260405" className="text-mint-3 hover:underline">
-                  +225 07 06 26 04 05
+                  +225 0706260405
                 </a>
               </li>
             </ul>

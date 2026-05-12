@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { updateProfile, changePassword } from "@/server/actions/auth";
 
 type Initial = {
@@ -63,15 +64,13 @@ export function ProfileForm({ initial }: { initial: Initial }) {
           <Input id="email" value={initial.email} disabled />
         </div>
       </div>
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Téléphone</Label>
-          <Input id="phone" required value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="whatsapp">WhatsApp</Label>
-          <Input id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="phone">Téléphone</Label>
+        <PhoneInput id="phone" required value={phone} onChange={setPhone} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="whatsapp">WhatsApp</Label>
+        <PhoneInput id="whatsapp" value={whatsapp} onChange={setWhatsapp} />
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
