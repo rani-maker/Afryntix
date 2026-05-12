@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Phone, MessageCircle, Plane, Ship, Building2, Briefcase } from "lucide-react";
+import { DashCard, DashCardHeader, DashCardBody } from "@/components/dashboard/ui/dash-card";
+import { Plane, Ship, Building2, Briefcase, Phone, MessageCircle, AlertTriangle, Tag } from "lucide-react";
 
-// Adresses statiques — utilisées si la DB n'est pas encore configurée
 const STATIC_ADDRESSES = [
   {
     id: "static-sea",
@@ -20,10 +18,8 @@ const STATIC_ADDRESSES = [
     postalCode: null,
     city: "Foshan 佛山",
     country: "Chine",
-    notes: "⚠️ OBLIGATOIRE : Écrire l'入仓号 AFRYNTIX + NOM + TÉLÉPHONE sur le colis et joindre un bon de commande en chinois. 没有入仓号仓库拒收货物 — Tout colis sans code d'entrée sera refusé.",
+    notes: "OBLIGATOIRE : Écrire l'入仓号 AFRYNTIX + NOM + TÉLÉPHONE sur le colis et joindre un bon de commande en chinois. 没有入仓号仓库拒收货物 — Tout colis sans code d'entrée sera refusé.",
     active: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
   },
   {
     id: "static-air",
@@ -38,10 +34,8 @@ const STATIC_ADDRESSES = [
     postalCode: null,
     city: "Guangzhou 广州",
     country: "Chine",
-    notes: "⚠️ OBLIGATOIRE : Coller le Shipping Mark COMPLET sur chaque colis (NOM, NUMÉRO, Adresse, Nature, Mode). Colis sans Shipping Mark = refusé.",
+    notes: "OBLIGATOIRE : Coller le Shipping Mark COMPLET sur chaque colis (NOM, NUMÉRO, Adresse, Nature, Mode). Colis sans Shipping Mark = refusé.",
     active: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
   },
   {
     id: "static-office-cn",
@@ -58,8 +52,6 @@ const STATIC_ADDRESSES = [
     country: "Chine",
     notes: null,
     active: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
   },
   {
     id: "static-office-abj",
@@ -76,19 +68,17 @@ const STATIC_ADDRESSES = [
     country: "Côte d'Ivoire",
     notes: null,
     active: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
   },
 ];
 
 const TYPE_LABELS: Record<string, string> = {
-  AIR_WAREHOUSE:  "Entrepôt aérien",
-  SEA_WAREHOUSE:  "Entrepôt maritime",
-  RECEPTION:      "Réception (Afrique)",
-  OFFICE:         "Bureau",
+  AIR_WAREHOUSE: "Entrepôt aérien",
+  SEA_WAREHOUSE: "Entrepôt maritime",
+  RECEPTION:     "Réception",
+  OFFICE:        "Bureau",
 };
 
-const TYPE_ICONS: Record<string, typeof Plane> = {
+const TYPE_ICONS: Record<string, React.ElementType> = {
   AIR_WAREHOUSE: Plane,
   SEA_WAREHOUSE: Ship,
   RECEPTION:     Building2,
@@ -96,11 +86,11 @@ const TYPE_ICONS: Record<string, typeof Plane> = {
 };
 
 const SHIPPING_MARK_LINES = [
-  { label: "NOM",               hint: "Votre nom complet" },
-  { label: "NUMÉRO",            hint: "Votre numéro WhatsApp" },
-  { label: "Adresse",           hint: "Ville / pays de livraison" },
-  { label: "Natures du Colis",  hint: "Ex : vêtements, électronique…" },
-  { label: "Mode d'Envoi",      hint: "Aérien / Maritime" },
+  { label: "NOM",              hint: "Votre nom complet" },
+  { label: "NUMÉRO",           hint: "Votre numéro WhatsApp" },
+  { label: "Adresse",          hint: "Ville / pays de livraison" },
+  { label: "Nature du colis",  hint: "Ex : vêtements, électronique…" },
+  { label: "Mode d'envoi",     hint: "Aérien / Maritime" },
 ];
 
 export default async function ClientAddressesPage() {
@@ -110,154 +100,148 @@ export default async function ClientAddressesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let addresses: any[] = STATIC_ADDRESSES;
   try {
-    const dbAddresses = await prisma.companyAddress.findMany({
+    const db = await prisma.companyAddress.findMany({
       where: { active: true },
       orderBy: [{ type: "asc" }, { createdAt: "desc" }],
     });
-    if (dbAddresses.length > 0) addresses = dbAddresses;
-  } catch {
-    // DB non configurée — on utilise les adresses statiques
-  }
+    if (db.length > 0) addresses = db;
+  } catch { /* DB non configurée — adresses statiques */ }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-[900px]">
 
-      {/* ── Avertissement Shipping Mark ───────────────────────────────────── */}
-      <div className="rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/30 px-5 py-4 flex gap-3 items-start">
-        <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+      {/* ── Alerte Shipping Mark ─────────────────────────────── */}
+      <div className="flex gap-3 items-start rounded-2xl border border-red-500/30 bg-red-500/[0.07] px-5 py-4">
+        <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-bold text-red-700 dark:text-red-400 text-sm">
-            ⚠️ TOUT COLIS SANS SHIPPING MARK SERA REFUSÉ À L&apos;ENTREPÔT
+          <p className="text-sm font-bold text-[var(--dash-text)]">
+            Tout colis sans Shipping Mark sera refusé à l&apos;entrepôt
           </p>
-          <p className="text-xs text-red-600 dark:text-red-300 leading-relaxed">
-            Chaque colis doit porter l&apos;étiquette <strong>SHIPPING MARK</strong> lisible sur l&apos;emballage extérieur :
-            nom, numéro WhatsApp, adresse, nature du colis, mode d&apos;envoi.
+          <p className="text-xs text-[var(--dash-text-muted)] leading-relaxed">
+            Chaque colis doit porter l&apos;étiquette <strong className="text-[var(--dash-text)]">SHIPPING MARK</strong> lisible
+            sur l&apos;emballage extérieur : nom, numéro WhatsApp, adresse, nature du colis, mode d&apos;envoi.
           </p>
-          <p className="text-xs text-red-500 dark:text-red-400 font-medium">
+          <p className="text-xs text-[var(--dash-text-dim)] font-medium mt-1">
             亲！务必在外包装写明入仓号和客人的名字和电话！没有入仓号仓库拒收货物！
           </p>
         </div>
       </div>
 
-      {/* ── Shipping Mark Template ────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            🏷️ Modèle Shipping Mark — à coller sur chaque colis
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Label visuel */}
-          <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-5 font-mono text-sm space-y-2">
-            <div className="text-center pb-3 border-b border-border">
-              <div className="text-xl font-black tracking-widest">AFRYNTIX</div>
-              <div className="text-xs text-muted-foreground mt-0.5">
+      {/* ── Modèle Shipping Mark ─────────────────────────────── */}
+      <DashCard>
+        <DashCardHeader
+          icon={<Tag />}
+          title="Modèle Shipping Mark"
+          subtitle="À coller sur chaque colis avant envoi"
+        />
+        <DashCardBody className="space-y-4">
+          {/* Étiquette visuelle */}
+          <div className="rounded-xl border border-dashed border-[var(--dash-border-strong)] bg-[var(--dash-surface-2)] p-5 font-mono text-sm space-y-2.5">
+            <div className="text-center pb-3 border-b border-[var(--dash-border)]">
+              <div className="text-lg font-black tracking-widest text-[var(--dash-text)]">AFRYNTIX</div>
+              <div className="text-[11px] text-[var(--dash-text-muted)] mt-0.5">
                 Transport &amp; Logistique Chine — Afrique de l&apos;Ouest
               </div>
             </div>
             {SHIPPING_MARK_LINES.map(({ label, hint }) => (
               <div key={label} className="flex items-baseline gap-2">
-                <span className="font-bold w-40 shrink-0 text-xs">{label} :</span>
-                <span className="text-muted-foreground border-b border-border/60 flex-1 pb-0.5 text-xs">
+                <span className="text-xs font-bold w-36 shrink-0 text-[var(--dash-text)]">{label} :</span>
+                <span className="text-[var(--dash-text-dim)] border-b border-[var(--dash-border)] flex-1 pb-0.5 text-xs">
                   {hint}
                 </span>
               </div>
             ))}
-            <p className="text-[11px] text-muted-foreground pt-2 border-t border-border">
+            <p className="text-[11px] text-[var(--dash-text-dim)] pt-2 border-t border-[var(--dash-border)]">
               Reproduire sur chaque colis du même envoi
             </p>
           </div>
 
           {/* Note maritime */}
-          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
-            <span className="font-bold">Maritime uniquement :</span> ajouter{" "}
-            <span className="font-mono font-bold bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded">
-              入仓号 : AFRYNTIX
-            </span>{" "}
-            et joindre un <strong>bon de commande en chinois</strong> (装箱单) à l&apos;extérieur du colis.
+          <div className="flex gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-xs">
+            <Ship className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[var(--dash-text-muted)] leading-relaxed">
+              <span className="font-semibold text-[var(--dash-text)]">Maritime uniquement :</span>{" "}
+              ajouter le code{" "}
+              <span className="font-mono font-bold text-[var(--dash-text)] bg-amber-500/10 px-1.5 py-0.5 rounded">
+                入仓号 : AFRYNTIX
+              </span>{" "}
+              et joindre un <strong className="text-[var(--dash-text)]">bon de commande en chinois</strong> (装箱单) à l&apos;extérieur.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </DashCardBody>
+      </DashCard>
 
-      {/* ── Liste des adresses ────────────────────────────────────────────── */}
+      {/* ── Adresses d'entrepôt ──────────────────────────────── */}
       <div>
-        <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-          Nos adresses d&apos;entrepôt
-        </h3>
+        <p className="text-xs font-semibold text-[var(--dash-text-dim)] uppercase tracking-widest mb-3 px-1">
+          Nos adresses
+        </p>
 
-        {addresses.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground text-sm">
-              Les adresses ne sont pas encore configurées. Contactez-nous via WhatsApp.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            {addresses.map((a) => {
-              const Icon = TYPE_ICONS[a.type] ?? Building2;
-              return (
-                <Card key={a.id} className="overflow-hidden">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-md bg-primary/10 text-primary grid place-items-center shrink-0">
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <CardTitle className="text-sm leading-tight">{a.label}</CardTitle>
-                      </div>
-                      <Badge variant="secondary" className="shrink-0 text-[11px]">
-                        {TYPE_LABELS[a.type] ?? a.type}
-                      </Badge>
-                    </div>
-                  </CardHeader>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {addresses.map((a) => {
+            const Icon = TYPE_ICONS[a.type] ?? Building2;
+            return (
+              <DashCard key={a.id} className="flex flex-col">
+                <DashCardHeader
+                  icon={<Icon />}
+                  title={a.label}
+                  subtitle={TYPE_LABELS[a.type] ?? a.type}
+                />
+                <DashCardBody className="flex-1 space-y-3 pt-2">
 
-                  <CardContent className="pt-0 space-y-3 text-sm">
-                    {/* Adresse */}
-                    <div className="space-y-0.5">
-                      <p className="font-medium">{a.line1}</p>
-                      {a.line2 && (
-                        <p className="text-xs font-semibold text-primary">{a.line2}</p>
+                  {/* Adresse */}
+                  <div className="space-y-0.5 text-sm">
+                    <p className="text-[var(--dash-text)] font-medium leading-snug">{a.line1}</p>
+                    {a.line2 && (
+                      <p className="text-xs font-semibold text-[hsl(var(--dash-accent))]">{a.line2}</p>
+                    )}
+                    <p className="text-xs text-[var(--dash-text-muted)]">
+                      {[a.postalCode, a.city, a.country].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+
+                  {/* Contacts */}
+                  {(a.contactName || a.phone || a.whatsapp) && (
+                    <div className="border-t border-[var(--dash-border)] pt-2.5 space-y-1.5">
+                      {a.contactName && (
+                        <p className="text-xs font-semibold text-[var(--dash-text)]">{a.contactName}</p>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        {[a.postalCode, a.city, a.country].filter(Boolean).join(", ")}
+                      {a.phone && (
+                        <a
+                          href={`tel:${a.phone}`}
+                          className="flex items-center gap-2 text-xs text-[var(--dash-text-muted)] hover:text-[var(--dash-text)] transition-colors"
+                        >
+                          <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-mono">{a.phone}</span>
+                        </a>
+                      )}
+                      {a.whatsapp && a.whatsapp !== a.phone && (
+                        <a
+                          href={`https://wa.me/${a.whatsapp.replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-[var(--dash-text-muted)] hover:text-emerald-400 transition-colors"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                          <span className="font-mono">{a.whatsapp}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notes / avertissements */}
+                  {a.notes && (
+                    <div className="rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2.5 mt-1">
+                      <p className="text-[11px] text-red-400 leading-relaxed font-medium">
+                        ⚠️ {a.notes}
                       </p>
                     </div>
-
-                    {/* Contacts */}
-                    {(a.contactName || a.phone || a.whatsapp) && (
-                      <div className="border-t pt-2 space-y-1 text-xs">
-                        {a.contactName && (
-                          <p className="font-semibold">{a.contactName}</p>
-                        )}
-                        {a.phone && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span className="font-mono">{a.phone}</span>
-                          </div>
-                        )}
-                        {a.whatsapp && a.whatsapp !== a.phone && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <MessageCircle className="h-3 w-3 text-[#25D366]" />
-                            <span className="font-mono">{a.whatsapp}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Notes (warnings) */}
-                    {a.notes && (
-                      <div className="border-t border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 -mx-6 px-4 py-2.5 mt-3">
-                        <p className="text-[11px] text-red-700 dark:text-red-400 font-medium leading-relaxed">
-                          {a.notes}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                  )}
+                </DashCardBody>
+              </DashCard>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
