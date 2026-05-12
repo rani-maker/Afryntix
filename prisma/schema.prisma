@@ -213,6 +213,9 @@ model Shipment {
 
   status          ShipmentStatus  @default(REGISTERED)
 
+  // Notification d'enregistrement envoyée manuellement par le staff
+  registrationNotifiedAt DateTime?
+
   // Photos
   photos          ShipmentPhoto[]
 

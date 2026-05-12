@@ -6,7 +6,6 @@ import { generateTrackingNumber } from "@/lib/utils";
 import { computePrice, trackingPrefix, TRANSPORT_MODE_LABELS, SHIPMENT_STATUS_LABELS } from "@/lib/pricing";
 import {
   sendWhatsApp,
-  shipmentCreatedTemplate,
   shipmentAvailableTemplate,
   shipmentsAvailableTemplate,
 } from "@/lib/whatsapp";
@@ -153,28 +152,9 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     });
   }
 
-  // Notification WhatsApp au DESTINATAIRE
-  const notifyTo = data.recipientPhone || (client ? client.whatsapp || client.phone : data.clientPhone) || null;
-  const notifyName = data.recipientName || (client ? client.name : data.clientName) || "Destinataire";
-  if (notifyTo) {
-    await sendWhatsApp({
-      to: notifyTo,
-      body: shipmentCreatedTemplate({
-        clientName: notifyName,
-        trackingNumber,
-        totalAmount: pricing.totalAmount,
-        depositAmount: pricing.depositAmount,
-        remainingAmount: pricing.remainingAmount,
-        mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
-        modeKey: data.mode,
-        recipientName: data.recipientName,
-        recipientPhone: data.recipientPhone,
-        destinationCity: data.destinationCity,
-      }),
-      template: "shipment_created",
-      userId: client?.id,
-    });
-  }
+  // Pas de WhatsApp automatique à l'enregistrement.
+  // Le staff envoie l'avis de réception manuellement depuis la page Shipping Mark
+  // une fois tous les colis de la journée enregistrés (action sendReceptionNotice).
 
   if (client?.id) {
     const tpl = inAppShipmentCreated({

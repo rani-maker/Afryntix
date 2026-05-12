@@ -102,39 +102,55 @@ function modeEmoji(modeKey: string): string {
   return "📦";
 }
 
-// ── Colis enregistré (envoyé au DESTINATAIRE) ─────────────────
-type ShipmentCreatedArgs = {
-  clientName: string;
+// ── Avis de réception groupé (envoyé manuellement par le staff) ──────────────
+type ReceptionColisArgs = {
   trackingNumber: string;
-  totalAmount: number;
-  depositAmount: number;
-  remainingAmount: number;
+  description?: string | null;
   mode: string;
   modeKey: string;
-  recipientName?: string;
-  recipientPhone?: string;
-  destinationCity?: string;
+  totalAmount: number;
+  depositAmount: number;
+  destinationCity?: string | null;
 };
 
-export function shipmentCreatedTemplate(args: ShipmentCreatedArgs): string {
+export function receptionNoticeTemplate(args: {
+  recipientName: string;
+  colis: ReceptionColisArgs[];
+  totalDeposit: number;
+  totalAmount: number;
+  destinationCity?: string;
+}): string {
   const appUrl = getAppUrl();
-  const greeting = args.recipientName || args.clientName;
-  const senderLine = args.recipientName ? `\nExpéditeur : ${args.clientName}` : "";
-  const destinationLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
+  const count = args.colis.length;
+  const destLine = args.destinationCity ? `\nDestination : ${args.destinationCity}` : "";
 
-  return `${brandHeader("Enregistrement de votre colis")}
-Bonjour *${greeting}*,
-Un colis a été enregistré à votre nom en provenance de Chine.
+  const colisLines = args.colis
+    .map(
+      (c, i) =>
+        `📦 Colis ${i + 1} : \`${c.trackingNumber}\`\n` +
+        `   ${modeEmoji(c.modeKey)} ${c.mode}${c.description ? ` — ${c.description}` : ""}\n` +
+        `   Acompte : ${formatXOF(c.depositAmount)} · Total : ${formatXOF(c.totalAmount)}`,
+    )
+    .join("\n");
+
+  const trackingLinks = args.colis
+    .map((c) => `${appUrl}/tracking/${c.trackingNumber}`)
+    .join("\n");
+
+  return `${brandHeader(`Avis de réception — ${count} colis`)}
+Bonjour *${args.recipientName}*,
+*${count} colis* ont été reçus à notre entrepôt de Guangzhou et enregistrés à votre nom.${destLine}
 ━━━━━━━━━━━━━━━━━━━
-📦 N° de Suivi : \`${args.trackingNumber}\`
-${modeEmoji(args.modeKey)} Mode : ${args.mode}${destinationLine}${senderLine}
-💰 Tarif total : *${formatXOF(args.totalAmount)}*
-Acompte (50%) : ${formatXOF(args.depositAmount)}
-Solde à la réception : ${formatXOF(args.remainingAmount)}
+${colisLines}
 ━━━━━━━━━━━━━━━━━━━
-Veuillez procéder au paiement de l'acompte de 50% si ce n'est pas encore fait.
-Contactez le Bureau d'Abidjan
-Suivez votre colis : ${appUrl}/tracking/${args.trackingNumber}
+💰 Total acomptes à verser : *${formatXOF(args.totalDeposit)}*
+   (50% du montant total de ${formatXOF(args.totalAmount)})
+━━━━━━━━━━━━━━━━━━━
+Veuillez procéder au règlement des acomptes dès que possible.
+Contactez le Bureau d'Abidjan : +225 07 06 26 04 05
+━━━━━━━━━━━━━━━━━━━
+Suivre vos colis :
+${trackingLinks}
 ${BRAND_FOOTER}`;
 }
 

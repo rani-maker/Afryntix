@@ -2,6 +2,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { sendWhatsApp, receptionNoticeTemplate } from "@/lib/whatsapp";
+import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
@@ -59,6 +61,69 @@ export async function getShippingMarkWithShipments(id: string) {
       },
     },
   });
+}
+
+export async function sendReceptionNotice(shippingMarkId: string): Promise<Result> {
+  await requireRole("STAFF", "ADMIN");
+
+  const mark = await prisma.shippingMark.findUnique({
+    where: { id: shippingMarkId },
+    include: {
+      shipments: {
+        where: { registrationNotifiedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          trackingNumber: true,
+          description: true,
+          mode: true,
+          totalAmount: true,
+          depositAmount: true,
+          destinationCity: true,
+        },
+      },
+    },
+  });
+
+  if (!mark) return { success: false, error: "Shipping mark introuvable." };
+  if (mark.shipments.length === 0)
+    return { success: false, error: "Aucun colis en attente de notification." };
+
+  const phone = mark.whatsapp || mark.phone;
+  const totalDeposit = mark.shipments.reduce((s, c) => s + c.depositAmount, 0);
+  const totalAmount = mark.shipments.reduce((s, c) => s + c.totalAmount, 0);
+  const destinationCity = mark.shipments.find((s) => s.destinationCity)?.destinationCity ?? undefined;
+
+  await sendWhatsApp({
+    to: phone,
+    body: receptionNoticeTemplate({
+      recipientName: mark.name,
+      colis: mark.shipments.map((s) => ({
+        trackingNumber: s.trackingNumber,
+        description: s.description,
+        mode: TRANSPORT_MODE_LABELS[s.mode],
+        modeKey: s.mode,
+        totalAmount: s.totalAmount,
+        depositAmount: s.depositAmount,
+        destinationCity: s.destinationCity,
+      })),
+      totalDeposit,
+      totalAmount,
+      destinationCity,
+    }),
+    template: "reception_notice",
+    userId: mark.userId ?? undefined,
+  });
+
+  // Marquer tous ces colis comme notifiés
+  await prisma.shipment.updateMany({
+    where: { id: { in: mark.shipments.map((s) => s.id) } },
+    data: { registrationNotifiedAt: new Date() },
+  });
+
+  revalidatePath("/staff/shipping-marks");
+  revalidatePath(`/staff/shipping-marks/${shippingMarkId}`);
+  return { success: true };
 }
 
 export async function linkShippingMarkToUser(input: {
