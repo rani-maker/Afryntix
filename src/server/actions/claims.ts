@@ -5,6 +5,7 @@ import { auth, requireAuth, requireRole } from "@/auth";
 import { notifyInApp } from "@/lib/notifications";
 import { revalidatePath } from "next/cache";
 import type { ClaimStatus, ClaimType } from "@prisma/client";
+import { CLAIM_TYPES, CLAIM_STATUSES } from "@/lib/claims-labels";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
@@ -13,9 +14,6 @@ function generateClaimReference(): string {
   const random = Math.floor(100000 + Math.random() * 900000);
   return `AFR-CLM-${year}-${random}`;
 }
-
-const CLAIM_TYPES = ["LOSS", "DAMAGE", "DELAY", "MISSING_ITEM", "WRONG_ITEM", "OTHER"] as const;
-const CLAIM_STATUSES = ["OPEN", "UNDER_REVIEW", "RESOLVED", "REJECTED", "CANCELLED"] as const;
 
 const CreateSchema = z.object({
   shipmentId: z.string().min(1),
@@ -132,28 +130,3 @@ export async function updateClaim(input: unknown): Promise<Result> {
 
   return { success: true };
 }
-
-export const CLAIM_TYPE_LABELS: Record<(typeof CLAIM_TYPES)[number], string> = {
-  LOSS: "Perte",
-  DAMAGE: "Casse / dommage",
-  DELAY: "Retard",
-  MISSING_ITEM: "Manquant",
-  WRONG_ITEM: "Erreur de marchandise",
-  OTHER: "Autre",
-};
-
-export const CLAIM_STATUS_LABELS: Record<(typeof CLAIM_STATUSES)[number], string> = {
-  OPEN: "Ouverte",
-  UNDER_REVIEW: "En cours",
-  RESOLVED: "Résolue",
-  REJECTED: "Rejetée",
-  CANCELLED: "Annulée",
-};
-
-export const CLAIM_STATUS_TONE: Record<(typeof CLAIM_STATUSES)[number], "warning" | "info" | "success" | "destructive" | "secondary"> = {
-  OPEN: "warning",
-  UNDER_REVIEW: "info",
-  RESOLVED: "success",
-  REJECTED: "destructive",
-  CANCELLED: "secondary",
-};

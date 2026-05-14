@@ -5,23 +5,9 @@ import { requireRole } from "@/auth";
 import { saveBase64File, deleteUploadedFile } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
 import type { DocumentType } from "@prisma/client";
+import { DOCUMENT_TYPES } from "@/lib/document-labels";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
-
-const DOCUMENT_TYPES = [
-  "BILL_OF_LADING",
-  "AIR_WAYBILL",
-  "MASTER_AIR_WAYBILL",
-  "PACKING_LIST",
-  "COMMERCIAL_INVOICE",
-  "CERTIFICATE_OF_ORIGIN",
-  "CUSTOMS_DECLARATION",
-  "INSURANCE_CERTIFICATE",
-  "PROOF_OF_DELIVERY",
-  "CONTAINER_MANIFEST",
-  "PHOTO",
-  "OTHER",
-] as const;
 
 const UploadSchema = z
   .object({
@@ -113,39 +99,3 @@ export async function deleteDocument(id: string): Promise<Result> {
   return { success: true };
 }
 
-export const DOCUMENT_TYPE_LABELS: Record<(typeof DOCUMENT_TYPES)[number], string> = {
-  BILL_OF_LADING: "Connaissement (B/L)",
-  AIR_WAYBILL: "AWB (House)",
-  MASTER_AIR_WAYBILL: "Master AWB",
-  PACKING_LIST: "Packing list",
-  COMMERCIAL_INVOICE: "Facture commerciale",
-  CERTIFICATE_OF_ORIGIN: "Certificat d'origine",
-  CUSTOMS_DECLARATION: "Déclaration douanière",
-  INSURANCE_CERTIFICATE: "Certificat d'assurance",
-  PROOF_OF_DELIVERY: "Preuve de livraison",
-  CONTAINER_MANIFEST: "Manifeste container",
-  PHOTO: "Photo",
-  OTHER: "Autre",
-};
-
-export const DOCUMENT_TYPES_FOR_SHIPMENT: (typeof DOCUMENT_TYPES)[number][] = [
-  "BILL_OF_LADING",
-  "AIR_WAYBILL",
-  "PACKING_LIST",
-  "COMMERCIAL_INVOICE",
-  "CERTIFICATE_OF_ORIGIN",
-  "CUSTOMS_DECLARATION",
-  "INSURANCE_CERTIFICATE",
-  "PROOF_OF_DELIVERY",
-  "PHOTO",
-  "OTHER",
-];
-
-export const DOCUMENT_TYPES_FOR_ENVOI: (typeof DOCUMENT_TYPES)[number][] = [
-  "MASTER_AIR_WAYBILL",
-  "BILL_OF_LADING",
-  "CONTAINER_MANIFEST",
-  "CUSTOMS_DECLARATION",
-  "INSURANCE_CERTIFICATE",
-  "OTHER",
-];

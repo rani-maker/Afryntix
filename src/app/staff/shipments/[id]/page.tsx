@@ -13,7 +13,7 @@ import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { DocumentsSection } from "@/components/documents/documents-section";
-import { DOCUMENT_TYPES_FOR_SHIPMENT } from "@/server/actions/documents";
+import { DOCUMENT_TYPES_FOR_SHIPMENT } from "@/lib/document-labels";
 import { ClaimsSection } from "@/components/claims/claims-section";
 
 export default async function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {

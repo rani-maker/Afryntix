@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CLAIM_TYPE_LABELS, CLAIM_STATUS_LABELS, CLAIM_STATUS_TONE } from "@/server/actions/claims";
+import { CLAIM_TYPE_LABELS, CLAIM_STATUS_LABELS, CLAIM_STATUS_TONE } from "@/lib/claims-labels";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 
 export default async function StaffClaimsPage({

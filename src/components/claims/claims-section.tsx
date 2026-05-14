@@ -7,13 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { createClaim, updateClaim } from "@/server/actions/claims";
 import {
-  createClaim,
-  updateClaim,
   CLAIM_TYPE_LABELS,
   CLAIM_STATUS_LABELS,
   CLAIM_STATUS_TONE,
-} from "@/server/actions/claims";
+} from "@/lib/claims-labels";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import type { ClaimType, ClaimStatus } from "@prisma/client";
 import { Plus } from "lucide-react";
