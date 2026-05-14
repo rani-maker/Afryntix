@@ -18,7 +18,7 @@ import { ContainerSection } from "./container-section";
 import { AttachShipmentsForm } from "./attach-form";
 import { DetachShipmentButton } from "./detach-button";
 import { DocumentsSection } from "@/components/documents/documents-section";
-import { DOCUMENT_TYPES_FOR_ENVOI } from "@/server/actions/documents";
+import { DOCUMENT_TYPES_FOR_ENVOI } from "@/lib/document-labels";
 import { Button } from "@/components/ui/button";
 import { Download, Printer } from "lucide-react";
 
