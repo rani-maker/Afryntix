@@ -26,18 +26,19 @@ export async function updateStorageSetting(input: unknown): Promise<Result> {
   const parsed = UpdateSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
 
-  await prisma.storageSetting.updateMany({
-    where: { active: true },
-    data: { active: false },
-  });
-  await prisma.storageSetting.create({
-    data: {
-      freeDays: parsed.data.freeDays,
-      dailyRateXOF: parsed.data.dailyRateXOF,
-      notes: parsed.data.notes,
-      active: true,
-    },
-  });
+  // Transaction : désactivation + création atomiques
+  // (sinon, si le create échoue, on se retrouve sans réglage actif).
+  await prisma.$transaction([
+    prisma.storageSetting.updateMany({ where: { active: true }, data: { active: false } }),
+    prisma.storageSetting.create({
+      data: {
+        freeDays: parsed.data.freeDays,
+        dailyRateXOF: parsed.data.dailyRateXOF,
+        notes: parsed.data.notes,
+        active: true,
+      },
+    }),
+  ]);
 
   revalidatePath("/admin/storage");
   return { success: true };

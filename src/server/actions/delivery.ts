@@ -38,12 +38,19 @@ export async function generatePickupCode(input: unknown): Promise<Result<{ code:
     return { success: false, error: "Le colis n'est pas encore disponible pour livraison." };
   }
 
-  // Générer un code unique
-  let code = generateCode();
-  for (let i = 0; i < 10; i++) {
-    const exists = await prisma.shipment.findFirst({ where: { pickupCode: code } });
-    if (!exists) break;
+  // Générer un code unique (vérification après chaque tirage, et garantie finale)
+  let code = "";
+  let ok = false;
+  for (let i = 0; i < 15; i++) {
     code = generateCode();
+    const exists = await prisma.shipment.findFirst({
+      where: { pickupCode: code },
+      select: { id: true },
+    });
+    if (!exists) { ok = true; break; }
+  }
+  if (!ok) {
+    return { success: false, error: "Impossible de générer un code unique, réessayez." };
   }
 
   await prisma.shipment.update({

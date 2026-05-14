@@ -4,22 +4,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { lookupShipmentForWarehouse } from "@/server/actions/warehouse";
+import { lookupShipmentForWarehouse, type WarehouseShipmentSummary } from "@/server/actions/warehouse";
 import { recordVerifiedWeight } from "@/server/actions/shipments";
-import type { ShipmentStatus } from "@prisma/client";
 import { SHIPMENT_STATUS_LABELS } from "@/lib/pricing";
 
-type ShipmentSummary = {
-  id: string;
-  trackingNumber: string;
-  status: ShipmentStatus;
-  declaredWeightKg: number | null;
-  verifiedWeightKg: number | null;
-  weightKg: number | null;
-  totalAmount: number;
-  clientLabel: string;
-  description: string | null;
-};
+type ShipmentSummary = WarehouseShipmentSummary;
 
 export function WarehouseLookup() {
   const [tracking, setTracking] = useState("");
@@ -35,7 +24,7 @@ export function WarehouseLookup() {
     const res = await lookupShipmentForWarehouse(tracking.trim());
     setLoading(false);
     if (!res.success) { setError(res.error); return; }
-    setShipment((res.data as ShipmentSummary) ?? null);
+    setShipment(res.data ?? null);
   }
 
   return (

@@ -35,16 +35,19 @@ export async function updateInsuranceSetting(input: unknown): Promise<Result> {
   const parsed = SettingSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
 
-  await prisma.insuranceSetting.updateMany({ where: { active: true }, data: { active: false } });
-  await prisma.insuranceSetting.create({
-    data: {
-      ratePercent: parsed.data.ratePercent,
-      minPremiumXOF: parsed.data.minPremiumXOF,
-      maxCoverageXOF: parsed.data.maxCoverageXOF,
-      notes: parsed.data.notes,
-      active: true,
-    },
-  });
+  // Transaction : désactivation + création atomiques.
+  await prisma.$transaction([
+    prisma.insuranceSetting.updateMany({ where: { active: true }, data: { active: false } }),
+    prisma.insuranceSetting.create({
+      data: {
+        ratePercent: parsed.data.ratePercent,
+        minPremiumXOF: parsed.data.minPremiumXOF,
+        maxCoverageXOF: parsed.data.maxCoverageXOF,
+        notes: parsed.data.notes,
+        active: true,
+      },
+    }),
+  ]);
   revalidatePath("/admin/insurance");
   return { success: true };
 }
