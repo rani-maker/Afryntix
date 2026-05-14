@@ -269,7 +269,7 @@ async function handleAvailableForDelivery(
     description: string | null;
     destinationCity: string | null;
     shippingMark: { id: string; name: string; phone: string; whatsapp: string | null } | null;
-    client: { name: string; whatsapp: string | null; phone: string | null } | null;
+    client: { name: string; whatsapp: string | null; phone: string | null; email: string } | null;
   },
   location?: string,
 ) {
@@ -323,27 +323,22 @@ async function handleAvailableForDelivery(
   const depositPaid = totalPaid >= totalDeposit;
 
   // Email parallèle au client (s'il a une adresse) — un seul email récapitulatif
-  if (shipment.client?.name && shipment.clientId) {
-    const clientEmail = await prisma.user.findUnique({
-      where: { id: shipment.clientId },
-      select: { email: true },
+  // L'email est déjà chargé via le include `client: true` côté appelant.
+  if (shipment.client?.email && shipment.clientId) {
+    const tpl = emailShipmentAvailable({
+      recipientName,
+      trackingNumber: shipment.trackingNumber,
+      totalAmount,
+      remainingAmount: totalRemaining,
+      pickupAddress: location,
     });
-    if (clientEmail?.email) {
-      const tpl = emailShipmentAvailable({
-        recipientName: recipientName,
-        trackingNumber: shipment.trackingNumber,
-        totalAmount,
-        remainingAmount: totalRemaining,
-        pickupAddress: location,
-      });
-      await sendEmail({
-        to: clientEmail.email,
-        subject: tpl.subject,
-        html: tpl.html,
-        template: "available_for_delivery",
-        userId: shipment.clientId,
-      });
-    }
+    await sendEmail({
+      to: shipment.client.email,
+      subject: tpl.subject,
+      html: tpl.html,
+      template: "available_for_delivery",
+      userId: shipment.clientId,
+    });
   }
 
   if (allAvailableForThisMark.length > 1) {

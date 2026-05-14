@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
 import type { ShipmentStatus } from "@prisma/client";
+import { updateShipmentStatus } from "./shipments";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
@@ -35,11 +36,35 @@ export async function bulkUpdateShipmentStatus(input: unknown): Promise<Result<{
   if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
 
   const { ids, status, note, location } = parsed.data;
-  const now = new Date();
 
+  // Cas spécial AVAILABLE_FOR_DELIVERY : on délègue à updateShipmentStatus (1 appel par colis)
+  // pour bénéficier de la cascade WhatsApp + email + génération de facture groupée
+  // par Shipping Mark. Sinon on perd toutes ces notifications côté bulk.
+  if (status === "AVAILABLE_FOR_DELIVERY") {
+    let count = 0;
+    const errors: string[] = [];
+    for (const id of ids) {
+      const res = await updateShipmentStatus({
+        shipmentId: id,
+        status: "AVAILABLE_FOR_DELIVERY",
+        note: note ?? "Mise à jour groupée",
+        location,
+      });
+      if (res.success) count++;
+      else errors.push(`${id}: ${res.error}`);
+    }
+    revalidatePath("/staff/shipments");
+    revalidatePath("/admin/shipments");
+    if (errors.length > 0 && count === 0) {
+      return { success: false, error: errors.slice(0, 3).join(" — ") };
+    }
+    return { success: true, data: { count } };
+  }
+
+  // Cas général : transition simple sans side-effect, optimisée par transaction.
   const toUpdate = await prisma.shipment.findMany({
     where: { id: { in: ids } },
-    select: { id: true, availableSinceAt: true },
+    select: { id: true },
   });
 
   await prisma.$transaction(
@@ -48,9 +73,6 @@ export async function bulkUpdateShipmentStatus(input: unknown): Promise<Result<{
         where: { id: s.id },
         data: {
           status: status as ShipmentStatus,
-          ...(status === "AVAILABLE_FOR_DELIVERY" && !s.availableSinceAt
-            ? { availableSinceAt: now }
-            : {}),
           history: {
             create: {
               status: status as ShipmentStatus,

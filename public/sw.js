@@ -27,8 +27,12 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (url.pathname.startsWith("/api/")) return;
 
-  // Cache-first pour les statiques (Next.js _next/static, images, etc.)
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/uploads/")) {
+  // /uploads/* contient des documents sensibles (B/L, AWB, factures, photos client…)
+  // on NE cache PAS — toujours réseau direct, sans fallback persistant.
+  if (url.pathname.startsWith("/uploads/")) return;
+
+  // Cache-first pour les statiques (Next.js _next/static uniquement)
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(event.request).then((cached) =>
         cached ||
