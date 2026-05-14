@@ -9,6 +9,7 @@ import {
   shipmentAvailableTemplate,
   shipmentsAvailableTemplate,
 } from "@/lib/whatsapp";
+import { sendEmail, emailShipmentAvailable } from "@/lib/email";
 import {
   notifyInApp,
   inAppShipmentCreated,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/notifications";
 import { upsertShippingMark } from "./shippingMarks";
 import { getOrCreateFactureForShipments } from "./factures";
+import { getClientContractPrice } from "./contractPricing";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory, ShipmentStatus } from "@prisma/client";
 
@@ -64,7 +66,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
 
   let pricing;
   try {
-    pricing = computePrice({
+    const baseInput = {
       mode: data.mode as TransportMode,
       category: data.category as CargoCategory,
       pieces: data.pieces,
@@ -73,8 +75,20 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       widthCm: data.widthCm,
       heightCm: data.heightCm,
       volumeCBM: data.volumeCBM,
-      overrideUnitPrice: data.overrideUnitPrice,
-    });
+    };
+    pricing = computePrice({ ...baseInput, overrideUnitPrice: data.overrideUnitPrice });
+    // Si pas d'override staff explicite, chercher un tarif contractuel client
+    if (data.overrideUnitPrice == null && data.clientId) {
+      const contractPrice = await getClientContractPrice({
+        clientId: data.clientId,
+        mode: baseInput.mode,
+        category: baseInput.category,
+        unit: pricing.unit,
+      });
+      if (contractPrice != null) {
+        pricing = computePrice({ ...baseInput, overrideUnitPrice: contractPrice });
+      }
+    }
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul." };
   }
@@ -121,6 +135,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       description: data.description,
       pieces: data.pieces,
       weightKg: data.weightKg,
+      declaredWeightKg: data.weightKg,
       lengthCm: data.lengthCm,
       widthCm: data.widthCm,
       heightCm: data.heightCm,
@@ -184,10 +199,16 @@ export async function updateShipmentStatus(input: {
   });
   if (!shipment) return { success: false, error: "Expédition introuvable." };
 
+  // Si on passe à AVAILABLE_FOR_DELIVERY pour la première fois, on enregistre la date de mise à disposition
+  // (point de départ du free-time pour l'entreposage)
+  const setAvailableSince =
+    input.status === "AVAILABLE_FOR_DELIVERY" && !shipment.availableSinceAt ? new Date() : undefined;
+
   await prisma.shipment.update({
     where: { id: input.shipmentId },
     data: {
       status: input.status,
+      ...(setAvailableSince ? { availableSinceAt: setAvailableSince } : {}),
       history: {
         create: {
           status: input.status,
@@ -301,6 +322,30 @@ async function handleAvailableForDelivery(
   const totalRemaining = Math.max(0, totalAmount - totalPaid);
   const depositPaid = totalPaid >= totalDeposit;
 
+  // Email parallèle au client (s'il a une adresse) — un seul email récapitulatif
+  if (shipment.client?.name && shipment.clientId) {
+    const clientEmail = await prisma.user.findUnique({
+      where: { id: shipment.clientId },
+      select: { email: true },
+    });
+    if (clientEmail?.email) {
+      const tpl = emailShipmentAvailable({
+        recipientName: recipientName,
+        trackingNumber: shipment.trackingNumber,
+        totalAmount,
+        remainingAmount: totalRemaining,
+        pickupAddress: location,
+      });
+      await sendEmail({
+        to: clientEmail.email,
+        subject: tpl.subject,
+        html: tpl.html,
+        template: "available_for_delivery",
+        userId: shipment.clientId,
+      });
+    }
+  }
+
   if (allAvailableForThisMark.length > 1) {
     // Template multi-colis
     await sendWhatsApp({
@@ -353,6 +398,140 @@ async function handleAvailableForDelivery(
   }
 }
 
+/**
+ * Enregistre la pesée vérifiée d'un colis à l'entrepôt Chine.
+ * - Si les dimensions sont fournies, recalcule aussi le volumique et le CBM.
+ * - Recalcule le prix selon le mode + catégorie et met à jour totals + facture liée.
+ * - Trace dans l'historique avec l'écart vs déclaré.
+ */
+const VerifyWeightSchema = z.object({
+  shipmentId: z.string().min(1),
+  verifiedWeightKg: z.coerce.number().positive(),
+  lengthCm: z.coerce.number().nonnegative().optional(),
+  widthCm: z.coerce.number().nonnegative().optional(),
+  heightCm: z.coerce.number().nonnegative().optional(),
+  volumeCBM: z.coerce.number().nonnegative().optional(),
+  note: z.string().max(300).optional(),
+});
+
+export async function recordVerifiedWeight(input: unknown): Promise<Result<{ delta: number; newTotal: number }>> {
+  const session = await requireRole("STAFF", "ADMIN");
+  const parsed = VerifyWeightSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+  const data = parsed.data;
+
+  const shipment = await prisma.shipment.findUnique({
+    where: { id: data.shipmentId },
+    include: { facture: true },
+  });
+  if (!shipment) return { success: false, error: "Colis introuvable." };
+
+  // Si pas de poids déclaré, on enregistre celui actuel comme déclaré pour conserver la trace
+  const declaredKg = shipment.declaredWeightKg ?? shipment.weightKg ?? null;
+
+  // Recalcul du prix avec le poids vérifié
+  let pricing;
+  try {
+    pricing = computePrice({
+      mode: shipment.mode,
+      category: shipment.category,
+      pieces: shipment.pieces,
+      weightKg: data.verifiedWeightKg,
+      lengthCm: data.lengthCm ?? shipment.lengthCm ?? undefined,
+      widthCm: data.widthCm ?? shipment.widthCm ?? undefined,
+      heightCm: data.heightCm ?? shipment.heightCm ?? undefined,
+      volumeCBM: data.volumeCBM ?? shipment.volumeCBM ?? undefined,
+      overrideUnitPrice: shipment.unitPrice ?? undefined,
+    });
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul." };
+  }
+
+  const oldTotal = shipment.totalAmount;
+  const newTotal = pricing.totalAmount;
+  const delta = newTotal - oldTotal;
+
+  // Le solde restant doit refléter le nouveau total moins ce qui a déjà été encaissé
+  const newRemaining = Math.max(0, newTotal - shipment.amountPaid);
+  // L'acompte (théorique 50%) suit le nouveau total, mais on conserve celui déjà payé
+  const newDeposit = pricing.depositAmount;
+
+  // Statut paiement après recalcul
+  let paymentStatus: "UNPAID" | "DEPOSIT_PAID" | "FULLY_PAID" | "REFUNDED" = shipment.paymentStatus;
+  if (shipment.amountPaid >= newTotal) paymentStatus = "FULLY_PAID";
+  else if (shipment.amountPaid >= newDeposit) paymentStatus = "DEPOSIT_PAID";
+  else paymentStatus = "UNPAID";
+
+  const chargeableWeight = pricing.unit === "kg" ? pricing.chargeableQuantity : undefined;
+
+  await prisma.shipment.update({
+    where: { id: shipment.id },
+    data: {
+      declaredWeightKg: declaredKg,
+      verifiedWeightKg: data.verifiedWeightKg,
+      weightKg: data.verifiedWeightKg,
+      weightVerifiedAt: new Date(),
+      weightVerifiedById: session.user.id,
+      lengthCm: data.lengthCm ?? shipment.lengthCm,
+      widthCm: data.widthCm ?? shipment.widthCm,
+      heightCm: data.heightCm ?? shipment.heightCm,
+      volumeCBM: data.volumeCBM ?? pricing.cbm ?? shipment.volumeCBM,
+      volumetricWeight: pricing.volumetricWeight,
+      chargeableWeight,
+      unitPrice: pricing.unitPrice,
+      totalAmount: newTotal,
+      depositAmount: newDeposit,
+      remainingAmount: newRemaining,
+      paymentStatus,
+      history: {
+        create: {
+          status: shipment.status,
+          note:
+            `Pesée vérifiée : ${data.verifiedWeightKg} kg` +
+            (declaredKg != null ? ` (déclaré ${declaredKg} kg, écart ${(data.verifiedWeightKg - declaredKg).toFixed(2)} kg)` : "") +
+            (Math.abs(delta) > 0.5
+              ? ` · ${delta > 0 ? "+" : ""}${Math.round(delta).toLocaleString("fr-FR")} FCFA`
+              : "") +
+            (data.note ? ` — ${data.note}` : ""),
+          createdBy: session.user.id,
+        },
+      },
+    },
+  });
+
+  // Mise à jour de la facture liée si présente
+  if (shipment.factureId) {
+    const allShipments = await prisma.shipment.findMany({
+      where: { factureId: shipment.factureId },
+      select: { totalAmount: true, amountPaid: true, depositAmount: true },
+    });
+    const factTotal = allShipments.reduce((s, x) => s + x.totalAmount, 0);
+    const factPaid = allShipments.reduce((s, x) => s + x.amountPaid, 0);
+    const factDeposit = allShipments.reduce((s, x) => s + x.depositAmount, 0);
+    const factRemaining = Math.max(0, factTotal - factPaid);
+    let factStatus: "UNPAID" | "DEPOSIT_PAID" | "FULLY_PAID" | "REFUNDED" = "UNPAID";
+    if (factPaid >= factTotal) factStatus = "FULLY_PAID";
+    else if (factPaid >= factDeposit) factStatus = "DEPOSIT_PAID";
+    await prisma.facture.update({
+      where: { id: shipment.factureId },
+      data: {
+        totalAmount: factTotal,
+        depositAmount: factDeposit,
+        amountPaid: factPaid,
+        remainingAmount: factRemaining,
+        status: factStatus,
+      },
+    });
+  }
+
+  revalidatePath(`/staff/shipments/${shipment.id}`);
+  revalidatePath(`/admin/shipments/${shipment.id}`);
+  revalidatePath("/staff/shipments");
+  revalidatePath("/admin/shipments");
+
+  return { success: true, data: { delta, newTotal } };
+}
+
 export async function recordShipmentPayment(input: {
   shipmentId: string;
   amount: number;
@@ -392,6 +571,37 @@ export async function recordShipmentPayment(input: {
 
   revalidatePath("/staff/shipments");
   revalidatePath("/admin/shipments");
+  return { success: true };
+}
+
+const CustomsSchema = z.object({
+  shipmentId: z.string().min(1),
+  hsCode: z.string().max(20).optional().nullable(),
+  incoterm: z.string().max(10).optional().nullable(),
+  countryOfOrigin: z.string().max(2).optional().nullable(),
+  declaredCustomsValue: z.coerce.number().nonnegative().optional().nullable(),
+});
+
+/**
+ * Met à jour les informations douanières d'un colis (HS code, incoterm, origine, valeur douanière).
+ */
+export async function updateCustomsInfo(input: unknown): Promise<Result> {
+  await requireRole("STAFF", "ADMIN");
+  const parsed = CustomsSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  await prisma.shipment.update({
+    where: { id: parsed.data.shipmentId },
+    data: {
+      hsCode: parsed.data.hsCode ?? null,
+      incoterm: parsed.data.incoterm ? parsed.data.incoterm.toUpperCase() : null,
+      countryOfOrigin: parsed.data.countryOfOrigin ? parsed.data.countryOfOrigin.toUpperCase() : null,
+      declaredCustomsValue: parsed.data.declaredCustomsValue ?? null,
+    },
+  });
+
+  revalidatePath(`/staff/shipments/${parsed.data.shipmentId}`);
+  revalidatePath(`/admin/shipments/${parsed.data.shipmentId}`);
   return { success: true };
 }
 

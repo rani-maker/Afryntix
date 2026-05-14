@@ -17,6 +17,10 @@ import { EnvoiMetaForm } from "./meta-form";
 import { ContainerSection } from "./container-section";
 import { AttachShipmentsForm } from "./attach-form";
 import { DetachShipmentButton } from "./detach-button";
+import { DocumentsSection } from "@/components/documents/documents-section";
+import { DOCUMENT_TYPES_FOR_ENVOI } from "@/server/actions/documents";
+import { Button } from "@/components/ui/button";
+import { Download, Printer } from "lucide-react";
 
 export default async function EnvoiDetailPage({
   params,
@@ -37,6 +41,10 @@ export default async function EnvoiDetailPage({
       },
       history: { orderBy: { createdAt: "desc" }, take: 20 },
       createdBy: { select: { name: true } },
+      documents: {
+        orderBy: { createdAt: "desc" },
+        include: { uploadedBy: { select: { name: true } } },
+      },
     },
   });
   if (!envoi) notFound();
@@ -77,11 +85,25 @@ export default async function EnvoiDetailPage({
                 )}
               </div>
             </div>
-            <div className="text-right text-xs text-muted-foreground space-y-0.5">
-              <div>Créé le {formatDateTime(envoi.createdAt)}</div>
-              {envoi.createdBy && <div>Par {envoi.createdBy.name}</div>}
-              {envoi.departureDate && <div>Départ : {formatDate(envoi.departureDate)}</div>}
-              {envoi.arrivalDate && <div>Arrivée : {formatDate(envoi.arrivalDate)}</div>}
+            <div className="text-right space-y-2">
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <div>Créé le {formatDateTime(envoi.createdAt)}</div>
+                {envoi.createdBy && <div>Par {envoi.createdBy.name}</div>}
+                {envoi.departureDate && <div>Départ : {formatDate(envoi.departureDate)}</div>}
+                {envoi.arrivalDate && <div>Arrivée : {formatDate(envoi.arrivalDate)}</div>}
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/api/manifest/envoi/${envoi.id}`}>
+                    <Download className="h-4 w-4" /> Manifeste CSV
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/print/manifest/envoi/${envoi.id}`} target="_blank">
+                    <Printer className="h-4 w-4" /> Manifeste imprimable
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -226,6 +248,23 @@ export default async function EnvoiDetailPage({
               clientLabel: s.client?.name ?? s.clientName ?? "—",
               destination: [s.destinationCity, s.destinationCountry].filter(Boolean).join(", "),
             }))}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Documents logistiques */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Documents logistiques</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            MAWB, B/L, manifeste container, déclaration douanière groupée, certificat d&apos;assurance…
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DocumentsSection
+            documents={envoi.documents}
+            allowedTypes={DOCUMENT_TYPES_FOR_ENVOI}
+            target={{ envoiId: envoi.id }}
           />
         </CardContent>
       </Card>

@@ -75,7 +75,22 @@ export const metadata: Metadata = {
   alternates: {
     canonical: APP_URL,
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "AFRYNTIX",
+    statusBarStyle: "black-translucent",
+  },
 };
+
+const swRegisterScript = `
+(function(){
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+  });
+})();
+`;
 
 const themeInitScript = `
 (function(){try{var t=localStorage.getItem('afryntix-public-theme');if(t!=='light'){document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();
@@ -96,6 +111,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: swRegisterScript }} />
+        <meta name="theme-color" content="#0f172a" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <AuthSessionProvider>

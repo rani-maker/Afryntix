@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
-import { ShipmentsTable } from "@/components/dashboard/shipments-table";
+import { ShipmentsBulkTable } from "@/components/dashboard/shipments-bulk-table";
 
 export default async function StaffShipmentsPage({
   searchParams,
@@ -34,16 +34,24 @@ export default async function StaffShipmentsPage({
       }
     : {};
 
-  const shipments = await prisma.shipment.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      client: { select: { name: true, email: true } },
-      shippingMark: { select: { id: true, name: true, phone: true } },
-      facture: { select: { reference: true, status: true, remainingAmount: true } },
-    },
-    take: 100,
-  });
+  const [shipments, envois] = await Promise.all([
+    prisma.shipment.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        client: { select: { name: true, email: true } },
+        shippingMark: { select: { id: true, name: true, phone: true } },
+        facture: { select: { reference: true, status: true, remainingAmount: true } },
+      },
+      take: 100,
+    }),
+    prisma.envoi.findMany({
+      where: { status: { notIn: ["DELIVERED", "CANCELLED"] } },
+      select: { id: true, reference: true, mode: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
 
   const rows = shipments.map((s) => ({
     ...s,
@@ -98,11 +106,20 @@ export default async function StaffShipmentsPage({
         {grouped ? (
           <GroupedView groups={grouped} />
         ) : (
-          <ShipmentsTable
-            rows={rows}
-            showClient
+          <ShipmentsBulkTable
+            rows={rows.map((s) => ({
+              id: s.id,
+              trackingNumber: s.trackingNumber,
+              mode: s.mode,
+              status: s.status,
+              paymentStatus: s.paymentStatus,
+              totalAmount: s.totalAmount,
+              amountPaid: s.amountPaid,
+              createdAt: s.createdAt,
+              client: s.client ?? null,
+            }))}
+            envois={envois}
             manageHref={(id) => `/staff/shipments/${id}`}
-            showDelete
           />
         )}
       </CardContent>

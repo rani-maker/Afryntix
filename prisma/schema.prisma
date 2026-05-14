@@ -60,6 +60,11 @@ model User {
   accounts            Account[]
   shippingMark        ShippingMark?
   factures            Facture[]       @relation("FactureClient")
+  documentsUploaded   Document[]      @relation("DocumentUploader")
+  claimsOpened        Claim[]         @relation("ClaimOpenedBy")
+  claimsResolved      Claim[]         @relation("ClaimResolvedBy")
+  contractPricing     ClientPricingRule[] @relation("ClientPricingRules")
+  suppliers           Supplier[]
 }
 
 // Auth.js Session/Account models
@@ -184,14 +189,18 @@ model Shipment {
   description     String?
 
   // Mesures
-  pieces          Int             @default(1)
-  weightKg        Float?          // poids réel
-  lengthCm        Float?
-  widthCm         Float?
-  heightCm        Float?
-  volumeCBM       Float?          // volume calculé/saisi (maritime)
-  volumetricWeight Float?         // poids volumique calculé (aérien)
-  chargeableWeight Float?         // max(réel, volumique)
+  pieces             Int          @default(1)
+  weightKg           Float?       // poids effectif (utilisé pour la facturation) = verifié s'il existe, sinon déclaré
+  declaredWeightKg   Float?       // poids annoncé par le client / fournisseur (à la réservation)
+  verifiedWeightKg   Float?       // poids pesé à l'entrepôt Chine
+  weightVerifiedAt   DateTime?
+  weightVerifiedById String?
+  lengthCm          Float?
+  widthCm           Float?
+  heightCm          Float?
+  volumeCBM         Float?         // volume calculé/saisi (maritime)
+  volumetricWeight  Float?         // poids volumique calculé (aérien)
+  chargeableWeight  Float?         // max(réel, volumique)
 
   // Origine / Destination
   originCity      String?         @default("Guangzhou")
@@ -216,8 +225,41 @@ model Shipment {
   // Notification d'enregistrement envoyée manuellement par le staff
   registrationNotifiedAt DateTime?
 
+  // Entreposage / surestaries
+  availableSinceAt   DateTime?  // date où le statut est passé à AVAILABLE_FOR_DELIVERY (départ free-time)
+  storageDaysCharged Int?       // nombre de jours d'entreposage facturés
+  storageFeeAmount   Float?     // montant FCFA facturé pour l'entreposage
+  storageChargedAt   DateTime?  // date à laquelle les frais ont été ajoutés au total
+
+  // Last-mile / Preuve de livraison (POD)
+  pickupCode          String?   @unique  // code OTP de retrait (5-6 chiffres) communiqué au client
+  pickupCodeIssuedAt  DateTime?
+  deliveredAt         DateTime?
+  deliveredToName     String?   // nom de la personne ayant retiré le colis
+  deliveredToPhone    String?
+  deliveredToIdNumber String?   // n° pièce d'identité de la personne présente au retrait
+  deliveredById       String?   // staff qui a effectué la remise
+
+  // Réclamations (litiges)
+  claims              Claim[]
+
+  // Assurance cargo
+  insuranceOptedIn    Boolean   @default(false)
+  declaredValue       Float?    // valeur déclarée FCFA (base de calcul de la prime + indemnité)
+  insurancePremium    Float?    // prime calculée FCFA (incluse dans totalAmount)
+  insuranceMaxCoverage Float?   // plafond d'indemnisation FCFA
+
+  // Conformité douanière
+  hsCode              String?   // code SH 6/8/10 chiffres (ex: 8517.13.00)
+  incoterm            String?   // EXW, FOB, CIF, CFR, DDP, DAP, FCA, CPT, CIP, DPU, DAT
+  countryOfOrigin     String?   // ISO 2 lettres (ex: CN, FR, DE)
+  declaredCustomsValue Float?   // valeur en douane FCFA (peut différer de declaredValue assurance)
+
   // Photos
   photos          ShipmentPhoto[]
+
+  // Documents logistiques (B/L, AWB, packing list, facture commerciale...)
+  documents       Document[]
 
   // Historique
   history         ShipmentHistory[]
@@ -330,6 +372,7 @@ model Envoi {
   shipments      Shipment[]
   history        EnvoiHistory[]
   factures       Facture[]
+  documents      Document[]
 
   createdById    String?
   createdBy      User?        @relation("EnvoiCreator", fields: [createdById], references: [id])
@@ -521,6 +564,60 @@ model PricingRule {
   createdAt   DateTime       @default(now())
 
   @@unique([mode, category, unit, minQuantity])
+}
+
+// -----------------------------------------------------------------
+// Tarification contractuelle par client (override de PricingRule)
+// Prioritaire sur le tarif standard si présente et active.
+// -----------------------------------------------------------------
+
+model ClientPricingRule {
+  id           String         @id @default(cuid())
+  clientId     String
+  client       User           @relation("ClientPricingRules", fields: [clientId], references: [id], onDelete: Cascade)
+  mode         TransportMode
+  category     CargoCategory
+  unit         String         // doit correspondre au mode/catégorie ("kg", "cbm", "pcs", "vehicle")
+  pricePerUnit Float          // FCFA
+  notes        String?
+  active       Boolean        @default(true)
+  validFrom    DateTime?
+  validUntil   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([clientId, mode, category, unit])
+  @@index([clientId])
+}
+
+// -----------------------------------------------------------------
+// Paramètres d'entreposage (free-time + tarif/jour)
+// Singleton (une seule ligne active à la fois)
+// -----------------------------------------------------------------
+
+model StorageSetting {
+  id              String   @id @default(cuid())
+  freeDays        Int      @default(7)          // jours gratuits après mise à disposition
+  dailyRateXOF    Float    @default(1000)        // FCFA / jour / colis au-delà du free-time
+  active          Boolean  @default(true)
+  notes           String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+}
+
+// -----------------------------------------------------------------
+// Paramètres d'assurance cargo
+// -----------------------------------------------------------------
+
+model InsuranceSetting {
+  id              String   @id @default(cuid())
+  ratePercent     Float    @default(1.5)        // % de la valeur déclarée
+  minPremiumXOF   Float    @default(2000)       // prime plancher
+  maxCoverageXOF  Float    @default(5000000)    // plafond d'indemnisation
+  active          Boolean  @default(true)
+  notes           String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }
 
 // -----------------------------------------------------------------
@@ -726,6 +823,129 @@ model Notification {
   @@index([userId])
   @@index([template])
   @@index([userId, channel, readAt])
+}
+
+// -----------------------------------------------------------------
+// Documents logistiques (B/L, AWB, packing list, facture commerciale,
+// certificat d'origine, déclaration douanière, certificat assurance,
+// preuve de livraison, etc.)
+// Polymorphe : un document peut être rattaché à un Shipment ou un Envoi.
+// -----------------------------------------------------------------
+
+enum DocumentType {
+  BILL_OF_LADING         // B/L Maritime
+  AIR_WAYBILL            // HAWB / AWB (House)
+  MASTER_AIR_WAYBILL     // MAWB (Master, niveau Envoi)
+  PACKING_LIST           // Liste de colisage
+  COMMERCIAL_INVOICE     // Facture commerciale fournisseur
+  CERTIFICATE_OF_ORIGIN  // Certificat d'origine (CO)
+  CUSTOMS_DECLARATION    // Déclaration douanière (DAU, BAE...)
+  INSURANCE_CERTIFICATE  // Certificat d'assurance cargo
+  PROOF_OF_DELIVERY      // POD signé
+  CONTAINER_MANIFEST     // Manifeste container
+  PHOTO                  // Photo colis / dommage / chargement
+  OTHER
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  type         DocumentType
+  label        String?      // libellé court (ex: "AWB 235-12345678 CDG")
+  fileName     String       // nom du fichier original
+  fileUrl      String       // chemin servi (ex: /uploads/documents/xxx.pdf)
+  fileSize     Int?         // octets
+  mimeType     String?
+
+  shipmentId   String?
+  shipment     Shipment?    @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  envoiId      String?
+  envoi        Envoi?       @relation(fields: [envoiId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  uploadedBy   User?        @relation("DocumentUploader", fields: [uploadedById], references: [id])
+
+  notes        String?
+  createdAt    DateTime     @default(now())
+
+  @@index([shipmentId])
+  @@index([envoiId])
+  @@index([type])
+}
+
+// -----------------------------------------------------------------
+// Fournisseurs Chine (annuaire personnel du client)
+// -----------------------------------------------------------------
+
+model Supplier {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name          String                        // raison sociale
+  contactPerson String?                       // contact principal
+  phone         String?
+  whatsapp      String?
+  wechat        String?                       // ID WeChat
+  email         String?
+  city          String?                       // ville Chine (ex: Guangzhou, Yiwu)
+  address       String?
+  alibabaUrl    String?                       // page Alibaba / 1688
+  category      String?                       // ex: "Électronique", "Textile", "Pièces auto"
+  notes         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+// -----------------------------------------------------------------
+// Réclamations / litiges
+// -----------------------------------------------------------------
+
+enum ClaimType {
+  LOSS          // Colis perdu
+  DAMAGE        // Colis endommagé
+  DELAY         // Retard de livraison
+  MISSING_ITEM  // Marchandise manquante
+  WRONG_ITEM    // Erreur de marchandise
+  OTHER
+}
+
+enum ClaimStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  CANCELLED
+}
+
+model Claim {
+  id              String       @id @default(cuid())
+  reference       String       @unique          // AFR-CLM-2026-000123
+  shipmentId      String
+  shipment        Shipment     @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  type            ClaimType
+  status          ClaimStatus  @default(OPEN)
+  title           String
+  description     String       @db.Text
+
+  amountClaimed   Float?       // demandé par le client (FCFA)
+  amountGranted   Float?       // accordé par AFRYNTIX (FCFA)
+  resolution      String?      @db.Text
+
+  openedById      String?
+  openedBy        User?        @relation("ClaimOpenedBy", fields: [openedById], references: [id])
+  resolvedById    String?
+  resolvedBy      User?        @relation("ClaimResolvedBy", fields: [resolvedById], references: [id])
+  resolvedAt      DateTime?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([shipmentId])
+  @@index([status])
+  @@index([type])
 }
 
 // -----------------------------------------------------------------
