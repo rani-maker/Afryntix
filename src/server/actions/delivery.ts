@@ -10,8 +10,22 @@ import { revalidatePath } from "next/cache";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
+/** Durée de validité d'un code de retrait (7 jours). Au-delà, il faut en regénérer un. */
+const PICKUP_CODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 function generateCode(): string {
   return String(randomInt(100000, 1000000));
+}
+
+/**
+ * Comparaison de codes en temps constant pour éviter une attaque par timing.
+ * Pour 6 chiffres c'est largement théorique, mais c'est gratuit.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
 }
 
 const GenerateSchema = z.object({
@@ -147,8 +161,19 @@ export async function markDelivered(input: unknown): Promise<Result> {
   });
   if (!shipment) return { success: false, error: "Colis introuvable." };
   if (shipment.status === "DELIVERED") return { success: false, error: "Colis déjà livré." };
-  if (!shipment.pickupCode) return { success: false, error: "Aucun code de retrait généré pour ce colis." };
-  if (shipment.pickupCode !== parsed.data.code.trim()) {
+  if (!shipment.pickupCode || !shipment.pickupCodeIssuedAt) {
+    return { success: false, error: "Aucun code de retrait généré pour ce colis." };
+  }
+  // Expiration : un code de retrait n'est valide que pendant PICKUP_CODE_TTL_MS.
+  // Au-delà, on force la regénération (audit trail + nouveau code communiqué).
+  const age = Date.now() - shipment.pickupCodeIssuedAt.getTime();
+  if (age > PICKUP_CODE_TTL_MS) {
+    return {
+      success: false,
+      error: "Le code de retrait a expiré. Regénérez un nouveau code.",
+    };
+  }
+  if (!constantTimeEqual(shipment.pickupCode, parsed.data.code.trim())) {
     return { success: false, error: "Code de retrait incorrect." };
   }
 
@@ -162,6 +187,9 @@ export async function markDelivered(input: unknown): Promise<Result> {
       deliveredToPhone: parsed.data.deliveredToPhone,
       deliveredToIdNumber: parsed.data.deliveredToIdNumber,
       deliveredById: session.user.id,
+      // Sécurité : invalide le code une fois utilisé (one-shot)
+      pickupCode: null,
+      pickupCodeIssuedAt: null,
       history: {
         create: {
           status: "DELIVERED",

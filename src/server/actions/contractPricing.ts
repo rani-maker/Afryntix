@@ -1,7 +1,7 @@
 "use server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/auth";
+import { requireRole, requireAuth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory } from "@prisma/client";
 
@@ -65,6 +65,9 @@ export async function deleteClientPricing(id: string): Promise<Result> {
 /**
  * Recherche un prix contractuel actif pour le triplet client/mode/catégorie/unité.
  * Retourne null si aucun tarif personnalisé n'est en vigueur.
+ *
+ * Sécurité : exposé comme Server Action (fichier `"use server"`). On exige STAFF/ADMIN
+ * pour empêcher un attaquant anonyme ou un client tiers d'énumérer les tarifs négociés.
  */
 export async function getClientContractPrice(opts: {
   clientId: string | null | undefined;
@@ -72,6 +75,7 @@ export async function getClientContractPrice(opts: {
   category: CargoCategory;
   unit: string;
 }): Promise<number | null> {
+  await requireRole("STAFF", "ADMIN");
   if (!opts.clientId) return null;
   const now = new Date();
   const row = await prisma.clientPricingRule.findFirst({

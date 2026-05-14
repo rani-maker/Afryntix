@@ -1,13 +1,18 @@
 "use server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/auth";
+import { requireAuth, requireRole } from "@/auth";
 import { computeInsurance } from "@/lib/insurance";
 import { revalidatePath } from "next/cache";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
+/**
+ * Sécurité : exposé comme Server Action (fichier `"use server"`), donc on
+ * exige une session authentifiée pour empêcher la lecture anonyme.
+ */
 export async function getActiveInsuranceSetting() {
+  await requireAuth();
   const row = await prisma.insuranceSetting.findFirst({
     where: { active: true },
     orderBy: { updatedAt: "desc" },

@@ -6,6 +6,25 @@ import { revalidatePath } from "next/cache";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
+// Refuse les schémas javascript:, data:, vbscript:, file:, etc.
+const httpUrlSchema = z
+  .string()
+  .max(300)
+  .refine(
+    (v) => {
+      if (!v) return true;
+      try {
+        const u = new URL(v);
+        return u.protocol === "http:" || u.protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    { message: "URL invalide (http(s):// requis)" },
+  )
+  .optional()
+  .or(z.literal(""));
+
 const SupplierSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2).max(160),
@@ -16,7 +35,7 @@ const SupplierSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   city: z.string().max(80).optional(),
   address: z.string().max(300).optional(),
-  alibabaUrl: z.string().max(300).optional(),
+  alibabaUrl: httpUrlSchema,
   category: z.string().max(80).optional(),
   notes: z.string().max(1000).optional(),
 });

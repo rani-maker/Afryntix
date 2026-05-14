@@ -9,6 +9,21 @@ import { upsertSupplier, deleteSupplier } from "@/server/actions/suppliers";
 import { Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
 import type { Supplier } from "@prisma/client";
 
+/**
+ * Sécurité : empêche les URL `javascript:`, `data:`, `vbscript:` etc.
+ * React n'échappe PAS ces schémas dans un attribut href.
+ */
+function safeHttpUrl(url: string | null): string | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "http:" || u.protocol === "https:") return u.toString();
+  } catch {
+    // URL invalide
+  }
+  return undefined;
+}
+
 export function SuppliersList({ initial }: { initial: Supplier[] }) {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [creating, setCreating] = useState(false);
@@ -77,11 +92,11 @@ function SupplierItem({ supplier, onEdit }: { supplier: Supplier; onEdit: () => 
           {supplier.city && <span>📍 {supplier.city}</span>}
         </div>
         {supplier.address && <div className="text-xs text-muted-foreground mt-0.5">{supplier.address}</div>}
-        {supplier.alibabaUrl && (
+        {safeHttpUrl(supplier.alibabaUrl) && (
           <a
-            href={supplier.alibabaUrl}
+            href={safeHttpUrl(supplier.alibabaUrl)!}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="text-xs text-primary inline-flex items-center gap-1 mt-1 hover:underline"
           >
             <ExternalLink className="h-3 w-3" /> Page Alibaba / 1688
