@@ -5,9 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShipmentStatusBadge, PaymentStatusBadge } from "@/components/dashboard/status-badge";
 import { TRANSPORT_MODE_LABELS, CARGO_CATEGORY_LABELS } from "@/lib/pricing";
 import { formatDateTime, formatXOF } from "@/lib/utils";
-import { StatusUpdateForm, RecordPaymentForm } from "./forms";
+import { StatusUpdateForm, RecordPaymentForm, VerifyWeightForm, ChargeStorageFeesButton, PickupAndDeliveryForms, InsuranceForm, CustomsInfoForm } from "./forms";
+import { getActiveInsuranceSetting } from "@/server/actions/insurance";
+import { computeStorageFee } from "@/lib/storage-fees";
+import { getActiveStorageSetting } from "@/server/actions/storage";
+import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { DocumentsSection } from "@/components/documents/documents-section";
+import { DOCUMENT_TYPES_FOR_SHIPMENT } from "@/server/actions/documents";
+import { ClaimsSection } from "@/components/claims/claims-section";
 
 export default async function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,9 +25,28 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
       history: { orderBy: { createdAt: "desc" } },
       envoi: { select: { id: true, reference: true } },
       container: { select: { refInternal: true, carrierNumber: true } },
+      documents: {
+        orderBy: { createdAt: "desc" },
+        include: { uploadedBy: { select: { name: true } } },
+      },
+      claims: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          openedBy: { select: { name: true } },
+          resolvedBy: { select: { name: true } },
+        },
+      },
     },
   });
   if (!shipment) notFound();
+
+  const storageSetting = await getActiveStorageSetting();
+  const insuranceSetting = await getActiveInsuranceSetting();
+  const storageQuote = computeStorageFee({
+    availableSinceAt: shipment.availableSinceAt,
+    freeDays: storageSetting.freeDays,
+    dailyRateXOF: storageSetting.dailyRateXOF,
+  });
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -59,7 +85,22 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
             <Row label="Mode" value={TRANSPORT_MODE_LABELS[shipment.mode]} />
             <Row label="Catégorie" value={CARGO_CATEGORY_LABELS[shipment.category]} />
             <Row label="Pièces" value={String(shipment.pieces)} />
-            {shipment.weightKg != null && <Row label="Poids réel" value={`${shipment.weightKg} kg`} />}
+            {shipment.declaredWeightKg != null && (
+              <Row label="Poids déclaré" value={`${shipment.declaredWeightKg} kg`} />
+            )}
+            {shipment.verifiedWeightKg != null && (
+              <Row
+                label="Poids vérifié"
+                value={`${shipment.verifiedWeightKg} kg${
+                  shipment.declaredWeightKg != null
+                    ? ` (écart ${(shipment.verifiedWeightKg - shipment.declaredWeightKg).toFixed(2)} kg)`
+                    : ""
+                }`}
+              />
+            )}
+            {shipment.verifiedWeightKg == null && shipment.weightKg != null && (
+              <Row label="Poids effectif" value={`${shipment.weightKg} kg`} />
+            )}
             {shipment.volumetricWeight != null && (
               <Row label="Poids volumique" value={`${shipment.volumetricWeight.toFixed(2)} kg`} />
             )}
@@ -101,12 +142,167 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
         </Card>
       </div>
 
+      {shipment.status === "DELIVERED" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Livraison effectuée</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {shipment.deliveredAt && <Row label="Date" value={formatDateTime(shipment.deliveredAt)} />}
+            {shipment.deliveredToName && <Row label="Remis à" value={shipment.deliveredToName} />}
+            {shipment.deliveredToPhone && <Row label="Téléphone" value={shipment.deliveredToPhone} />}
+            {shipment.deliveredToIdNumber && <Row label="Pièce d'identité" value={shipment.deliveredToIdNumber} />}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Code de retrait & Preuve de livraison</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Génère un code OTP à 6 chiffres envoyé au client par WhatsApp. À la remise, le staff saisit le code +
+              l&apos;identité du présent pour clôturer le colis.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <PickupAndDeliveryForms
+              shipmentId={shipment.id}
+              hasCode={!!shipment.pickupCode}
+              codeIssuedAt={shipment.pickupCodeIssuedAt ?? null}
+              status={shipment.status}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Conformité douanière</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Code SH (HS code), Incoterm, pays d&apos;origine, valeur en douane. Indispensable pour le dédouanement
+            destination.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <CustomsInfoForm
+            shipmentId={shipment.id}
+            initial={{
+              hsCode: shipment.hsCode,
+              incoterm: shipment.incoterm,
+              countryOfOrigin: shipment.countryOfOrigin,
+              declaredCustomsValue: shipment.declaredCustomsValue,
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Assurance cargo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InsuranceForm
+            shipmentId={shipment.id}
+            optedIn={shipment.insuranceOptedIn}
+            declaredValue={shipment.declaredValue}
+            premium={shipment.insurancePremium}
+            coverage={shipment.insuranceMaxCoverage}
+            ratePercent={insuranceSetting.ratePercent}
+            minPremium={insuranceSetting.minPremiumXOF}
+            maxCoverage={insuranceSetting.maxCoverageXOF}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pesée vérifiée (entrepôt Chine)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Le poids vérifié écrase le poids déclaré et déclenche le recalcul automatique du prix (réel et volumique).
+          </p>
+        </CardHeader>
+        <CardContent>
+          <VerifyWeightForm
+            shipmentId={shipment.id}
+            declaredWeightKg={shipment.declaredWeightKg ?? null}
+            currentVerified={shipment.verifiedWeightKg ?? null}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Mettre à jour le statut</CardTitle>
         </CardHeader>
         <CardContent>
           <StatusUpdateForm shipmentId={shipment.id} currentStatus={shipment.status} />
+        </CardContent>
+      </Card>
+
+      {shipment.availableSinceAt && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Entreposage</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Disponible depuis le {formatDate(shipment.availableSinceAt)} · free-time {storageSetting.freeDays} jours ·
+              {" "}{storageSetting.dailyRateXOF.toLocaleString("fr-FR")} FCFA / jour au-delà.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-3 gap-3 text-sm mb-4">
+              <div>
+                <div className="text-xs text-muted-foreground">Jours depuis mise à dispo.</div>
+                <div className="font-semibold">{storageQuote.daysSinceAvailable}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Jours facturables</div>
+                <div className="font-semibold">{storageQuote.billableDays}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Frais en cours</div>
+                <div className="font-semibold">{storageQuote.amount.toLocaleString("fr-FR")} FCFA</div>
+              </div>
+            </div>
+            <ChargeStorageFeesButton
+              shipmentId={shipment.id}
+              alreadyCharged={shipment.storageChargedAt != null}
+              pendingDays={storageQuote.billableDays}
+              pendingAmount={storageQuote.amount}
+              chargedAmount={shipment.storageFeeAmount}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Documents logistiques</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            AWB / B/L, packing list, facture commerciale, certificat d&apos;origine, déclaration douanière, POD…
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DocumentsSection
+            documents={shipment.documents}
+            allowedTypes={DOCUMENT_TYPES_FOR_SHIPMENT}
+            target={{ shipmentId: shipment.id }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Réclamations</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Perte, casse, retard, manquant. Joignez les photos dans la section Documents.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ClaimsSection
+            shipmentId={shipment.id}
+            claims={shipment.claims}
+            isStaff
+            canCreate
+          />
         </CardContent>
       </Card>
 

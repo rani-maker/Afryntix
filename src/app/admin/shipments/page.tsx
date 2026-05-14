@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ShipmentsTable } from "@/components/dashboard/shipments-table";
+import { ShipmentsBulkTable } from "@/components/dashboard/shipments-bulk-table";
 
 export default async function AdminShipmentsPage({
   searchParams,
@@ -30,12 +30,20 @@ export default async function AdminShipmentsPage({
       }
     : {};
 
-  const shipments = await prisma.shipment.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: { client: { select: { name: true, email: true } } },
-    take: 100,
-  });
+  const [shipments, envois] = await Promise.all([
+    prisma.shipment.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { client: { select: { name: true, email: true } } },
+      take: 100,
+    }),
+    prisma.envoi.findMany({
+      where: { status: { notIn: ["DELIVERED", "CANCELLED"] } },
+      select: { id: true, reference: true, mode: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
 
   return (
     <Card>
@@ -56,11 +64,20 @@ export default async function AdminShipmentsPage({
         </form>
       </CardHeader>
       <CardContent className="p-0">
-        <ShipmentsTable
-          rows={shipments}
-          showClient
+        <ShipmentsBulkTable
+          rows={shipments.map((s) => ({
+            id: s.id,
+            trackingNumber: s.trackingNumber,
+            mode: s.mode,
+            status: s.status,
+            paymentStatus: s.paymentStatus,
+            totalAmount: s.totalAmount,
+            amountPaid: s.amountPaid,
+            createdAt: s.createdAt,
+            client: s.client ? { name: s.client.name, email: s.client.email ?? undefined } : null,
+          }))}
+          envois={envois}
           manageHref={(id) => `/staff/shipments/${id}`}
-          showDelete
         />
       </CardContent>
     </Card>

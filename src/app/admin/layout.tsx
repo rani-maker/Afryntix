@@ -17,20 +17,28 @@ import {
   ClipboardList,
   ShieldCheck,
   Briefcase,
+  Warehouse,
+  AlertTriangle,
+  Umbrella,
 } from "lucide-react";
 
 const items: DashNavItem[] = [
   { href: "/admin", label: "Vue d'ensemble", icon: <LayoutDashboard />, exact: true, section: "Pilotage" },
   { href: "/admin/statistics", label: "Statistiques", icon: <BarChart3 />, section: "Pilotage" },
+  { href: "/admin/analytics", label: "Analytics avancé", icon: <BarChart3 />, section: "Pilotage" },
   { href: "/admin/staff", label: "Équipe (Staff)", icon: <UserCog />, section: "Personnes" },
   { href: "/admin/clients", label: "Clients", icon: <Users />, section: "Personnes" },
   { href: "/admin/shipments", label: "Expéditions", icon: <Package />, section: "Opérations" },
   { href: "/admin/reservations", label: "Réservations", icon: <ClipboardList />, section: "Opérations" },
   { href: "/admin/services", label: "Demandes de service", icon: <Briefcase />, section: "Opérations" },
+  { href: "/admin/claims", label: "Réclamations", icon: <AlertTriangle />, section: "Opérations" },
   { href: "/admin/schedules", label: "Calendrier d'envois", icon: <CalendarRange />, section: "Opérations" },
   { href: "/admin/payments", label: "Transferts / Factures", icon: <CreditCard />, section: "Finance" },
   { href: "/admin/pricing", label: "Tarification", icon: <Tags />, section: "Finance" },
+  { href: "/admin/contract-pricing", label: "Tarifs clients", icon: <Tags />, section: "Finance" },
   { href: "/admin/exchange-rates", label: "Taux de change", icon: <Coins />, section: "Finance" },
+  { href: "/admin/storage", label: "Entreposage", icon: <Warehouse />, section: "Finance" },
+  { href: "/admin/insurance", label: "Assurance cargo", icon: <Umbrella />, section: "Finance" },
   { href: "/admin/addresses", label: "Adresses entreprise", icon: <Building2 />, section: "Configuration" },
   { href: "/admin/audit", label: "Audit & Notifications", icon: <ShieldCheck />, section: "Configuration" },
 ];

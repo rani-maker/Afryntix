@@ -13,6 +13,8 @@ import {
   CalendarRange,
   Ship,
   Tag,
+  AlertTriangle,
+  Smartphone,
 } from "lucide-react";
 
 const items: DashNavItem[] = [
@@ -22,6 +24,8 @@ const items: DashNavItem[] = [
   { href: "/staff/envois", label: "Envois (voyages)", icon: <Ship />, section: "Opérations" },
   { href: "/staff/reservations", label: "Réservations", icon: <ClipboardList />, section: "Opérations" },
   { href: "/staff/services", label: "Demandes de service", icon: <Briefcase />, section: "Opérations" },
+  { href: "/staff/claims", label: "Réclamations", icon: <AlertTriangle />, section: "Opérations" },
+  { href: "/staff/warehouse", label: "Mode entrepôt 📱", icon: <Smartphone />, section: "Opérations" },
   { href: "/staff/schedules", label: "Calendrier", icon: <CalendarRange />, section: "Opérations" },
   { href: "/staff/payments", label: "Transferts / Factures", icon: <CreditCard />, section: "Finance" },
   { href: "/staff/clients", label: "Clients", icon: <Users />, section: "Personnes" },

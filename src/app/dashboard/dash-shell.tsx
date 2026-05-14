@@ -8,6 +8,8 @@ import {
   Briefcase,
   Building2,
   User,
+  Wallet,
+  Store,
 } from "lucide-react";
 import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
 import { DashTopbar } from "@/components/dashboard/dash-topbar";
@@ -63,6 +65,18 @@ export function ClientDashShell({
       label: t("dash.nav.addresses"),
       icon: <Building2 />,
       section: sectionServices,
+    },
+    {
+      href: "/dashboard/suppliers",
+      label: "Mes fournisseurs",
+      icon: <Store />,
+      section: sectionServices,
+    },
+    {
+      href: "/dashboard/account",
+      label: "Mon relevé",
+      icon: <Wallet />,
+      section: sectionAccount,
     },
     {
       href: "/dashboard/profile",
