@@ -9,6 +9,7 @@ node_modules
 .idea
 public/uploads/*
 !public/uploads/.gitkeep
+private-uploads/
 prisma/*.db
 prisma/*.db-journal
 .turbo

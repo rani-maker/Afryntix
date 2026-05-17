@@ -1,4 +1,4 @@
-import { writeFile, mkdir, unlink } from "fs/promises";
+import { writeFile, mkdir, unlink, stat } from "fs/promises";
 import { join, resolve, extname } from "path";
 import { randomBytes } from "crypto";
 
@@ -16,11 +16,37 @@ const ALLOWED_MIME = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
-function baseUploadDir() {
+/**
+ * Répertoire racine pour les fichiers uploadés.
+ * IMPORTANT : ce répertoire DOIT être hors de `public/` afin que Next ne les
+ * serve pas directement. L'accès aux fichiers passe par la route protégée
+ * `/api/files/[...path]` qui vérifie l'authentification.
+ *
+ * - Par défaut : `<cwd>/private-uploads/` (hors du dossier public)
+ * - Surcharger via `UPLOAD_DIR` (chemin relatif au cwd ou absolu) si besoin
+ *   (typiquement un volume persistant en prod).
+ */
+export function baseUploadDir() {
   return process.env.UPLOAD_DIR
     ? resolve(process.cwd(), process.env.UPLOAD_DIR)
-    : join(process.cwd(), "public", "uploads");
+    : join(process.cwd(), "private-uploads");
 }
+
+/**
+ * Chemin disque legacy. Pendant la migration depuis le stockage public,
+ * certains fichiers historiques peuvent encore se trouver sous
+ * `public/uploads/`. La route `/api/files/...` les sert également en
+ * lecture seule (avec auth) jusqu'à ce que la migration soit terminée.
+ */
+export function legacyPublicUploadDir() {
+  return join(process.cwd(), "public", "uploads");
+}
+
+/**
+ * Préfixe public servi par la route protégée. Tout fichier stocké est
+ * référencé via cette URL dans la base.
+ */
+export const FILE_URL_PREFIX = "/api/files";
 
 export type DataUrl = `data:${string};base64,${string}`;
 
@@ -33,8 +59,10 @@ export type SavedFile = {
 
 /**
  * Sauvegarde un fichier encodé en base64 (format data URL ou simple base64)
- * dans le sous-dossier indiqué sous public/uploads/.
- * Retourne l'URL relative servie par Next et les métadonnées.
+ * dans le sous-dossier indiqué sous `private-uploads/`. Le fichier n'est
+ * PAS accessible directement : il faut passer par la route protégée
+ * `/api/files/[...path]`. Retourne l'URL applicative (préfixe `/api/files/...`)
+ * et les métadonnées.
  */
 export async function saveBase64File(opts: {
   base64: string;
@@ -85,19 +113,71 @@ export async function saveBase64File(opts: {
   await writeFile(filepath, buffer);
 
   return {
-    url: `/uploads/${subfolder}/${fileName}`,
+    url: `${FILE_URL_PREFIX}/${subfolder}/${fileName}`,
     fileName: safeOriginal ?? fileName,
     fileSize: buffer.byteLength,
     mimeType: mime,
   };
 }
 
-export async function deleteUploadedFile(fileUrl: string): Promise<void> {
-  if (!fileUrl.startsWith("/uploads/")) return;
-  const rel = fileUrl.replace(/^\/uploads\//, "");
-  const filepath = join(baseUploadDir(), rel);
+/**
+ * Convertit une URL applicative en chemin relatif au répertoire racine.
+ * Accepte les deux formats :
+ *  - nouveau : `/api/files/{subfolder}/{file}`
+ *  - legacy  : `/uploads/{subfolder}/{file}` (fichiers historiques)
+ * Renvoie `null` si l'URL n'est pas reconnue ou contient une remontée de path.
+ */
+export function urlToRelativePath(fileUrl: string): { rel: string; legacy: boolean } | null {
+  let rel: string | null = null;
+  let legacy = false;
+  if (fileUrl.startsWith(`${FILE_URL_PREFIX}/`)) {
+    rel = fileUrl.slice(FILE_URL_PREFIX.length + 1);
+  } else if (fileUrl.startsWith("/uploads/")) {
+    rel = fileUrl.slice("/uploads/".length);
+    legacy = true;
+  }
+  if (!rel) return null;
+  // Anti-traversal : on refuse `..`, les chemins absolus et toute barre arrière.
+  if (rel.includes("..") || rel.includes("\\") || rel.startsWith("/")) return null;
+  return { rel, legacy };
+}
+
+/**
+ * Résout l'URL applicative en chemin disque réel, après vérifications de
+ * sécurité (anti-traversal + le chemin doit rester confiné dans la racine
+ * autorisée). Renvoie `null` si l'URL est invalide ou si le fichier n'existe
+ * pas sur disque.
+ */
+export async function resolveUploadedFilePath(fileUrl: string): Promise<{
+  absolutePath: string;
+  legacy: boolean;
+} | null> {
+  const parsed = urlToRelativePath(fileUrl);
+  if (!parsed) return null;
+  const baseDir = parsed.legacy ? legacyPublicUploadDir() : baseUploadDir();
+  const absolute = resolve(baseDir, parsed.rel);
+  // Garde-fou : `resolve` peut absorber `..` — on vérifie que le chemin
+  // résolu reste sous la racine attendue.
+  const baseResolved = resolve(baseDir) + "/";
+  if (!absolute.startsWith(baseResolved)) return null;
   try {
-    await unlink(filepath);
+    const s = await stat(absolute);
+    if (!s.isFile()) return null;
+  } catch {
+    return null;
+  }
+  return { absolutePath: absolute, legacy: parsed.legacy };
+}
+
+export async function deleteUploadedFile(fileUrl: string): Promise<void> {
+  const parsed = urlToRelativePath(fileUrl);
+  if (!parsed) return;
+  const baseDir = parsed.legacy ? legacyPublicUploadDir() : baseUploadDir();
+  const absolute = resolve(baseDir, parsed.rel);
+  const baseResolved = resolve(baseDir) + "/";
+  if (!absolute.startsWith(baseResolved)) return;
+  try {
+    await unlink(absolute);
   } catch {
     // best effort
   }

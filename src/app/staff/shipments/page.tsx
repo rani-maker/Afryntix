@@ -119,7 +119,7 @@ export default async function StaffShipmentsPage({
               client: s.client ?? null,
             }))}
             envois={envois}
-            manageHref={(id) => `/staff/shipments/${id}`}
+            manageHrefPrefix="/staff/shipments"
           />
         )}
       </CardContent>

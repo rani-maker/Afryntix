@@ -6,11 +6,24 @@ import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { formatDate } from "@/lib/utils";
 import { ScheduleForm } from "./schedule-form";
 import { ScheduleRowActions } from "./row-actions";
+import {
+  computeOccupancy,
+  getCapacityUnit,
+  CAPACITY_UNIT_LABEL,
+  formatCapacity,
+} from "@/lib/schedule-capacity";
 
 export default async function AdminSchedulesPage() {
   const schedules = await prisma.shippingSchedule.findMany({
     orderBy: { departureDate: "asc" },
-    include: { _count: { select: { reservations: true } } },
+    // Pour calculer l'occupation, on a besoin des dimensions de chaque réservation
+    // active. On exclut les rejets, qui ne consomment plus de capacité.
+    include: {
+      reservations: {
+        where: { status: { not: "REJECTED" } },
+        select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+      },
+    },
   });
 
   return (
@@ -51,7 +64,10 @@ export default async function AdminSchedulesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                schedules.map((s) => (
+                schedules.map((s) => {
+                  const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode);
+                  const unit = CAPACITY_UNIT_LABEL[getCapacityUnit(s.mode)];
+                  return (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm">{TRANSPORT_MODE_LABELS[s.mode]}</TableCell>
                     <TableCell className="text-sm">
@@ -60,8 +76,39 @@ export default async function AdminSchedulesPage() {
                     <TableCell>{formatDate(s.departureDate)}</TableCell>
                     <TableCell>{s.arrivalDate ? formatDate(s.arrivalDate) : "—"}</TableCell>
                     <TableCell>{formatDate(s.cutoffDate)}</TableCell>
-                    <TableCell className="text-xs">{s.capacity ?? "—"}</TableCell>
-                    <TableCell className="text-center">{s._count.reservations}</TableCell>
+                    <TableCell className="text-xs">
+                      {s.capacity ?? "—"}
+                      {s.capacityValue != null && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Plafond : {formatCapacity(s.capacityValue, s.mode)}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {occ ? (
+                        <span
+                          className={
+                            occ.isFull
+                              ? "text-destructive font-semibold"
+                              : occ.percent >= 80
+                              ? "text-amber-600 font-medium"
+                              : ""
+                          }
+                        >
+                          {occ.used.toFixed(2)} / {occ.capacity.toFixed(2)} {unit}
+                          <div className="text-[11px] font-normal">
+                            ({s.reservations.length} résa · {occ.percent}%)
+                          </div>
+                          {occ.isFull && (
+                            <div className="text-[11px]">Complet</div>
+                          )}
+                        </span>
+                      ) : (
+                        <span>
+                          {s.reservations.length} résa
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {s.active ? (
                         <Badge variant="success">Actif</Badge>
@@ -73,7 +120,8 @@ export default async function AdminSchedulesPage() {
                       <ScheduleRowActions id={s.id} active={s.active} />
                     </TableCell>
                   </TableRow>
-                ))
+                );
+              })
               )}
             </TableBody>
           </Table>

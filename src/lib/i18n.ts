@@ -200,7 +200,7 @@ const dict = {
     "withdraw.lead": "Saisissez le code reçu par WhatsApp pour vérifier le statut et le montant disponible. Le code est unique et personnel — ne le partagez pas.",
     "withdraw.code.label": "CODE DE RETRAIT",
     "withdraw.code.input_label": "Votre code",
-    "withdraw.code.placeholder": "ex: AB12CD34 ou AFR-PAY-2026-XXXXXX",
+    "withdraw.code.placeholder": "ex: AB12CD34",
     "withdraw.code.verify": "Vérifier le code",
     "withdraw.code.help": "Saisissez votre code de retrait (8 caractères) ou la référence du transfert (ex : AFR-PAY-2026-XXXXXX).",
     "withdraw.aside.kicker": "CONFIANCE · 信任",
@@ -215,6 +215,7 @@ const dict = {
     "withdraw.error.empty": "Veuillez saisir un code de retrait.",
     "withdraw.error.notfound": "Aucun transfert trouvé pour ce code.",
     "withdraw.error.generic": "Erreur.",
+    "withdraw.error.ratelimit": "Trop de tentatives. Réessayez dans une minute.",
 
     // Dashboard
     "dash.brand.subtitle": "Espace Client",
@@ -452,7 +453,7 @@ const dict = {
     "withdraw.lead": "输入通过 WhatsApp 收到的验证码,查看状态和可领取金额。验证码唯一且仅供本人使用 — 请勿外泄。",
     "withdraw.code.label": "提货验证码",
     "withdraw.code.input_label": "您的验证码",
-    "withdraw.code.placeholder": "例:AB12CD34 或 AFR-PAY-2026-XXXXXX",
+    "withdraw.code.placeholder": "例:AB12CD34",
     "withdraw.code.verify": "验证",
     "withdraw.code.help": "请输入您的提货验证码(8 位字符)或转账参考号(例:AFR-PAY-2026-XXXXXX)。",
     "withdraw.aside.kicker": "信任 · CONFIANCE",
@@ -466,6 +467,7 @@ const dict = {
     "withdraw.aside.whatsapp": "验证码已发送至您的 WhatsApp",
     "withdraw.error.empty": "请输入提货验证码。",
     "withdraw.error.notfound": "未找到此验证码对应的转账。",
+    "withdraw.error.ratelimit": "尝试次数过多，请一分钟后再试。",
     "withdraw.error.generic": "错误。",
 
     // Dashboard
@@ -704,7 +706,7 @@ const dict = {
     "withdraw.lead": "Introduzca el código recibido por WhatsApp para ver el estado y el importe disponible. El código es único y personal — no lo comparta.",
     "withdraw.code.label": "CÓDIGO DE RETIRO",
     "withdraw.code.input_label": "Su código",
-    "withdraw.code.placeholder": "ej: AB12CD34 o AFR-PAY-2026-XXXXXX",
+    "withdraw.code.placeholder": "ej: AB12CD34",
     "withdraw.code.verify": "Verificar el código",
     "withdraw.code.help": "Introduzca su código de retiro (8 caracteres) o la referencia de la transferencia (ej: AFR-PAY-2026-XXXXXX).",
     "withdraw.aside.kicker": "CONFIANZA · 信任",
@@ -718,6 +720,7 @@ const dict = {
     "withdraw.aside.whatsapp": "Código enviado a su WhatsApp",
     "withdraw.error.empty": "Por favor, introduzca un código de retiro.",
     "withdraw.error.notfound": "No se encontró ninguna transferencia para este código.",
+    "withdraw.error.ratelimit": "Demasiados intentos. Inténtelo de nuevo dentro de un minuto.",
     "withdraw.error.generic": "Error.",
 
     // Dashboard

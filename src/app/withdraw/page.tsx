@@ -23,9 +23,11 @@ export default function WithdrawHomePage({
       ? "withdraw.error.empty"
       : error === "notfound"
         ? "withdraw.error.notfound"
-        : error
-          ? "withdraw.error.generic"
-          : null;
+        : error === "ratelimit"
+          ? "withdraw.error.ratelimit"
+          : error
+            ? "withdraw.error.generic"
+            : null;
 
   const features: Array<{
     icon: typeof Wallet;

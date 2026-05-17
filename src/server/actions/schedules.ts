@@ -15,6 +15,9 @@ const ScheduleSchema = z.object({
   origin: z.string().min(1).default("Guangzhou"),
   destination: z.string().min(1),
   capacity: z.string().optional(),
+  // Capacité numérique : CBM pour le maritime / storage, kg pour l'aérien,
+  // unités pour véhicule / BTP. Float pour accepter 67.5 CBM, 1500.5 kg, etc.
+  capacityValue: z.coerce.number().positive().optional(),
   notes: z.string().optional(),
 });
 
@@ -32,6 +35,7 @@ export async function createSchedule(input: unknown): Promise<Result<{ id: strin
       origin: parsed.data.origin,
       destination: parsed.data.destination,
       capacity: parsed.data.capacity,
+      capacityValue: parsed.data.capacityValue ?? null,
       notes: parsed.data.notes,
     },
   });

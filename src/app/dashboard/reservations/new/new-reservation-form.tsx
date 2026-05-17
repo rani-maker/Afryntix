@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TRANSPORT_MODE_LABELS, CARGO_CATEGORY_LABELS, isExpressEligible } from "@/lib/pricing";
 import { createReservation } from "@/server/actions/reservations";
 import { formatDate } from "@/lib/utils";
+import { getCapacityUnit, CAPACITY_UNIT_LABEL } from "@/lib/schedule-capacity";
 import type { TransportMode, CargoCategory } from "@prisma/client";
 
 const MODES = Object.keys(TRANSPORT_MODE_LABELS) as TransportMode[];
@@ -22,6 +23,16 @@ type Schedule = {
   departureDate: Date;
   arrivalDate: Date | null;
   cutoffDate: Date;
+  capacity: string | null;
+  capacityValue: number | null;
+  reservationCount: number;
+  occupancy: {
+    used: number;
+    capacity: number;
+    remaining: number;
+    isFull: boolean;
+    percent: number;
+  } | null;
 };
 
 function fileToBase64(file: File): Promise<string> {
@@ -37,10 +48,12 @@ export function NewReservationForm({
   schedules,
   defaultScheduleId,
   defaultMode,
+  nextSuggestions = {},
 }: {
   schedules: Schedule[];
   defaultScheduleId?: string;
   defaultMode?: TransportMode;
+  nextSuggestions?: Record<string, { id: string; departureDate: Date } | null>;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<TransportMode>(defaultMode ?? "SEA_LCL");
@@ -127,22 +140,60 @@ export function NewReservationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Bannière de confirmation du départ choisi */}
-      {selectedSchedule && (
-        <div className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3">
-          <p className="text-xs font-semibold text-primary mb-1">✈ Départ sélectionné</p>
-          <p className="text-sm font-medium">
-            {TRANSPORT_MODE_LABELS[selectedSchedule.mode]} — {selectedSchedule.origin} → {selectedSchedule.destination}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Départ : {formatDate(selectedSchedule.departureDate)}
-            {selectedSchedule.arrivalDate
-              ? ` · Arrivée est. : ${formatDate(selectedSchedule.arrivalDate)}`
-              : ""}
-            {" · Cutoff : "}{formatDate(selectedSchedule.cutoffDate)}
-          </p>
-        </div>
-      )}
+      {/* Bannière de confirmation du départ choisi + jauge d'occupation */}
+      {selectedSchedule && (() => {
+        const occ = selectedSchedule.occupancy;
+        const isFull = !!occ?.isFull;
+        const unit = CAPACITY_UNIT_LABEL[getCapacityUnit(selectedSchedule.mode)];
+        const suggestion = nextSuggestions[selectedSchedule.id];
+        return (
+          <div className={`rounded-md border px-4 py-3 ${isFull ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5"}`}>
+            <p className={`text-xs font-semibold mb-1 ${isFull ? "text-destructive" : "text-primary"}`}>
+              {isFull ? "⛔ Départ complet" : "✈ Départ sélectionné"}
+            </p>
+            <p className="text-sm font-medium">
+              {TRANSPORT_MODE_LABELS[selectedSchedule.mode]} — {selectedSchedule.origin} → {selectedSchedule.destination}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Départ : {formatDate(selectedSchedule.departureDate)}
+              {selectedSchedule.arrivalDate
+                ? ` · Arrivée est. : ${formatDate(selectedSchedule.arrivalDate)}`
+                : ""}
+              {" · Cutoff : "}{formatDate(selectedSchedule.cutoffDate)}
+            </p>
+            <p className="text-xs mt-1">
+              {occ ? (
+                <span className={isFull ? "text-destructive font-medium" : occ.percent >= 80 ? "text-amber-700 font-medium" : "text-muted-foreground"}>
+                  📦 {occ.used.toFixed(2)} / {occ.capacity.toFixed(2)} {unit} réservés
+                  {!isFull && <> · {occ.remaining.toFixed(2)} {unit} restant{occ.remaining > 1 ? "s" : ""}</>}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  📦 {selectedSchedule.reservationCount} réservation{selectedSchedule.reservationCount > 1 ? "s" : ""} sur ce départ
+                  {selectedSchedule.capacity ? ` · ${selectedSchedule.capacity}` : ""}
+                </span>
+              )}
+            </p>
+            {isFull && (
+              <div className="mt-2 text-xs">
+                {suggestion ? (
+                  <button
+                    type="button"
+                    onClick={() => setScheduleId(suggestion.id)}
+                    className="rounded-md border border-primary/40 bg-background px-2.5 py-1 font-medium text-primary hover:bg-primary/5"
+                  >
+                    → Basculer vers le prochain départ ({formatDate(suggestion.departureDate)})
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    Aucun autre départ n'est encore publié pour ce mode. Notre équipe vous contactera dès qu'un nouveau sera ouvert.
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
@@ -184,11 +235,21 @@ export function NewReservationForm({
         <Label htmlFor="scheduleId">Calendrier d'envoi (optionnel)</Label>
         <Select id="scheduleId" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}>
           <option value="">— Aucun calendrier précis —</option>
-          {matchingSchedules.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.origin} → {s.destination} • Départ {formatDate(s.departureDate)} (cutoff {formatDate(s.cutoffDate)})
-            </option>
-          ))}
+          {matchingSchedules.map((s) => {
+            const occ = s.occupancy;
+            const full = !!occ?.isFull;
+            const unit = CAPACITY_UNIT_LABEL[getCapacityUnit(s.mode)];
+            const occLabel = occ
+              ? ` — ${occ.used.toFixed(2)}/${occ.capacity.toFixed(2)} ${unit}${full ? " (complet)" : ""}`
+              : s.reservationCount > 0
+              ? ` — ${s.reservationCount} réservation${s.reservationCount > 1 ? "s" : ""}`
+              : "";
+            return (
+              <option key={s.id} value={s.id} disabled={full}>
+                {s.origin} → {s.destination} • Départ {formatDate(s.departureDate)} (cutoff {formatDate(s.cutoffDate)}){occLabel}
+              </option>
+            );
+          })}
         </Select>
       </div>
 
@@ -254,7 +315,10 @@ export function NewReservationForm({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={loading}>
+        <Button
+          type="submit"
+          disabled={loading || !!selectedSchedule?.occupancy?.isFull}
+        >
           {loading ? "Envoi…" : "Envoyer la réservation"}
         </Button>
       </div>

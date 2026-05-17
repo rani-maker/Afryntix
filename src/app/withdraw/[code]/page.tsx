@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, ipFromHeaders } from "@/lib/rate-limit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BillPaymentStatusBadge } from "@/components/dashboard/status-badge";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -15,6 +17,16 @@ export default async function WithdrawDetailPage({
   const { code } = await params;
   const raw = decodeURIComponent(code).trim().toUpperCase();
   const stripped = raw.replace(/[^A-Z0-9]/g, "");
+
+  // Rate-limit par IP : 10 tentatives / minute. Empêche un attaquant
+  // d'énumérer l'espace des codes de retrait (8 caractères) ou des
+  // références (AFR-PAY-YYYY-XXXXXX) depuis une seule machine.
+  const hdrs = await headers();
+  const ip = ipFromHeaders(hdrs);
+  const rl = rateLimit(`withdraw:${ip}`, 10, 60_000);
+  if (!rl.ok) {
+    redirect("/withdraw?error=ratelimit");
+  }
 
   const select = {
     reference: true,
@@ -39,16 +51,17 @@ export default async function WithdrawDetailPage({
     completedBy: { select: { name: true } },
   } as const;
 
-  // Accepte référence (AFR-PAY-2026-XXXXXX) OU code de retrait (8 chars).
-  // On essaie : valeur brute (référence avec tirets), puis valeur sans tirets (code retrait avec/sans tirets).
+  // Seul le `withdrawalCode` (8 caractères alphanumériques aléatoires) est
+  // accepté en lookup public. La `reference` AFR-PAY-YYYY-XXXXXX est
+  // prédictible (séquentielle par année) et exposerait les PII des
+  // bénéficiaires (téléphone, banque, pièce d'identité) à l'énumération.
+  // Pré-validation stricte du format avant la requête.
+  if (!/^[A-Z0-9]{6,16}$/.test(stripped)) {
+    redirect("/withdraw?error=notfound");
+  }
   const payment = await prisma.billPayment.findFirst({
     where: {
-      OR: [
-        { reference: raw },
-        { withdrawalCode: raw },
-        { withdrawalCode: stripped },
-        { reference: stripped },
-      ],
+      OR: [{ withdrawalCode: raw }, { withdrawalCode: stripped }],
     },
     select,
   });

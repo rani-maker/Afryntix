@@ -46,7 +46,12 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const [hasAccount, setHasAccount] = useState<boolean>(
     !!initial?.clientId || !!reservationId || clients.length > 0,
   );
-  const [clientId, setClientId] = useState(initial?.clientId ?? clients[0]?.id ?? "");
+  const [clientId, setClientId] = useState(initial?.clientId ?? "");
+  // Recherche libre par nom / email / téléphone parmi les clients enregistrés.
+  // On préfère un combobox filtrant plutôt qu'un <select> alphabétique qui devient
+  // ingérable au-delà de quelques dizaines de clients.
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [mode, setMode] = useState<TransportMode>(initial?.mode ?? "AIR_NORMAL");
@@ -64,6 +69,24 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const [recipientAddress, setRecipientAddress] = useState("");
   const [description, setDescription] = useState("");
   const [overrideUnitPrice, setOverrideUnitPrice] = useState("");
+
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.id === clientId) ?? null,
+    [clients, clientId],
+  );
+
+  // Filtre client-side : on tolère espaces multiples / accents simples / casse.
+  // 20 résultats max pour rester lisible — au-delà, le staff précise sa recherche.
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return clients.slice(0, 20);
+    return clients
+      .filter((c) => {
+        const hay = `${c.name} ${c.email} ${c.phone ?? ""}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 20);
+  }, [clients, clientSearch]);
 
   // Shipping Mark search
   const [markSuggestions, setMarkSuggestions] = useState<ShippingMarkResult[]>([]);
@@ -125,6 +148,10 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    if (hasAccount && !clientId) {
+      setError("Sélectionnez un client enregistré dans la liste, ou bascule sur « Sans compte ».");
+      return;
+    }
     setLoading(true);
     const res = await createShipment({
       clientId: hasAccount ? clientId : undefined,
@@ -210,18 +237,66 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
       <div className="grid sm:grid-cols-2 gap-3">
         {hasAccount ? (
           <div className="space-y-1.5">
-            <Label htmlFor="clientId">Client</Label>
-            <Select id="clientId" required value={clientId} onChange={(e) => setClientId(e.target.value)}>
-              {clients.length === 0 ? (
-                <option value="">Aucun client actif</option>
-              ) : (
-                clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} — {c.email}
-                  </option>
-                ))
-              )}
-            </Select>
+            <Label htmlFor="clientSearch">Client</Label>
+            {selectedClient ? (
+              <div className="flex items-start justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 p-2.5">
+                <div className="text-sm min-w-0">
+                  <div className="font-semibold text-blue-900 truncate">{selectedClient.name}</div>
+                  <div className="text-xs text-blue-700 truncate">
+                    {selectedClient.email}
+                    {selectedClient.phone ? ` · ${selectedClient.phone}` : ""}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setClientId(""); setClientSearch(""); setClientDropdownOpen(true); }}
+                  className="text-xs text-blue-700 underline shrink-0"
+                >
+                  Changer
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Input
+                  id="clientSearch"
+                  value={clientSearch}
+                  onChange={(e) => { setClientSearch(e.target.value); setClientDropdownOpen(true); }}
+                  onFocus={() => setClientDropdownOpen(true)}
+                  // léger délai sur blur pour laisser le onClick d'une suggestion se déclencher
+                  onBlur={() => setTimeout(() => setClientDropdownOpen(false), 150)}
+                  placeholder={clients.length === 0 ? "Aucun client actif" : "Rechercher un client par nom, email ou téléphone…"}
+                  disabled={clients.length === 0}
+                  autoComplete="off"
+                />
+                {clientDropdownOpen && filteredClients.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-md divide-y text-sm max-h-72 overflow-auto">
+                    {filteredClients.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => { setClientId(c.id); setClientSearch(""); setClientDropdownOpen(false); }}
+                        className="w-full text-left px-3 py-2 hover:bg-muted/50"
+                      >
+                        <div className="font-medium">{c.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {c.email}{c.phone ? ` · ${c.phone}` : ""}
+                        </div>
+                      </button>
+                    ))}
+                    {clientSearch.trim() && clients.length > filteredClients.length && (
+                      <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                        Affine la recherche pour voir plus de résultats…
+                      </div>
+                    )}
+                  </div>
+                )}
+                {clientDropdownOpen && clientSearch.trim() && filteredClients.length === 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-md px-3 py-2 text-sm text-muted-foreground">
+                    Aucun client ne correspond à « {clientSearch} ».
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-1.5">
@@ -399,7 +474,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={loading || (hasAccount && clients.length === 0)}>
+        <Button type="submit" disabled={loading || (hasAccount && (clients.length === 0 || !clientId))}>
           {loading ? "Enregistrement…" : "Enregistrer & notifier le client"}
         </Button>
       </div>

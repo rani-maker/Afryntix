@@ -6,10 +6,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/**
+ * Valide une `callbackUrl` reçue en query string contre une open-redirect.
+ * On n'accepte qu'un chemin RELATIF (commençant par `/`) interne à
+ * l'application, et on rejette explicitement :
+ *  - les URLs absolues (http://...) ou protocol-relative (`//evil.com`)
+ *  - les ancrages JS (`javascript:`, `data:`)
+ *  - les chemins backslash (`\evil.com`)
+ */
+function safeCallbackUrl(raw: string | null): string | null {
+  if (!raw) return null;
+  // Doit commencer par exactement un `/` et ne pas être protocol-relative.
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return null;
+  // Refuse les schémas dangereux qui auraient survécu à un encodage farfelu.
+  const lower = raw.toLowerCase().trimStart();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+    return null;
+  }
+  return raw;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
