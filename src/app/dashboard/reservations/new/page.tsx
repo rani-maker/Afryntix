@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NewReservationForm } from "./new-reservation-form";
+import { computeOccupancy } from "@/lib/schedule-capacity";
 import type { TransportMode } from "@prisma/client";
 
 const VALID_MODES: TransportMode[] = [
@@ -30,10 +31,50 @@ export default async function NewReservationPage({
     ? (rawMode as TransportMode)
     : undefined;
 
-  const schedules = await prisma.shippingSchedule.findMany({
+  const raw = await prisma.shippingSchedule.findMany({
     where: { active: true, cutoffDate: { gte: new Date() } },
     orderBy: { departureDate: "asc" },
+    // Pour le formulaire on a besoin des dimensions des réservations actives
+    // afin de calculer la capacité restante (CBM ou kg selon le mode).
+    include: {
+      reservations: {
+        where: { status: { not: "REJECTED" } },
+        select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+      },
+    },
   });
+
+  // On précalcule l'occupation côté serveur et on n'expose au client que des
+  // données agrégées (sans fuiter les dimensions individuelles des réservations).
+  const schedules = raw.map((s) => {
+    const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode);
+    return {
+      id: s.id,
+      mode: s.mode,
+      origin: s.origin,
+      destination: s.destination,
+      departureDate: s.departureDate,
+      arrivalDate: s.arrivalDate,
+      cutoffDate: s.cutoffDate,
+      capacity: s.capacity,
+      capacityValue: s.capacityValue,
+      reservationCount: s.reservations.length,
+      occupancy: occ,
+    };
+  });
+
+  // Prochain départ disponible du même mode pour chaque calendrier plein.
+  const nextSuggestions: Record<string, { id: string; departureDate: Date } | null> = {};
+  for (const s of schedules) {
+    if (!s.occupancy?.isFull) continue;
+    const cand = schedules.find(
+      (n) =>
+        n.mode === s.mode &&
+        n.departureDate > s.departureDate &&
+        (!n.occupancy || !n.occupancy.isFull),
+    );
+    nextSuggestions[s.id] = cand ? { id: cand.id, departureDate: cand.departureDate } : null;
+  }
 
   const backHref =
     defaultScheduleId ? "/dashboard/schedules" : "/dashboard/reservations";
@@ -61,6 +102,7 @@ export default async function NewReservationPage({
             schedules={schedules}
             defaultScheduleId={defaultScheduleId}
             defaultMode={defaultMode}
+            nextSuggestions={nextSuggestions}
           />
         </CardContent>
       </Card>

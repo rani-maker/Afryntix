@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { formatDate } from "@/lib/utils";
+import { getCapacityUnit, CAPACITY_UNIT_LABEL } from "@/lib/schedule-capacity";
 import {
   Plane,
   Ship,
@@ -28,8 +29,16 @@ type Schedule = {
   arrivalDate: Date | null;
   cutoffDate: Date;
   capacity: string | null;
+  capacityValue: number | null;
   notes: string | null;
-  _count: { reservations: number };
+  reservationCount: number;
+  occupancy: {
+    used: number;
+    capacity: number;
+    remaining: number;
+    isFull: boolean;
+    percent: number;
+  } | null;
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -90,12 +99,17 @@ function daysUntil(date: Date, now: Date): number {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+type NextSuggestion = { id: string; departureDate: Date } | null;
+
 export function ScheduleCards({
   schedules,
   now,
+  nextSuggestions = {},
 }: {
   schedules: Schedule[];
   now: Date;
+  // Pour chaque calendrier plein, prochain départ disponible du même mode.
+  nextSuggestions?: Record<string, NextSuggestion>;
 }) {
   const [activeMode, setActiveMode] = useState<TransportMode | "ALL">("ALL");
 
@@ -157,7 +171,13 @@ export function ScheduleCards({
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {open.map((s) => (
-              <ScheduleCard key={s.id} schedule={s} now={now} closed={false} />
+              <ScheduleCard
+                key={s.id}
+                schedule={s}
+                now={now}
+                closed={false}
+                nextSuggestion={nextSuggestions[s.id] ?? null}
+              />
             ))}
           </div>
         </div>
@@ -171,7 +191,13 @@ export function ScheduleCards({
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 opacity-60">
             {closed.map((s) => (
-              <ScheduleCard key={s.id} schedule={s} now={now} closed={true} />
+              <ScheduleCard
+                key={s.id}
+                schedule={s}
+                now={now}
+                closed={true}
+                nextSuggestion={null}
+              />
             ))}
           </div>
         </div>
@@ -186,14 +212,21 @@ function ScheduleCard({
   schedule: s,
   now,
   closed,
+  nextSuggestion,
 }: {
   schedule: Schedule;
   now: Date;
   closed: boolean;
+  nextSuggestion: NextSuggestion;
 }) {
   const cfg = MODE_CONFIG[s.mode];
   const daysLeft = daysUntil(s.cutoffDate, now);
   const isUrgent = !closed && daysLeft <= 5;
+  // Occupation pré-calculée côté serveur (CBM pour maritime, kg pour aérien,
+  // unités sinon). null = pas de plafond défini par l'admin.
+  const occ = s.occupancy;
+  const isFull = !!occ?.isFull;
+  const unitLabel = CAPACITY_UNIT_LABEL[getCapacityUnit(s.mode)];
 
   return (
     <Card className={`border-l-4 ${cfg.border} flex flex-col`}>
@@ -206,6 +239,8 @@ function ScheduleCard({
           </div>
           {closed ? (
             <Badge variant="secondary" className="text-[11px]">Fermé</Badge>
+          ) : isFull ? (
+            <Badge variant="destructive" className="text-[11px]">Complet</Badge>
           ) : isUrgent ? (
             <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
               <AlertCircle className="h-3 w-3" />
@@ -256,10 +291,52 @@ function ScheduleCard({
           </div>
         </div>
 
-        {/* Capacité */}
-        {s.capacity && (
+        {/* Occupation : barre + valeur dans l'unité du mode si plafond défini */}
+        {occ && (
+          <div className="border-t pt-2 space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                📦 {unitLabel === "m³" ? "Volume" : unitLabel === "kg" ? "Poids" : "Unités"} réservé
+              </span>
+              <span
+                className={
+                  isFull
+                    ? "font-semibold text-destructive"
+                    : occ.percent >= 80
+                    ? "font-medium text-amber-600"
+                    : "font-medium"
+                }
+              >
+                {occ.used.toFixed(2)} / {occ.capacity.toFixed(2)} {unitLabel}
+                {!isFull && (
+                  <span className="text-muted-foreground font-normal">
+                    {" "}· {occ.remaining.toFixed(2)} {unitLabel} restant{occ.remaining > 1 ? "s" : ""}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full transition-all ${
+                  isFull
+                    ? "bg-destructive"
+                    : occ.percent >= 80
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+                }`}
+                style={{ width: `${occ.percent}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {s.reservationCount} réservation{s.reservationCount > 1 ? "s" : ""}
+              {s.capacity ? ` · ${s.capacity}` : ""}
+            </p>
+          </div>
+        )}
+        {/* Sans plafond numérique : on affiche juste le libellé + nombre de résa */}
+        {!occ && (s.capacity || s.reservationCount > 0) && (
           <p className="text-xs text-muted-foreground border-t pt-2">
-            📦 Capacité : {s.capacity}
+            📦 {s.capacity ?? "Capacité non plafonnée"} · {s.reservationCount} réservation{s.reservationCount > 1 ? "s" : ""}
           </p>
         )}
 
@@ -274,6 +351,28 @@ function ScheduleCard({
             <Button variant="outline" size="sm" disabled className="w-full">
               Réservations fermées
             </Button>
+          ) : isFull ? (
+            // Départ saturé : on propose le prochain départ disponible du même
+            // mode si on en a trouvé un, sinon on indique qu'aucun autre n'est
+            // encore publié.
+            nextSuggestion ? (
+              <div className="space-y-1.5">
+                <Button variant="outline" size="sm" disabled className="w-full">
+                  Départ complet
+                </Button>
+                <Button asChild size="sm" className="w-full">
+                  <Link
+                    href={`/dashboard/reservations/new?scheduleId=${nextSuggestion.id}&mode=${s.mode}`}
+                  >
+                    Réserver sur le prochain → {formatDate(nextSuggestion.departureDate)}
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" disabled className="w-full">
+                Complet · prochain départ à venir
+              </Button>
+            )
           ) : (
             <Button asChild size="sm" className="w-full">
               <Link

@@ -30,11 +30,14 @@ export type BulkShipmentRow = {
 export function ShipmentsBulkTable({
   rows,
   envois,
-  manageHref,
+  manageHrefPrefix,
 }: {
   rows: BulkShipmentRow[];
   envois: { id: string; reference: string; mode: TransportMode }[];
-  manageHref?: (id: string) => string;
+  // Préfixe d'URL pour le lien « Gérer ». Ex: "/staff/shipments" → href = `${prefix}/${id}`.
+  // Doit être une string (et non une fonction) car ce composant est un Client Component
+  // et Next.js interdit le passage de fonctions depuis un Server Component.
+  manageHrefPrefix?: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -192,7 +195,7 @@ export function ShipmentsBulkTable({
             <TableHead>Paiement</TableHead>
             <TableHead className="text-right">Montant</TableHead>
             <TableHead>Créé le</TableHead>
-            {manageHref && <TableHead className="text-right">Action</TableHead>}
+            {manageHrefPrefix && <TableHead className="text-right">Action</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -222,9 +225,9 @@ export function ShipmentsBulkTable({
                 )}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">{formatDate(s.createdAt)}</TableCell>
-              {manageHref && (
+              {manageHrefPrefix && (
                 <TableCell className="text-right">
-                  <Link href={manageHref(s.id)} className="text-sm text-primary hover:underline">
+                  <Link href={`${manageHrefPrefix}/${s.id}`} className="text-sm text-primary hover:underline">
                     Gérer
                   </Link>
                 </TableCell>

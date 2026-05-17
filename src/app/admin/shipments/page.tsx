@@ -77,7 +77,7 @@ export default async function AdminShipmentsPage({
             client: s.client ? { name: s.client.name, email: s.client.email ?? undefined } : null,
           }))}
           envois={envois}
-          manageHref={(id) => `/staff/shipments/${id}`}
+          manageHrefPrefix="/staff/shipments"
         />
       </CardContent>
     </Card>

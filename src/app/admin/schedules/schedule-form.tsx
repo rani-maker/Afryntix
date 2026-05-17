@@ -8,14 +8,31 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { createSchedule } from "@/server/actions/schedules";
+import { getCapacityUnit, CAPACITY_UNIT_LABEL } from "@/lib/schedule-capacity";
+import type { TransportMode } from "@prisma/client";
 
-const MODES = Object.keys(TRANSPORT_MODE_LABELS) as Array<keyof typeof TRANSPORT_MODE_LABELS>;
+const MODES = Object.keys(TRANSPORT_MODE_LABELS) as TransportMode[];
+
+// Aide à la saisie : valeur indicative selon le mode courant.
+const CAPACITY_HINT: Record<TransportMode, string> = {
+  SEA_LCL: "ex: 30 (m³ disponibles dans le groupage)",
+  SEA_FCL: "ex: 68 (m³ utiles d'un 40HQ)",
+  AIR_EXPRESS: "ex: 1500 (kg disponibles dans l'avion)",
+  AIR_NORMAL: "ex: 3000 (kg disponibles)",
+  VEHICLE: "ex: 4 (véhicules max)",
+  BTP_EQUIPMENT: "ex: 2 (engins max)",
+  STORAGE: "ex: 50 (m³ de stockage)",
+};
 
 export function ScheduleForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // On suit le mode pour adapter l'étiquette et le placeholder du champ capacité.
+  const [mode, setMode] = useState<TransportMode>("SEA_LCL");
+  const capacityUnit = getCapacityUnit(mode);
+  const capacityUnitLabel = CAPACITY_UNIT_LABEL[capacityUnit];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,6 +48,7 @@ export function ScheduleForm() {
       origin: fd.get("origin") || "Guangzhou",
       destination: fd.get("destination"),
       capacity: fd.get("capacity") || undefined,
+      capacityValue: fd.get("capacityValue") || undefined,
       notes: fd.get("notes") || undefined,
     });
     setLoading(false);
@@ -48,15 +66,48 @@ export function ScheduleForm() {
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="mode">Mode de transport</Label>
-          <Select id="mode" name="mode" required>
+          <Select
+            id="mode"
+            name="mode"
+            required
+            value={mode}
+            onChange={(e) => setMode(e.target.value as TransportMode)}
+          >
             {MODES.map((m) => (
               <option key={m} value={m}>{TRANSPORT_MODE_LABELS[m]}</option>
             ))}
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="capacity">Capacité (optionnel)</Label>
+          <Label htmlFor="capacity">Capacité — libellé (optionnel)</Label>
           <Input id="capacity" name="capacity" placeholder="ex: 1 conteneur 40HQ" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="capacityValue">
+            Capacité numérique — en {capacityUnitLabel} (optionnel)
+          </Label>
+          <Input
+            id="capacityValue"
+            name="capacityValue"
+            type="number"
+            min="0"
+            step={capacityUnit === "UNIT" ? "1" : "0.01"}
+            placeholder={CAPACITY_HINT[mode]}
+          />
+          <p className="text-xs text-muted-foreground">
+            {capacityUnit === "CBM" &&
+              "Volume total exploitable en CBM. Pour un 40HQ, saisissez environ 68."}
+            {capacityUnit === "KG" &&
+              "Poids total acceptable en kg pour ce vol."}
+            {capacityUnit === "UNIT" &&
+              "Nombre maximum d'unités embarquées (véhicules, engins…)."}
+            {" "}
+            Les réservations consomment de la capacité selon leurs estimations
+            (volume pour le maritime, poids pour l'aérien). Au-delà du plafond,
+            les nouvelles réservations sont refusées et le prochain départ est suggéré.
+          </p>
         </div>
       </div>
       <div className="grid sm:grid-cols-3 gap-3">

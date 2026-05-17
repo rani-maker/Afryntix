@@ -540,7 +540,15 @@ model ShippingSchedule {
   cutoffDate    DateTime       // date limite de réservation
   origin        String         @default("Guangzhou")
   destination   String
-  capacity      String?        // ex: "1 conteneur 40HQ"
+  capacity      String?        // libellé libre, ex: "1 conteneur 40HQ"
+  // Capacité numérique exprimée dans l'unité du mode :
+  //   - SEA_LCL / SEA_FCL : CBM (m³). Pour un 40HQ on saisit ~68.
+  //   - AIR_EXPRESS / AIR_NORMAL : kg.
+  //   - VEHICLE / BTP_EQUIPMENT / STORAGE : nombre d'unités.
+  // L'unité réelle est dérivée de `mode` côté code (voir lib/schedule-capacity.ts).
+  // Quand le total des réservations atteint cette valeur, les nouvelles sont
+  // refusées et l'UI suggère le prochain départ du même mode.
+  capacityValue Float?
   notes         String?
   active        Boolean        @default(true)
   reservations  Reservation[]
