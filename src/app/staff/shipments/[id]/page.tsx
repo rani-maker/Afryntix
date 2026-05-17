@@ -5,7 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShipmentStatusBadge, PaymentStatusBadge } from "@/components/dashboard/status-badge";
 import { TRANSPORT_MODE_LABELS, CARGO_CATEGORY_LABELS } from "@/lib/pricing";
 import { formatDateTime, formatXOF } from "@/lib/utils";
-import { StatusUpdateForm, RecordPaymentForm, VerifyWeightForm, ChargeStorageFeesButton, PickupAndDeliveryForms, InsuranceForm, CustomsInfoForm } from "./forms";
+import {
+  StatusUpdateForm,
+  RecordPaymentForm,
+  VerifyWeightForm,
+  ChargeStorageFeesButton,
+  PickupAndDeliveryForms,
+  InsuranceForm,
+  CustomsInfoForm,
+  EditShipmentInfoForm,
+} from "./forms";
 import { getActiveInsuranceSetting } from "@/server/actions/insurance";
 import { computeStorageFee } from "@/lib/storage-fees";
 import { getActiveStorageSetting } from "@/server/actions/storage";
@@ -141,6 +150,41 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Modifier les informations</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Corriger une erreur de saisie. Le poids / dimensions / mode ne peuvent être modifiés que tant qu&apos;aucun
+            paiement n&apos;a été enregistré et que le colis n&apos;est pas en route. Toute modification est tracée dans
+            l&apos;historique.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <EditShipmentInfoForm
+            shipmentId={shipment.id}
+            amountPaid={shipment.amountPaid}
+            status={shipment.status}
+            hasEnvoiOrContainer={!!shipment.envoiId || !!shipment.containerId}
+            initial={{
+              mode: shipment.mode,
+              category: shipment.category,
+              description: shipment.description,
+              pieces: shipment.pieces,
+              weightKg: shipment.declaredWeightKg ?? shipment.weightKg,
+              lengthCm: shipment.lengthCm,
+              widthCm: shipment.widthCm,
+              heightCm: shipment.heightCm,
+              volumeCBM: shipment.volumeCBM,
+              destinationCity: shipment.destinationCity,
+              destinationCountry: shipment.destinationCountry,
+              recipientName: shipment.recipientName,
+              recipientPhone: shipment.recipientPhone,
+              recipientAddress: shipment.recipientAddress,
+            }}
+          />
+        </CardContent>
+      </Card>
 
       {shipment.status === "DELIVERED" ? (
         <Card>
