@@ -51,17 +51,17 @@ export default async function TrackingDetailPage({ params }: { params: Promise<{
     <main className="min-h-screen bg-[var(--afx-bg)]">
       <PublicHeader active="/tracking" />
 
-      <section className="container px-6 md:px-12 py-10 max-w-6xl">
+      <section className="container px-4 md:px-8 py-6 md:py-10 max-w-7xl">
         <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 min-w-0">
             <span className="afx-kicker">SUIVI · {route}</span>
-            <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight">
+            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight break-all">
               {shipment.trackingNumber}
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide whitespace-nowrap"
               style={{ background: badge.bg, color: badge.color }}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-current" /> {badge.label}
@@ -74,65 +74,23 @@ export default async function TrackingDetailPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_380px] gap-6">
-          {/* Map + KPIs */}
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-line bg-surface overflow-hidden">
-              <TrackingMap
-                originCity={shipment.originCity}
-                destinationCity={shipment.destinationCity}
-                destinationCountry={shipment.destinationCountry}
-                status={shipment.status}
-                mode={shipment.mode}
-                trackingNumber={shipment.trackingNumber}
-              />
-            </div>
-
-            {/* Détails colis */}
-            <div className="rounded-2xl border border-line bg-surface p-6">
-              <span className="afx-kicker" style={{ color: "var(--afx-ink)" }}>DÉTAILS DU COLIS</span>
-              <div className="mt-4 grid sm:grid-cols-2 gap-x-8 gap-y-2">
-                <Row label="Mode" value={TRANSPORT_MODE_LABELS[shipment.mode]} />
-                <Row label="Catégorie" value={CARGO_CATEGORY_LABELS[shipment.category]} />
-                <Row label="Pièces" value={String(shipment.pieces)} />
-                {shipment.weightKg && <Row label="Poids réel" value={`${shipment.weightKg} kg`} />}
-                {shipment.volumetricWeight && <Row label="Poids volumique" value={`${shipment.volumetricWeight.toFixed(2)} kg`} />}
-                {shipment.chargeableWeight && <Row label="Poids facturable" value={`${shipment.chargeableWeight.toFixed(2)} kg`} />}
-                {shipment.volumeCBM && <Row label="Volume" value={`${shipment.volumeCBM.toFixed(3)} m³`} />}
-                {shipment.destinationCity && (
-                  <Row
-                    label="Destination"
-                    value={`${shipment.destinationCity}, ${shipment.destinationCountry ?? ""}`}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Paiement */}
-            <div className="rounded-2xl border border-line bg-surface p-6">
-              <span className="afx-kicker" style={{ color: "var(--afx-ink)" }}>PAIEMENT</span>
-              <div className="mt-4 grid sm:grid-cols-2 gap-x-8 gap-y-2">
-                <Row label="Total" value={formatXOF(shipment.totalAmount)} />
-                <Row label="Acompte (50%)" value={formatXOF(shipment.depositAmount)} />
-                <Row
-                  label="Solde restant"
-                  value={formatXOF(
-                    shipment.remainingAmount -
-                      (shipment.amountPaid - shipment.depositAmount > 0
-                        ? shipment.amountPaid - shipment.depositAmount
-                        : 0),
-                  )}
-                />
-                <Row label="Statut" value={paymentLabel(shipment.paymentStatus)} />
-              </div>
-            </div>
+        {/* Rangée du haut : carte + timeline */}
+        <div className="grid lg:grid-cols-[1fr_360px] gap-4 md:gap-6 mb-4 md:mb-6">
+          <div className="rounded-2xl border border-line bg-surface overflow-hidden min-w-0">
+            <TrackingMap
+              originCity={shipment.originCity}
+              destinationCity={shipment.destinationCity}
+              destinationCountry={shipment.destinationCountry}
+              status={shipment.status}
+              mode={shipment.mode}
+              trackingNumber={shipment.trackingNumber}
+            />
           </div>
 
-          {/* Sidebar timeline */}
-          <aside className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-line bg-surface p-6">
+          <aside className="flex flex-col gap-3 min-w-0">
+            <div className="rounded-2xl border border-line bg-surface p-5 lg:max-h-[480px] lg:overflow-y-auto">
               <span className="afx-kicker" style={{ color: "var(--afx-ink)" }}>ÉTAPES</span>
-              <div className="mt-5 flex flex-col gap-5">
+              <div className="mt-4 flex flex-col gap-4">
                 {STATUS_ORDER.map((status, idx, arr) => {
                   const reached = currentIndex >= idx;
                   const current = currentIndex === idx;
@@ -194,6 +152,46 @@ export default async function TrackingDetailPage({ params }: { params: Promise<{
               Activer notifs WhatsApp
             </Button>
           </aside>
+        </div>
+
+        {/* Rangée du bas : détails + paiement */}
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+          <div className="rounded-2xl border border-line bg-surface p-5 md:p-6 min-w-0">
+            <span className="afx-kicker" style={{ color: "var(--afx-ink)" }}>DÉTAILS DU COLIS</span>
+            <div className="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-1">
+              <Row label="Mode" value={TRANSPORT_MODE_LABELS[shipment.mode]} />
+              <Row label="Catégorie" value={CARGO_CATEGORY_LABELS[shipment.category]} />
+              <Row label="Pièces" value={String(shipment.pieces)} />
+              {shipment.weightKg && <Row label="Poids réel" value={`${shipment.weightKg} kg`} />}
+              {shipment.volumetricWeight && <Row label="Poids volumique" value={`${shipment.volumetricWeight.toFixed(2)} kg`} />}
+              {shipment.chargeableWeight && <Row label="Poids facturable" value={`${shipment.chargeableWeight.toFixed(2)} kg`} />}
+              {shipment.volumeCBM && <Row label="Volume" value={`${shipment.volumeCBM.toFixed(3)} m³`} />}
+              {shipment.destinationCity && (
+                <Row
+                  label="Destination"
+                  value={`${shipment.destinationCity}, ${shipment.destinationCountry ?? ""}`}
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-surface p-5 md:p-6 min-w-0">
+            <span className="afx-kicker" style={{ color: "var(--afx-ink)" }}>PAIEMENT</span>
+            <div className="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-1">
+              <Row label="Total" value={formatXOF(shipment.totalAmount)} />
+              <Row label="Acompte (50%)" value={formatXOF(shipment.depositAmount)} />
+              <Row
+                label="Solde restant"
+                value={formatXOF(
+                  shipment.remainingAmount -
+                    (shipment.amountPaid - shipment.depositAmount > 0
+                      ? shipment.amountPaid - shipment.depositAmount
+                      : 0),
+                )}
+              />
+              <Row label="Statut" value={paymentLabel(shipment.paymentStatus)} />
+            </div>
+          </div>
         </div>
       </section>
     </main>
