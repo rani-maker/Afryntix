@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 type LatLng = [number, number];
 
@@ -156,17 +157,6 @@ export function TrackingMap({
 
     (async () => {
       const L = (await import("leaflet")).default;
-      // CSS pour leaflet (chargée côté client uniquement)
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        link.crossOrigin = "";
-        link.integrity =
-          "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
-        document.head.appendChild(link);
-      }
 
       if (cancelled || !containerRef.current) return;
       // Ne pas réinitialiser si déjà créée
@@ -288,7 +278,7 @@ export function TrackingMap({
     <div className="relative">
       <div
         ref={containerRef}
-        className="h-[360px] w-full rounded-xl overflow-hidden border bg-slate-900"
+        className="h-[320px] sm:h-[400px] lg:h-[460px] w-full rounded-xl overflow-hidden border bg-slate-900"
         aria-label="Carte de localisation du colis"
       />
       <div className="absolute top-3 right-3 z-[400] flex flex-wrap items-center gap-2 rounded-full bg-black/65 backdrop-blur px-3 py-1.5 text-[11px] text-white shadow-lg">
