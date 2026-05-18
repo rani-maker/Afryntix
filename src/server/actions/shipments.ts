@@ -19,6 +19,7 @@ import {
 import { upsertShippingMark } from "./shippingMarks";
 import { getOrCreateFactureForShipments } from "./factures";
 import { getClientContractPrice } from "./contractPricing";
+import { getActivePricingGrid } from "./pricing";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory, ShipmentStatus } from "@prisma/client";
 
@@ -66,6 +67,10 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
 
   let pricing;
   try {
+    // Charge la grille effective (DEFAULT_PRICING + overrides admin DB).
+    // Une modif de prix dans `/admin/pricing` prend ainsi effet immédiatement
+    // sur les nouveaux colis sans toucher au code.
+    const pricingGrid = await getActivePricingGrid();
     const baseInput = {
       mode: data.mode as TransportMode,
       category: data.category as CargoCategory,
@@ -75,6 +80,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       widthCm: data.widthCm,
       heightCm: data.heightCm,
       volumeCBM: data.volumeCBM,
+      pricingGrid,
     };
     pricing = computePrice({ ...baseInput, overrideUnitPrice: data.overrideUnitPrice });
     // Si pas d'override staff explicite, chercher un tarif contractuel client

@@ -12,10 +12,12 @@ import {
   computePrice,
   isExpressEligible,
   type PricingResult,
+  type PricingGrid,
 } from "@/lib/pricing";
 import { formatXOF } from "@/lib/utils";
 import { createShipment } from "@/server/actions/shipments";
 import { searchShippingMarks } from "@/server/actions/shippingMarks";
+import { getActivePricingGrid } from "@/server/actions/pricing";
 import type { TransportMode, CargoCategory } from "@prisma/client";
 
 type Client = { id: string; name: string; email: string; phone: string | null };
@@ -97,6 +99,18 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const [success, setSuccess] = useState<{ trackingNumber: string; id: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Grille tarifaire active (DEFAULT + overrides admin DB).
+  // Chargée une fois au montage : le preview reste rapide, et toute édition
+  // de tarif côté admin se reflète au prochain rafraîchissement de la page.
+  const [pricingGrid, setPricingGrid] = useState<PricingGrid | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    getActivePricingGrid().then((g) => {
+      if (!cancelled) setPricingGrid(g);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Recherche de shipping mark quand le staff tape nom + téléphone destinataire
   const searchQuery = recipientName.trim() || clientName.trim();
   const debouncedSearch = useCallback(
@@ -138,11 +152,12 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
         heightCm: heightCm ? Number(heightCm) : undefined,
         volumeCBM: volumeCBM ? Number(volumeCBM) : undefined,
         overrideUnitPrice: overrideUnitPrice ? Number(overrideUnitPrice) : undefined,
+        pricingGrid,
       });
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Erreur" };
     }
-  }, [mode, category, pieces, weightKg, lengthCm, widthCm, heightCm, volumeCBM, overrideUnitPrice]);
+  }, [mode, category, pieces, weightKg, lengthCm, widthCm, heightCm, volumeCBM, overrideUnitPrice, pricingGrid]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
