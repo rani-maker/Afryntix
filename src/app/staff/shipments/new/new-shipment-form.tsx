@@ -18,7 +18,29 @@ import { formatXOF } from "@/lib/utils";
 import { createShipment } from "@/server/actions/shipments";
 import { searchShippingMarks } from "@/server/actions/shippingMarks";
 import { getActivePricingGrid } from "@/server/actions/pricing";
+import { getClientContractPrice } from "@/server/actions/contractPricing";
 import type { TransportMode, CargoCategory } from "@prisma/client";
+
+/**
+ * Dérive l'unité tarifaire (kg / pcs / cbm / vehicle) que `computePrice`
+ * choisira pour un couple mode/catégorie. Sert à interroger
+ * `ClientPricingRule` (qui est indexé par cette unité exacte) sans avoir
+ * à exécuter le moteur entier.
+ *
+ * Renvoie `null` pour les modes qui n'ont pas de tarif contractuel
+ * supporté (SEA_FCL, BTP_EQUIPMENT, STORAGE — toujours sur devis).
+ */
+function unitForContractLookup(
+  mode: TransportMode,
+  category: CargoCategory,
+): "kg" | "pcs" | "cbm" | "vehicle" | null {
+  if (mode === "AIR_EXPRESS" || mode === "AIR_NORMAL") {
+    return category === "PHONE" || category === "COMPUTER" ? "pcs" : "kg";
+  }
+  if (mode === "SEA_LCL") return "cbm";
+  if (mode === "VEHICLE") return "vehicle";
+  return null;
+}
 
 type Client = { id: string; name: string; email: string; phone: string | null };
 
@@ -111,6 +133,39 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
     return () => { cancelled = true; };
   }, []);
 
+  // Tarif contractuel actif pour le client sélectionné + mode + catégorie.
+  // Refetch quand l'un de ces 3 paramètres change. On évite de dépendre des
+  // dimensions / poids (la requête contractuelle est indexée par unité, qui
+  // ne dépend que de mode+catégorie).
+  //
+  // Le serveur applique déjà le tarif contractuel à la création (voir
+  // `createShipment`) — ce fetch côté client sert UNIQUEMENT à afficher le
+  // bon prix dans le preview, pour éviter au staff de se demander pourquoi
+  // le prix final différera de l'aperçu.
+  const [contractPrice, setContractPrice] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!hasAccount || !clientId) {
+      setContractPrice(null);
+      return;
+    }
+    const unit = unitForContractLookup(mode, category);
+    if (!unit) {
+      setContractPrice(null);
+      return;
+    }
+    getClientContractPrice({ clientId, mode, category, unit })
+      .then((p) => {
+        if (!cancelled) setContractPrice(p);
+      })
+      .catch(() => {
+        // STAFF/ADMIN requis côté serveur — en cas d'échec d'auth on tombe
+        // simplement sur la grille standard, pas la peine de bruyamment.
+        if (!cancelled) setContractPrice(null);
+      });
+    return () => { cancelled = true; };
+  }, [hasAccount, clientId, mode, category]);
+
   // Recherche de shipping mark quand le staff tape nom + téléphone destinataire
   const searchQuery = recipientName.trim() || clientName.trim();
   const debouncedSearch = useCallback(
@@ -140,8 +195,23 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
     if (!recipientPhone) setRecipientPhone(mark.phone);
   }
 
+  // Source du prix appliqué dans le preview :
+  //  - "manual" : staff a saisi un override
+  //  - "contract" : tarif contractuel du client appliqué
+  //  - "default" : grille standard (DEFAULT_PRICING + overrides admin)
+  const pricingSource: "manual" | "contract" | "default" =
+    overrideUnitPrice
+      ? "manual"
+      : contractPrice != null
+        ? "contract"
+        : "default";
+
   const preview: PricingResult | { error: string } | null = useMemo(() => {
     try {
+      // Priorité : override manuel staff > tarif contractuel client > grille
+      const effectiveOverride = overrideUnitPrice
+        ? Number(overrideUnitPrice)
+        : contractPrice ?? undefined;
       return computePrice({
         mode,
         category,
@@ -151,13 +221,13 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
         widthCm: widthCm ? Number(widthCm) : undefined,
         heightCm: heightCm ? Number(heightCm) : undefined,
         volumeCBM: volumeCBM ? Number(volumeCBM) : undefined,
-        overrideUnitPrice: overrideUnitPrice ? Number(overrideUnitPrice) : undefined,
+        overrideUnitPrice: effectiveOverride,
         pricingGrid,
       });
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Erreur" };
     }
-  }, [mode, category, pieces, weightKg, lengthCm, widthCm, heightCm, volumeCBM, overrideUnitPrice, pricingGrid]);
+  }, [mode, category, pieces, weightKg, lengthCm, widthCm, heightCm, volumeCBM, overrideUnitPrice, contractPrice, pricingGrid]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -484,7 +554,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
         <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
       </div>
 
-      <PricingPreview preview={preview} />
+      <PricingPreview preview={preview} pricingSource={pricingSource} />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -497,7 +567,13 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   );
 }
 
-function PricingPreview({ preview }: { preview: PricingResult | { error: string } | null }) {
+function PricingPreview({
+  preview,
+  pricingSource,
+}: {
+  preview: PricingResult | { error: string } | null;
+  pricingSource: "manual" | "contract" | "default";
+}) {
   if (!preview) return null;
   if ("error" in preview) {
     return (
@@ -508,7 +584,19 @@ function PricingPreview({ preview }: { preview: PricingResult | { error: string 
   }
   return (
     <div className="rounded-md border bg-muted/30 p-4 space-y-2">
-      <div className="text-sm font-semibold">Aperçu tarification</div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold">Aperçu tarification</div>
+        {pricingSource === "contract" && (
+          <span className="text-[11px] font-medium uppercase tracking-wide rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 dark:bg-emerald-500/15 dark:text-emerald-300">
+            Tarif contractuel client
+          </span>
+        )}
+        {pricingSource === "manual" && (
+          <span className="text-[11px] font-medium uppercase tracking-wide rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 dark:bg-amber-500/15 dark:text-amber-200">
+            Prix override staff
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
         <div>
           <div className="text-xs text-muted-foreground">Prix unitaire</div>
