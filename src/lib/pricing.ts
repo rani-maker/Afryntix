@@ -3,9 +3,29 @@ import type { EnvoiStatus, ShipmentStatus } from "@prisma/client";
 import { calculateVolumetricWeight, calculateCBM } from "./utils";
 
 /**
- * Grille tarifaire AFRYNTIX (en FCFA)
- * Toutes les tarifications sont configurables côté Admin via PricingRule,
- * mais ces valeurs servent de défaut et de fallback.
+ * Une cellule de la grille tarifaire.
+ *  - `unit` : "kg" | "pcs" | "cbm" | "vehicle" | "container" | "equipment" | "cbm/jour"
+ *  - `price` : tarif unitaire principal (FCFA)
+ *  - `priceFrom5CBM` (LCL uniquement) : tarif dégressif à partir de 5 CBM
+ */
+export type PricingCell = { unit: string; price: number; priceFrom5CBM?: number };
+
+/**
+ * Grille tarifaire : Mode → Catégorie → cellule.
+ *
+ * Le runtime accepte n'importe quel sous-ensemble (Partial) parce qu'une
+ * grille issue de la DB peut ne pas couvrir toutes les combinaisons —
+ * dans ce cas on retombe sur `DEFAULT_PRICING`.
+ */
+export type PricingGrid = Partial<Record<TransportMode, Partial<Record<CargoCategory, PricingCell>>>>;
+
+/**
+ * Grille tarifaire AFRYNTIX (en FCFA) — valeurs de fallback codées en dur.
+ *
+ * L'admin peut surcharger n'importe quelle ligne via la page `/admin/pricing`
+ * (modèle Prisma `PricingRule`). À la création d'un colis, on lit la grille
+ * effective via `getActivePricingGrid()` qui fusionne DEFAULT_PRICING avec
+ * les overrides DB.
  */
 export const DEFAULT_PRICING = {
   // ===== AÉRIEN EXPRESS (3-7 jours) =====
@@ -76,9 +96,33 @@ export type PricingInput = {
   widthCm?: number;
   heightCm?: number;
   volumeCBM?: number;
-  /** Si fourni, override le prix par défaut (Admin custom rule) */
+  /** Si fourni, override le prix de la grille (priorité maximale, ex: contrat client ou décision staff). */
   overrideUnitPrice?: number;
+  /**
+   * Grille tarifaire à utiliser. Par défaut, la grille codée en dur
+   * (`DEFAULT_PRICING`). En production, le serveur charge la grille
+   * effective via `getActivePricingGrid()` (fusion DEFAULT + overrides DB)
+   * et la passe ici, de sorte qu'un changement de prix admin prend effet
+   * immédiatement sur les nouveaux colis.
+   */
+  pricingGrid?: PricingGrid;
 };
+
+/**
+ * Récupère une cellule (unit + price + priceFrom5CBM éventuel) pour un
+ * couple mode/catégorie, en consultant d'abord la grille passée puis en
+ * retombant sur `DEFAULT_PRICING`. Renvoie `null` si rien n'est défini.
+ */
+function pickPricingCell(
+  grid: PricingGrid | undefined,
+  mode: TransportMode,
+  category: CargoCategory,
+): PricingCell | null {
+  const fromGrid = grid?.[mode]?.[category];
+  if (fromGrid) return fromGrid;
+  const fallback = (DEFAULT_PRICING as Record<string, Record<string, PricingCell>>)[mode]?.[category];
+  return fallback ?? null;
+}
 
 /**
  * Validation : certaines catégories sont interdites en Express
@@ -111,8 +155,7 @@ export function computePrice(input: PricingInput): PricingResult {
 
   // ===== AÉRIEN =====
   if (input.mode === "AIR_EXPRESS" || input.mode === "AIR_NORMAL") {
-    const grid = DEFAULT_PRICING[input.mode] as Record<string, { unit: string; price: number }>;
-    const rule = grid[input.category];
+    const rule = pickPricingCell(input.pricingGrid, input.mode, input.category);
 
     if (!rule) {
       throw new Error(`Tarif non défini pour ${input.mode} / ${input.category}`);
@@ -169,11 +212,15 @@ export function computePrice(input: PricingInput): PricingResult {
 
   // ===== MARITIME LCL (Groupage) =====
   else if (input.mode === "SEA_LCL") {
-    const grid = DEFAULT_PRICING.SEA_LCL as Record<
-      string,
-      { unit: string; price: number; priceFrom5CBM: number }
-    >;
-    const rule = grid[input.category] ?? grid.OTHER;
+    // LCL : on cherche la cellule pour la catégorie ; si absente (cas d'une
+    // catégorie type PHONE/COMPUTER non couverte côté maritime), on retombe
+    // sur la cellule générique OTHER.
+    const rule =
+      pickPricingCell(input.pricingGrid, "SEA_LCL", input.category) ??
+      pickPricingCell(input.pricingGrid, "SEA_LCL", "OTHER" as CargoCategory);
+    if (!rule) {
+      throw new Error(`Tarif LCL non défini pour ${input.category}`);
+    }
     unit = "cbm";
 
     let cbm = input.volumeCBM ?? 0;
@@ -186,7 +233,7 @@ export function computePrice(input: PricingInput): PricingResult {
 
     if (input.overrideUnitPrice) {
       unitPrice = input.overrideUnitPrice;
-    } else if (cbm >= 5) {
+    } else if (cbm >= 5 && rule.priceFrom5CBM != null) {
       unitPrice = rule.priceFrom5CBM;
       notes.push(`Tarif dégressif appliqué (≥ 5 CBM) : ${unitPrice} FCFA/CBM`);
     } else {
@@ -216,8 +263,9 @@ export function computePrice(input: PricingInput): PricingResult {
 
   // ===== VÉHICULE =====
   else if (input.mode === "VEHICLE") {
+    const rule = pickPricingCell(input.pricingGrid, "VEHICLE", "VEHICLE" as CargoCategory);
     unit = "vehicle";
-    unitPrice = input.overrideUnitPrice ?? DEFAULT_PRICING.VEHICLE.VEHICLE.price;
+    unitPrice = input.overrideUnitPrice ?? rule?.price ?? 0;
     chargeableQuantity = pieces;
     notes.push(`Transport véhicule : ${pieces} véhicule(s) × ${unitPrice} FCFA`);
   }

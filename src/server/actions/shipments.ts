@@ -19,6 +19,7 @@ import {
 import { upsertShippingMark } from "./shippingMarks";
 import { getOrCreateFactureForShipments } from "./factures";
 import { getClientContractPrice } from "./contractPricing";
+import { getActivePricingGrid } from "./pricing";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory, ShipmentStatus } from "@prisma/client";
 
@@ -66,6 +67,10 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
 
   let pricing;
   try {
+    // Charge la grille effective (DEFAULT_PRICING + overrides admin DB).
+    // Une modif de prix dans `/admin/pricing` prend ainsi effet immédiatement
+    // sur les nouveaux colis sans toucher au code.
+    const pricingGrid = await getActivePricingGrid();
     const baseInput = {
       mode: data.mode as TransportMode,
       category: data.category as CargoCategory,
@@ -75,6 +80,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       widthCm: data.widthCm,
       heightCm: data.heightCm,
       volumeCBM: data.volumeCBM,
+      pricingGrid,
     };
     pricing = computePrice({ ...baseInput, overrideUnitPrice: data.overrideUnitPrice });
     // Si pas d'override staff explicite, chercher un tarif contractuel client
@@ -598,6 +604,252 @@ export async function updateCustomsInfo(input: unknown): Promise<Result> {
   revalidatePath(`/staff/shipments/${parsed.data.shipmentId}`);
   revalidatePath(`/admin/shipments/${parsed.data.shipmentId}`);
   return { success: true };
+}
+
+/**
+ * Édition d'un colis après création (correction d'une erreur de saisie).
+ *
+ * Règles :
+ *  - Champs descriptifs (description, pieces, destination*, recipient*)
+ *    toujours modifiables tant que le colis existe.
+ *  - Champs « pricing-sensitive » (mode, category, weight*, dims, volume) :
+ *    modifiables UNIQUEMENT si aucun paiement n'a été reçu (`amountPaid === 0`)
+ *    ET si le statut est encore au début (REGISTERED ou RECEIVED). Au-delà,
+ *    on bloque pour ne pas perturber la facturation / un envoi déjà parti.
+ *  - Si le `mode` change et que le colis est rattaché à un Envoi/Container,
+ *    on refuse (le mode du contenant doit rester cohérent ; détachez d'abord).
+ *  - Si un champ pricing-sensitive a effectivement bougé, on recalcule
+ *    prix unitaire / total / acompte / solde et on met à jour la facture liée.
+ *  - Trace systématique dans l'historique avec le diff résumé.
+ *
+ * Le `trackingNumber` n'est jamais modifié (déjà imprimé sur les étiquettes,
+ * QR codes, notifications). Pareil pour `clientId` (changement de propriétaire
+ * trop dangereux — passer par suppression + recréation si besoin).
+ */
+const UpdateShipmentInfoSchema = z.object({
+  shipmentId: z.string().min(1),
+  // Descriptifs
+  description: z.string().max(500).nullable().optional(),
+  pieces: z.coerce.number().int().min(1).optional(),
+  destinationCity: z.string().max(120).nullable().optional(),
+  destinationCountry: z.string().max(120).nullable().optional(),
+  recipientName: z.string().max(120).nullable().optional(),
+  recipientPhone: z.string().max(40).nullable().optional(),
+  recipientAddress: z.string().max(300).nullable().optional(),
+  // Pricing-sensitive
+  mode: z
+    .enum(["AIR_EXPRESS", "AIR_NORMAL", "SEA_LCL", "SEA_FCL", "VEHICLE", "BTP_EQUIPMENT", "STORAGE"])
+    .optional(),
+  category: z
+    .enum(["ORDINARY", "BATTERY", "LIQUID", "COSMETIC", "POWDER", "PHONE", "COMPUTER", "VEHICLE", "BTP", "OTHER"])
+    .optional(),
+  weightKg: z.coerce.number().nonnegative().nullable().optional(),
+  lengthCm: z.coerce.number().nonnegative().nullable().optional(),
+  widthCm: z.coerce.number().nonnegative().nullable().optional(),
+  heightCm: z.coerce.number().nonnegative().nullable().optional(),
+  volumeCBM: z.coerce.number().nonnegative().nullable().optional(),
+});
+
+const ALLOW_PRICING_EDIT_STATUSES: ShipmentStatus[] = ["REGISTERED", "RECEIVED_CHINA"];
+
+export async function updateShipmentInfo(input: unknown): Promise<Result<{ recomputed: boolean; newTotal: number }>> {
+  const session = await requireRole("STAFF", "ADMIN");
+  const parsed = UpdateShipmentInfoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+  }
+  const data = parsed.data;
+
+  const shipment = await prisma.shipment.findUnique({
+    where: { id: data.shipmentId },
+    include: { facture: true },
+  });
+  if (!shipment) return { success: false, error: "Colis introuvable." };
+
+  // Détecte si un champ pricing-sensitive a effectivement changé.
+  const pricingChanged =
+    (data.mode !== undefined && data.mode !== shipment.mode) ||
+    (data.category !== undefined && data.category !== shipment.category) ||
+    (data.weightKg !== undefined && data.weightKg !== shipment.declaredWeightKg) ||
+    (data.lengthCm !== undefined && data.lengthCm !== shipment.lengthCm) ||
+    (data.widthCm !== undefined && data.widthCm !== shipment.widthCm) ||
+    (data.heightCm !== undefined && data.heightCm !== shipment.heightCm) ||
+    (data.volumeCBM !== undefined && data.volumeCBM !== shipment.volumeCBM) ||
+    (data.pieces !== undefined && data.pieces !== shipment.pieces);
+
+  if (pricingChanged) {
+    if (shipment.amountPaid > 0) {
+      return {
+        success: false,
+        error:
+          "Impossible de modifier le poids/dimensions/mode : un paiement a déjà été enregistré. Annulez le paiement ou passez par une réclamation.",
+      };
+    }
+    if (!ALLOW_PRICING_EDIT_STATUSES.includes(shipment.status)) {
+      return {
+        success: false,
+        error: `Modification du poids/dimensions/mode interdite au statut « ${SHIPMENT_STATUS_LABELS[shipment.status]} ». Repassez le colis en « Reçu en entrepôt » ou enregistrez une réclamation.`,
+      };
+    }
+    if (data.mode !== undefined && data.mode !== shipment.mode && (shipment.envoiId || shipment.containerId)) {
+      return {
+        success: false,
+        error: "Le colis est rattaché à un envoi/conteneur — détachez-le avant de changer le mode de transport.",
+      };
+    }
+  }
+
+  // Recalcul prix si pricing-sensitive a bougé.
+  const newMode = (data.mode ?? shipment.mode) as TransportMode;
+  const newCategory = (data.category ?? shipment.category) as CargoCategory;
+  const newPieces = data.pieces ?? shipment.pieces;
+  const newWeight = data.weightKg ?? shipment.declaredWeightKg ?? shipment.weightKg ?? undefined;
+  const newLength = data.lengthCm ?? shipment.lengthCm ?? undefined;
+  const newWidth = data.widthCm ?? shipment.widthCm ?? undefined;
+  const newHeight = data.heightCm ?? shipment.heightCm ?? undefined;
+  const newVolume = data.volumeCBM ?? shipment.volumeCBM ?? undefined;
+
+  let pricing: ReturnType<typeof computePrice> | null = null;
+  if (pricingChanged) {
+    try {
+      pricing = computePrice({
+        mode: newMode,
+        category: newCategory,
+        pieces: newPieces,
+        weightKg: newWeight ?? undefined,
+        lengthCm: newLength ?? undefined,
+        widthCm: newWidth ?? undefined,
+        heightCm: newHeight ?? undefined,
+        volumeCBM: newVolume ?? undefined,
+        overrideUnitPrice: shipment.unitPrice ?? undefined,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul du prix." };
+    }
+  }
+
+  // Compose un résumé du diff pour l'historique (clarté audit).
+  const diffParts: string[] = [];
+  if (data.mode !== undefined && data.mode !== shipment.mode) {
+    diffParts.push(`mode ${TRANSPORT_MODE_LABELS[shipment.mode]} → ${TRANSPORT_MODE_LABELS[data.mode]}`);
+  }
+  if (data.category !== undefined && data.category !== shipment.category) {
+    diffParts.push(`catégorie ${shipment.category} → ${data.category}`);
+  }
+  if (data.pieces !== undefined && data.pieces !== shipment.pieces) {
+    diffParts.push(`pièces ${shipment.pieces} → ${data.pieces}`);
+  }
+  if (data.weightKg !== undefined && data.weightKg !== shipment.declaredWeightKg) {
+    diffParts.push(`poids ${shipment.declaredWeightKg ?? "—"} → ${data.weightKg ?? "—"} kg`);
+  }
+  if (data.lengthCm !== undefined && data.lengthCm !== shipment.lengthCm) {
+    diffParts.push(`L ${shipment.lengthCm ?? "—"} → ${data.lengthCm ?? "—"}`);
+  }
+  if (data.widthCm !== undefined && data.widthCm !== shipment.widthCm) {
+    diffParts.push(`l ${shipment.widthCm ?? "—"} → ${data.widthCm ?? "—"}`);
+  }
+  if (data.heightCm !== undefined && data.heightCm !== shipment.heightCm) {
+    diffParts.push(`H ${shipment.heightCm ?? "—"} → ${data.heightCm ?? "—"}`);
+  }
+  if (data.description !== undefined && data.description !== shipment.description) {
+    diffParts.push("description modifiée");
+  }
+  if (data.destinationCity !== undefined && data.destinationCity !== shipment.destinationCity) {
+    diffParts.push(`destination ${shipment.destinationCity ?? "—"} → ${data.destinationCity ?? "—"}`);
+  }
+  if (data.recipientName !== undefined && data.recipientName !== shipment.recipientName) {
+    diffParts.push("destinataire modifié");
+  }
+  if (data.recipientPhone !== undefined && data.recipientPhone !== shipment.recipientPhone) {
+    diffParts.push("téléphone destinataire modifié");
+  }
+
+  if (diffParts.length === 0) {
+    return { success: true, data: { recomputed: false, newTotal: shipment.totalAmount } };
+  }
+
+  // Status paiement après recalcul éventuel.
+  const newTotal = pricing ? pricing.totalAmount : shipment.totalAmount;
+  const newDeposit = pricing ? pricing.depositAmount : shipment.depositAmount;
+  const newRemaining = pricing ? Math.max(0, pricing.totalAmount - shipment.amountPaid) : shipment.remainingAmount;
+  let paymentStatus: "UNPAID" | "DEPOSIT_PAID" | "FULLY_PAID" | "REFUNDED" = shipment.paymentStatus;
+  if (pricing) {
+    if (shipment.amountPaid >= newTotal) paymentStatus = "FULLY_PAID";
+    else if (shipment.amountPaid >= newDeposit) paymentStatus = "DEPOSIT_PAID";
+    else paymentStatus = "UNPAID";
+  }
+  const chargeableWeight = pricing && pricing.unit === "kg" ? pricing.chargeableQuantity : shipment.chargeableWeight;
+
+  await prisma.shipment.update({
+    where: { id: shipment.id },
+    data: {
+      // Descriptifs (undefined = on ne touche pas ; null OK pour effacer un champ optionnel)
+      ...(data.description !== undefined ? { description: data.description } : {}),
+      ...(data.pieces !== undefined ? { pieces: data.pieces } : {}),
+      ...(data.destinationCity !== undefined ? { destinationCity: data.destinationCity } : {}),
+      ...(data.destinationCountry !== undefined ? { destinationCountry: data.destinationCountry } : {}),
+      ...(data.recipientName !== undefined ? { recipientName: data.recipientName } : {}),
+      ...(data.recipientPhone !== undefined ? { recipientPhone: data.recipientPhone } : {}),
+      ...(data.recipientAddress !== undefined ? { recipientAddress: data.recipientAddress } : {}),
+      // Pricing-sensitive — appliqués seulement si pricingChanged a passé les gardes ci-dessus.
+      ...(pricingChanged
+        ? {
+            mode: newMode,
+            category: newCategory,
+            weightKg: newWeight ?? null,
+            declaredWeightKg: data.weightKg ?? shipment.declaredWeightKg,
+            lengthCm: newLength ?? null,
+            widthCm: newWidth ?? null,
+            heightCm: newHeight ?? null,
+            volumeCBM: pricing?.cbm ?? newVolume ?? null,
+            volumetricWeight: pricing?.volumetricWeight ?? shipment.volumetricWeight,
+            chargeableWeight,
+            unitPrice: pricing?.unitPrice ?? shipment.unitPrice,
+            totalAmount: newTotal,
+            depositAmount: newDeposit,
+            remainingAmount: newRemaining,
+            paymentStatus,
+          }
+        : {}),
+      history: {
+        create: {
+          status: shipment.status,
+          note: `Édition : ${diffParts.join(" · ")}`,
+          createdBy: session.user.id,
+        },
+      },
+    },
+  });
+
+  // Si recalcul + facture liée, on resync la facture.
+  if (pricing && shipment.factureId) {
+    const all = await prisma.shipment.findMany({
+      where: { factureId: shipment.factureId },
+      select: { totalAmount: true, amountPaid: true, depositAmount: true },
+    });
+    const factTotal = all.reduce((s, x) => s + x.totalAmount, 0);
+    const factPaid = all.reduce((s, x) => s + x.amountPaid, 0);
+    const factDeposit = all.reduce((s, x) => s + x.depositAmount, 0);
+    const factRemaining = Math.max(0, factTotal - factPaid);
+    let factStatus: "UNPAID" | "DEPOSIT_PAID" | "FULLY_PAID" | "REFUNDED" = "UNPAID";
+    if (factPaid >= factTotal) factStatus = "FULLY_PAID";
+    else if (factPaid >= factDeposit) factStatus = "DEPOSIT_PAID";
+    await prisma.facture.update({
+      where: { id: shipment.factureId },
+      data: {
+        totalAmount: factTotal,
+        depositAmount: factDeposit,
+        remainingAmount: factRemaining,
+        status: factStatus,
+      },
+    });
+  }
+
+  revalidatePath(`/staff/shipments/${shipment.id}`);
+  revalidatePath(`/admin/shipments/${shipment.id}`);
+  revalidatePath("/staff/shipments");
+  revalidatePath("/admin/shipments");
+  return { success: true, data: { recomputed: !!pricing, newTotal } };
 }
 
 export async function deleteShipment(id: string): Promise<Result> {

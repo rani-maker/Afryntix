@@ -4,8 +4,48 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory } from "@prisma/client";
+import { DEFAULT_PRICING, type PricingGrid, type PricingCell } from "@/lib/pricing";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
+
+/**
+ * Construit la grille tarifaire effective : on part de `DEFAULT_PRICING`
+ * (snapshot codé en dur) et on superpose les `PricingRule` actives stockées
+ * en base de données. Le tarif dégressif `priceFrom5CBM` est exprimé par une
+ * deuxième ligne avec `minQuantity = 5` pour le mode SEA_LCL.
+ *
+ * Cette grille est ensuite passée à `computePrice(input, { pricingGrid })`
+ * — le moteur lui-même reste synchrone et pur.
+ */
+export async function getActivePricingGrid(): Promise<PricingGrid> {
+  const rules = await prisma.pricingRule.findMany({
+    where: { active: true },
+    orderBy: { minQuantity: "asc" },
+  });
+
+  // Deep clone de la grille par défaut pour ne pas la muter.
+  const grid: PricingGrid = JSON.parse(JSON.stringify(DEFAULT_PRICING)) as PricingGrid;
+
+  for (const r of rules) {
+    const cell: PricingCell = grid[r.mode]?.[r.category] ?? {
+      unit: r.unit,
+      price: r.pricePerUnit,
+    };
+
+    // Tarif dégressif LCL : ligne avec `minQuantity` (5 par convention)
+    if (r.minQuantity != null && r.minQuantity > 0) {
+      cell.priceFrom5CBM = r.pricePerUnit;
+    } else {
+      cell.price = r.pricePerUnit;
+      cell.unit = r.unit;
+    }
+
+    if (!grid[r.mode]) grid[r.mode] = {};
+    grid[r.mode]![r.category] = cell;
+  }
+
+  return grid;
+}
 
 const PricingSchema = z.object({
   mode: z.enum(["AIR_EXPRESS", "AIR_NORMAL", "SEA_LCL", "SEA_FCL", "VEHICLE", "BTP_EQUIPMENT", "STORAGE"]),
@@ -68,6 +108,21 @@ export async function togglePricingRule(input: { id: string; active: boolean }):
     where: { id: input.id },
     data: { active: input.active },
   });
+  revalidatePath("/admin/pricing");
+  return { success: true };
+}
+
+/**
+ * Supprime définitivement une règle tarifaire. Si l'admin veut juste
+ * la désactiver temporairement, passer plutôt par `togglePricingRule`.
+ *
+ * NB : aucun colis n'est modifié rétroactivement — le `unitPrice` d'un
+ * colis est figé à sa création. Cette suppression ne touche QUE les
+ * futurs calculs de prix.
+ */
+export async function deletePricingRule(input: { id: string }): Promise<Result> {
+  await requireRole("ADMIN");
+  await prisma.pricingRule.delete({ where: { id: input.id } });
   revalidatePath("/admin/pricing");
   return { success: true };
 }

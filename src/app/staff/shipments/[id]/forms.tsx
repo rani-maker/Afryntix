@@ -6,12 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { SHIPMENT_STATUS_LABELS } from "@/lib/pricing";
-import { updateShipmentStatus, recordShipmentPayment, recordVerifiedWeight, updateCustomsInfo } from "@/server/actions/shipments";
+import {
+  SHIPMENT_STATUS_LABELS,
+  TRANSPORT_MODE_LABELS,
+  CARGO_CATEGORY_LABELS,
+} from "@/lib/pricing";
+import {
+  updateShipmentStatus,
+  recordShipmentPayment,
+  recordVerifiedWeight,
+  updateCustomsInfo,
+  updateShipmentInfo,
+} from "@/server/actions/shipments";
 import { chargeStorageFees } from "@/server/actions/storage";
 import { generatePickupCode, markDelivered } from "@/server/actions/delivery";
 import { applyInsurance } from "@/server/actions/insurance";
-import type { ShipmentStatus } from "@prisma/client";
+import type { ShipmentStatus, TransportMode, CargoCategory } from "@prisma/client";
 
 const STATUSES = Object.keys(SHIPMENT_STATUS_LABELS) as ShipmentStatus[];
 
@@ -617,6 +627,295 @@ export function RecordPaymentForm({ shipmentId, maxAmount }: { shipmentId: strin
         {loading ? "…" : "Enregistrer"}
       </Button>
       {error && <p className="text-xs text-destructive ml-2">{error}</p>}
+    </form>
+  );
+}
+
+/**
+ * Édition des informations d'un colis après création (correction d'erreur).
+ *
+ * Côté UX :
+ *  - Le bloc est replié par défaut (bouton « Modifier ») pour éviter d'inviter
+ *    à éditer sans réfléchir.
+ *  - Les champs « pricing-sensitive » (mode, catégorie, poids, dims) sont
+ *    désactivés si le colis a déjà été payé ou si son statut est trop avancé,
+ *    avec un message explicatif. Le serveur recheck quoi qu'il arrive.
+ */
+const TRANSPORT_MODES = Object.keys(TRANSPORT_MODE_LABELS) as TransportMode[];
+const CARGO_CATEGORIES = Object.keys(CARGO_CATEGORY_LABELS) as CargoCategory[];
+const EDITABLE_PRICING_STATUSES: ShipmentStatus[] = ["REGISTERED", "RECEIVED_CHINA"];
+
+export function EditShipmentInfoForm({
+  shipmentId,
+  initial,
+  amountPaid,
+  status,
+  hasEnvoiOrContainer,
+}: {
+  shipmentId: string;
+  initial: {
+    mode: TransportMode;
+    category: CargoCategory;
+    description: string | null;
+    pieces: number;
+    weightKg: number | null;
+    lengthCm: number | null;
+    widthCm: number | null;
+    heightCm: number | null;
+    volumeCBM: number | null;
+    destinationCity: string | null;
+    destinationCountry: string | null;
+    recipientName: string | null;
+    recipientPhone: string | null;
+    recipientAddress: string | null;
+  };
+  amountPaid: number;
+  status: ShipmentStatus;
+  hasEnvoiOrContainer: boolean;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // État local du formulaire — `""` au lieu de `null` pour les inputs contrôlés.
+  const [mode, setMode] = useState<TransportMode>(initial.mode);
+  const [category, setCategory] = useState<CargoCategory>(initial.category);
+  const [description, setDescription] = useState(initial.description ?? "");
+  const [pieces, setPieces] = useState(String(initial.pieces));
+  const [weightKg, setWeightKg] = useState(initial.weightKg != null ? String(initial.weightKg) : "");
+  const [lengthCm, setLengthCm] = useState(initial.lengthCm != null ? String(initial.lengthCm) : "");
+  const [widthCm, setWidthCm] = useState(initial.widthCm != null ? String(initial.widthCm) : "");
+  const [heightCm, setHeightCm] = useState(initial.heightCm != null ? String(initial.heightCm) : "");
+  const [volumeCBM, setVolumeCBM] = useState(initial.volumeCBM != null ? String(initial.volumeCBM) : "");
+  const [destinationCity, setDestinationCity] = useState(initial.destinationCity ?? "");
+  const [destinationCountry, setDestinationCountry] = useState(initial.destinationCountry ?? "");
+  const [recipientName, setRecipientName] = useState(initial.recipientName ?? "");
+  const [recipientPhone, setRecipientPhone] = useState(initial.recipientPhone ?? "");
+  const [recipientAddress, setRecipientAddress] = useState(initial.recipientAddress ?? "");
+
+  const pricingLocked =
+    amountPaid > 0 || !EDITABLE_PRICING_STATUSES.includes(status) || hasEnvoiOrContainer;
+  const pricingLockedReason = amountPaid > 0
+    ? "Paiement déjà encaissé — annulez le paiement ou ouvrez une réclamation pour modifier le poids / les dimensions / le mode."
+    : !EDITABLE_PRICING_STATUSES.includes(status)
+    ? `Statut « ${SHIPMENT_STATUS_LABELS[status]} » trop avancé : seuls les champs descriptifs restent modifiables.`
+    : hasEnvoiOrContainer
+    ? "Colis rattaché à un envoi / conteneur : détachez-le d'abord pour changer le mode de transport."
+    : "";
+
+  // Helper : convertit `"" | "  "` en `null`, sinon parseFloat. Renvoie `undefined`
+  // si le champ est resté identique pour ne pas l'envoyer (optionnel côté schema).
+  function nullableNumber(raw: string, initialVal: number | null): number | null | undefined {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      // Vide → null si on avait une valeur, sinon on ne touche pas.
+      return initialVal == null ? undefined : null;
+    }
+    const n = Number(trimmed);
+    if (Number.isNaN(n)) return undefined;
+    return n === initialVal ? undefined : n;
+  }
+  function nullableString(raw: string, initialVal: string | null): string | null | undefined {
+    const trimmed = raw.trim();
+    if (trimmed === "") return initialVal == null ? undefined : null;
+    return trimmed === initialVal ? undefined : trimmed;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    const payload = {
+      shipmentId,
+      // Pricing-sensitive — n'envoie que si change.
+      mode: mode !== initial.mode ? mode : undefined,
+      category: category !== initial.category ? category : undefined,
+      pieces: Number(pieces) !== initial.pieces ? Number(pieces) : undefined,
+      weightKg: nullableNumber(weightKg, initial.weightKg),
+      lengthCm: nullableNumber(lengthCm, initial.lengthCm),
+      widthCm: nullableNumber(widthCm, initial.widthCm),
+      heightCm: nullableNumber(heightCm, initial.heightCm),
+      volumeCBM: nullableNumber(volumeCBM, initial.volumeCBM),
+      // Descriptifs.
+      description: nullableString(description, initial.description),
+      destinationCity: nullableString(destinationCity, initial.destinationCity),
+      destinationCountry: nullableString(destinationCountry, initial.destinationCountry),
+      recipientName: nullableString(recipientName, initial.recipientName),
+      recipientPhone: nullableString(recipientPhone, initial.recipientPhone),
+      recipientAddress: nullableString(recipientAddress, initial.recipientAddress),
+    };
+
+    const res = await updateShipmentInfo(payload);
+    setLoading(false);
+    if (!res.success) {
+      setError(res.error);
+      return;
+    }
+    setSuccess(
+      res.data?.recomputed
+        ? `Modifications enregistrées — nouveau total ${Math.round(res.data.newTotal).toLocaleString("fr-FR")} FCFA.`
+        : "Modifications enregistrées.",
+    );
+    router.refresh();
+  }
+
+  if (!open) {
+    return (
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Corrigez une erreur de saisie (description, destinataire, dimensions, etc.).
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+          Modifier
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {pricingLocked && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          ⚠️ {pricingLockedReason}
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-mode">Mode</Label>
+          <Select
+            id="edit-mode"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as TransportMode)}
+            disabled={pricingLocked}
+          >
+            {TRANSPORT_MODES.map((m) => (
+              <option key={m} value={m}>{TRANSPORT_MODE_LABELS[m]}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-category">Catégorie</Label>
+          <Select
+            id="edit-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as CargoCategory)}
+            disabled={pricingLocked}
+          >
+            {CARGO_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{CARGO_CATEGORY_LABELS[c]}</option>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="edit-description">Description</Label>
+        <Textarea
+          id="edit-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+        />
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-pieces">Pièces</Label>
+          <Input
+            id="edit-pieces"
+            type="number"
+            min={1}
+            step={1}
+            value={pieces}
+            onChange={(e) => setPieces(e.target.value)}
+            disabled={pricingLocked}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-weight">Poids déclaré (kg)</Label>
+          <Input
+            id="edit-weight"
+            type="number"
+            step="0.01"
+            min={0}
+            value={weightKg}
+            onChange={(e) => setWeightKg(e.target.value)}
+            disabled={pricingLocked}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-l">L (cm)</Label>
+          <Input id="edit-l" type="number" step="0.1" min={0} value={lengthCm} onChange={(e) => setLengthCm(e.target.value)} disabled={pricingLocked} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-w">l (cm)</Label>
+          <Input id="edit-w" type="number" step="0.1" min={0} value={widthCm} onChange={(e) => setWidthCm(e.target.value)} disabled={pricingLocked} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-h">H (cm)</Label>
+          <Input id="edit-h" type="number" step="0.1" min={0} value={heightCm} onChange={(e) => setHeightCm(e.target.value)} disabled={pricingLocked} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-v">Volume (m³)</Label>
+          <Input id="edit-v" type="number" step="0.001" min={0} value={volumeCBM} onChange={(e) => setVolumeCBM(e.target.value)} disabled={pricingLocked} />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-city">Ville destination</Label>
+          <Input id="edit-city" value={destinationCity} onChange={(e) => setDestinationCity(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-country">Pays destination</Label>
+          <Input id="edit-country" value={destinationCountry} onChange={(e) => setDestinationCountry(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-rname">Destinataire</Label>
+          <Input id="edit-rname" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-rphone">Téléphone destinataire</Label>
+          <Input id="edit-rphone" value={recipientPhone} onChange={(e) => setRecipientPhone(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="edit-raddress">Adresse destinataire</Label>
+        <Textarea
+          id="edit-raddress"
+          value={recipientAddress}
+          onChange={(e) => setRecipientAddress(e.target.value)}
+          rows={2}
+        />
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {success && <p className="text-sm text-emerald-700 dark:text-emerald-400">{success}</p>}
+
+      <div className="flex items-center gap-2">
+        <Button type="submit" disabled={loading}>
+          {loading ? "Enregistrement…" : "Enregistrer les modifications"}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => { setOpen(false); setError(null); setSuccess(null); }}
+        >
+          Fermer
+        </Button>
+      </div>
     </form>
   );
 }
