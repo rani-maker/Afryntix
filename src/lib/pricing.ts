@@ -132,6 +132,22 @@ export function isExpressEligible(category: CargoCategory): boolean {
 }
 
 /**
+ * Arrondi tarifaire aérien : minimum 1 kg, puis arrondi au 0.5 kg supérieur.
+ *   0 < w ≤ 1     → 1
+ *   1 < w ≤ 1.5   → 1.5
+ *   1.5 < w ≤ 2   → 2
+ *   2 < w ≤ 2.5   → 2.5
+ *   ...
+ */
+export function roundUpAirChargeableWeight(weightKg: number): number {
+  if (weightKg <= 0) return 1;
+  return Math.max(1, Math.ceil(weightKg * 2) / 2);
+}
+
+/** Plancher de facturation maritime LCL : 0.1 CBM. */
+export const SEA_LCL_MIN_CBM = 0.1;
+
+/**
  * Moteur de tarification central.
  * Calcule poids volumique pour aérien (divisor=6000),
  * applique tarif dégressif maritime à partir de 5 CBM,
@@ -187,7 +203,8 @@ export function computePrice(input: PricingInput): PricingResult {
         );
       }
 
-      const chargeableWeight = Math.max(realWeight, volumetricWeight);
+      const rawChargeable = Math.max(realWeight, volumetricWeight);
+      const chargeableWeight = roundUpAirChargeableWeight(rawChargeable);
       chargeableQuantity = chargeableWeight;
 
       if (volumetricWeight > realWeight) {
@@ -196,6 +213,16 @@ export function computePrice(input: PricingInput): PricingResult {
         );
       } else {
         notes.push(`Facturation au poids réel : ${realWeight} kg`);
+      }
+
+      if (chargeableWeight !== rawChargeable) {
+        if (rawChargeable < 1) {
+          notes.push(`Plancher aérien : minimum 1 kg facturé (poids ${rawChargeable.toFixed(2)} kg arrondi à 1 kg).`);
+        } else {
+          notes.push(
+            `Poids facturable arrondi au 0,5 kg supérieur : ${rawChargeable.toFixed(2)} kg → ${chargeableWeight} kg.`,
+          );
+        }
       }
 
       return finalizePrice({
@@ -229,11 +256,18 @@ export function computePrice(input: PricingInput): PricingResult {
       notes.push(`CBM calculé depuis dimensions : ${cbm.toFixed(3)} m³`);
     }
 
-    chargeableQuantity = cbm;
+    const rawCbm = cbm;
+    const chargeableCbm = Math.max(SEA_LCL_MIN_CBM, cbm);
+    if (chargeableCbm !== rawCbm) {
+      notes.push(
+        `Plancher maritime : minimum ${SEA_LCL_MIN_CBM} CBM facturé (volume ${rawCbm.toFixed(3)} m³ arrondi à ${SEA_LCL_MIN_CBM} m³).`,
+      );
+    }
+    chargeableQuantity = chargeableCbm;
 
     if (input.overrideUnitPrice) {
       unitPrice = input.overrideUnitPrice;
-    } else if (cbm >= 5 && rule.priceFrom5CBM != null) {
+    } else if (chargeableCbm >= 5 && rule.priceFrom5CBM != null) {
       unitPrice = rule.priceFrom5CBM;
       notes.push(`Tarif dégressif appliqué (≥ 5 CBM) : ${unitPrice} FCFA/CBM`);
     } else {
@@ -245,7 +279,7 @@ export function computePrice(input: PricingInput): PricingResult {
       unit,
       chargeableQuantity,
       notes,
-      cbm,
+      cbm: chargeableCbm,
       isQuote,
     });
   }

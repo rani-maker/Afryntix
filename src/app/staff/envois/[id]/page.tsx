@@ -21,6 +21,8 @@ import { DocumentsSection } from "@/components/documents/documents-section";
 import { DOCUMENT_TYPES_FOR_ENVOI } from "@/lib/document-labels";
 import { Button } from "@/components/ui/button";
 import { Download, Printer } from "lucide-react";
+import { FclInvoiceForm } from "./fcl-invoice-form";
+import { DeleteEnvoiButton } from "./delete-envoi-button";
 
 export default async function EnvoiDetailPage({
   params,
@@ -48,6 +50,15 @@ export default async function EnvoiDetailPage({
     },
   });
   if (!envoi) notFound();
+
+  // Facture forfaitaire éventuellement déjà liée à cet envoi (FCL uniquement)
+  const fclInvoice =
+    envoi.mode === "SEA_FCL"
+      ? await prisma.facture.findFirst({
+          where: { envoiId: envoi.id },
+          select: { reference: true, totalAmount: true, amountPaid: true },
+        })
+      : null;
 
   // Colis disponibles pour rattachement (non rattachés à un autre envoi, mode compatible)
   const availableShipments = await prisma.shipment.findMany({
@@ -252,6 +263,29 @@ export default async function EnvoiDetailPage({
         </CardContent>
       </Card>
 
+      {/* Facturation forfaitaire FCL */}
+      {envoi.mode === "SEA_FCL" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Facturation forfaitaire (conteneur complet)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Le client paie un prix forfaitaire négocié pour l&apos;ensemble du conteneur — pas par colis.
+              Le forfait sera réparti entre les colis rattachés (au CBM si possible, sinon à parts égales)
+              et une seule facture sera générée pour l&apos;envoi.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FclInvoiceForm
+              envoiId={envoi.id}
+              shipmentCount={envoi.shipments.length}
+              existingFlatRate={fclInvoice?.totalAmount ?? null}
+              existingReference={fclInvoice?.reference ?? null}
+              existingPaid={fclInvoice?.amountPaid ?? 0}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Documents logistiques */}
       <Card>
         <CardHeader>
@@ -265,6 +299,25 @@ export default async function EnvoiDetailPage({
             documents={envoi.documents}
             allowedTypes={DOCUMENT_TYPES_FOR_ENVOI}
             target={{ envoiId: envoi.id }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Zone dangereuse — suppression */}
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="text-base text-red-900">Zone sensible</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Supprime cet envoi en cas d&apos;erreur de création. Les colis rattachés sont conservés
+            (juste détachés), mais l&apos;envoi, ses conteneurs, son historique et ses documents
+            sont effacés définitivement.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DeleteEnvoiButton
+            envoiId={envoi.id}
+            reference={envoi.reference}
+            shipmentCount={envoi.shipments.length}
           />
         </CardContent>
       </Card>

@@ -357,3 +357,105 @@ export async function detachShipmentFromEnvoi(input: { shipmentId: string }): Pr
   revalidatePath("/staff/shipments");
   return { success: true };
 }
+
+// =============================================================
+// Suppression d'un envoi (correction d'erreur de saisie)
+// =============================================================
+
+/**
+ * Supprime un envoi.
+ *
+ * Garde-fous :
+ *  - réservé STAFF + ADMIN
+ *  - exige la confirmation de la référence exacte (anti-clic accidentel)
+ *  - refuse si une facture liée a déjà reçu un paiement (`amountPaid > 0`)
+ *  - refuse si l'envoi est marqué DELIVERED (livraison finalisée — pas à effacer
+ *    sans intervention admin manuelle)
+ *
+ * Effets de bord :
+ *  - les colis rattachés sont **détachés** (envoiId mis à null) — ils gardent
+ *    leur tracking, leur historique et leur statut actuel
+ *  - les conteneurs, historique de l'envoi et documents liés sont **supprimés en
+ *    cascade** (déjà câblé via Prisma `onDelete: Cascade`)
+ *  - une éventuelle facture liée voit son `envoiId` mis à null (Prisma SetNull),
+ *    elle n'est PAS supprimée — à reprendre manuellement si besoin
+ *  - chaque colis détaché reçoit une entrée d'historique pour la traçabilité
+ */
+const DeleteEnvoiSchema = z.object({
+  envoiId: z.string().min(1),
+  confirmReference: z.string().min(1, "Confirmation de la référence requise"),
+});
+
+export async function deleteEnvoi(input: unknown): Promise<Result<{ detachedShipments: number }>> {
+  const session = await requireRole("STAFF", "ADMIN");
+  const parsed = DeleteEnvoiSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+  }
+  const { envoiId, confirmReference } = parsed.data;
+
+  const envoi = await prisma.envoi.findUnique({
+    where: { id: envoiId },
+    include: {
+      shipments: { select: { id: true, status: true } },
+    },
+  });
+  if (!envoi) return { success: false, error: "Envoi introuvable." };
+
+  if (envoi.reference !== confirmReference.trim()) {
+    return {
+      success: false,
+      error: `La référence saisie ne correspond pas. Saisis exactement « ${envoi.reference} » pour confirmer.`,
+    };
+  }
+
+  if (envoi.status === "DELIVERED") {
+    return {
+      success: false,
+      error: "Cet envoi est marqué comme livré et ne peut pas être supprimé. Contacte un administrateur si c'est une erreur.",
+    };
+  }
+
+  // Refus si une facture liée a reçu des paiements
+  const paidFacture = await prisma.facture.findFirst({
+    where: { envoiId, amountPaid: { gt: 0 } },
+    select: { reference: true, amountPaid: true },
+  });
+  if (paidFacture) {
+    return {
+      success: false,
+      error: `Impossible de supprimer : la facture ${paidFacture.reference} liée à cet envoi a déjà reçu ${paidFacture.amountPaid.toLocaleString("fr-FR")} FCFA. Annule ou rembourse la facture d'abord.`,
+    };
+  }
+
+  const detachedShipments = envoi.shipments.length;
+
+  await prisma.$transaction(async (tx) => {
+    // Trace de détachement sur chaque colis (avant que envoiId ne soit nullé en cascade)
+    for (const s of envoi.shipments) {
+      await tx.shipmentHistory.create({
+        data: {
+          shipmentId: s.id,
+          status: s.status,
+          note: `Envoi ${envoi.reference} supprimé — colis détaché.`,
+          createdBy: session.user.id,
+        },
+      });
+      await tx.shipment.update({
+        where: { id: s.id },
+        data: { envoiId: null, containerId: null },
+      });
+    }
+
+    // Suppression de l'envoi : Prisma cascade containers + history + documents.
+    // La facture liée (sans paiement) voit son envoiId passer à null (SetNull).
+    await tx.envoi.delete({ where: { id: envoiId } });
+  });
+
+  revalidatePath("/staff/envois");
+  revalidatePath("/admin/envois");
+  revalidatePath("/staff/shipments");
+  revalidatePath("/admin/shipments");
+
+  return { success: true, data: { detachedShipments } };
+}
