@@ -26,13 +26,23 @@ export function WarehouseLookup() {
     setShipment(null);
     if (!tn.trim()) return;
     setLoading(true);
-    const res = await lookupShipmentForWarehouse(tn.trim());
-    setLoading(false);
-    if (!res.success) {
-      setError(res.error);
-      return;
+    try {
+      const res = await lookupShipmentForWarehouse(tn.trim());
+      setLoading(false);
+      if (!res.success) {
+        setError(res.error);
+        return;
+      }
+      setShipment(res.data ?? null);
+    } catch (e) {
+      setLoading(false);
+      // Erreur réseau ou session expirée : message lisible plutôt qu'un crash.
+      setError(
+        e instanceof Error
+          ? `Recherche impossible : ${e.message}. Vérifie ta connexion ou reconnecte-toi.`
+          : "Recherche impossible. Vérifie ta connexion ou reconnecte-toi.",
+      );
     }
-    setShipment(res.data ?? null);
   }
 
   async function handleLookup(e: React.FormEvent) {

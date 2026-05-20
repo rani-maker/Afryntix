@@ -852,16 +852,96 @@ export async function updateShipmentInfo(input: unknown): Promise<Result<{ recom
   return { success: true, data: { recomputed: !!pricing, newTotal } };
 }
 
-export async function deleteShipment(id: string): Promise<Result> {
+/**
+ * Supprime un colis.
+ *
+ * Deux modes d'appel :
+ *  - `deleteShipment(id)`            : compat historique (corbeille rapide depuis la liste)
+ *  - `deleteShipment({ id, confirmTrackingNumber })` : confirmation explicite
+ *    via saisie du numéro de suivi (utilisé depuis la page détail).
+ *
+ * Garde-fous :
+ *  - réservé STAFF + ADMIN
+ *  - refus si le colis est rattaché à un envoi (à détacher d'abord)
+ *  - refus si le colis est livré (`DELIVERED`)
+ *  - refus si un paiement a déjà été encaissé sur ce colis (`amountPaid > 0`)
+ *
+ * Effets de bord :
+ *  - si le colis fait partie d'une facture, ses montants sont retirés du total
+ *    de la facture (le statut de paiement est recalculé). La facture n'est
+ *    PAS supprimée même si elle se retrouve à 0 colis — à archiver manuellement.
+ *  - l'historique et les documents liés sont supprimés en cascade Prisma.
+ */
+export async function deleteShipment(
+  input: string | { id: string; confirmTrackingNumber?: string },
+): Promise<Result> {
   await requireRole("STAFF", "ADMIN");
-  const shipment = await prisma.shipment.findUnique({ where: { id }, select: { id: true, envoiId: true } });
-  if (!shipment) return { success: false, error: "Colis introuvable." };
-  if (shipment.envoiId) return { success: false, error: "Ce colis est rattaché à un envoi. Détachez-le d'abord." };
 
-  await prisma.shipment.delete({ where: { id } });
+  const id = typeof input === "string" ? input : input.id;
+  const confirmTn = typeof input === "string" ? null : input.confirmTrackingNumber ?? null;
+
+  const shipment = await prisma.shipment.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      trackingNumber: true,
+      status: true,
+      envoiId: true,
+      amountPaid: true,
+      factureId: true,
+      totalAmount: true,
+      depositAmount: true,
+    },
+  });
+  if (!shipment) return { success: false, error: "Colis introuvable." };
+
+  if (confirmTn != null && confirmTn.trim().toUpperCase() !== shipment.trackingNumber.toUpperCase()) {
+    return {
+      success: false,
+      error: `Le numéro saisi ne correspond pas. Saisis exactement « ${shipment.trackingNumber} » pour confirmer.`,
+    };
+  }
+
+  if (shipment.envoiId) {
+    return { success: false, error: "Ce colis est rattaché à un envoi. Détachez-le d'abord." };
+  }
+  if (shipment.status === "DELIVERED") {
+    return { success: false, error: "Ce colis est marqué comme livré et ne peut pas être supprimé." };
+  }
+  if (shipment.amountPaid > 0) {
+    return {
+      success: false,
+      error: `Impossible de supprimer : ${Math.round(shipment.amountPaid).toLocaleString("fr-FR")} FCFA déjà encaissés sur ce colis. Rembourse d'abord.`,
+    };
+  }
+
+  const factureId = shipment.factureId;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.shipment.delete({ where: { id } });
+
+    // Recalcul de la facture liée si présente (ce colis n'est plus dedans)
+    if (factureId) {
+      const remaining = await tx.shipment.findMany({
+        where: { factureId },
+        select: { totalAmount: true, amountPaid: true, depositAmount: true },
+      });
+      const total = remaining.reduce((s, x) => s + x.totalAmount, 0);
+      const paid = remaining.reduce((s, x) => s + x.amountPaid, 0);
+      const deposit = remaining.reduce((s, x) => s + x.depositAmount, 0);
+      let status: "UNPAID" | "DEPOSIT_PAID" | "FULLY_PAID" | "REFUNDED" = "UNPAID";
+      if (total > 0 && paid >= total) status = "FULLY_PAID";
+      else if (paid >= deposit && deposit > 0) status = "DEPOSIT_PAID";
+      await tx.facture.update({
+        where: { id: factureId },
+        data: { totalAmount: total, depositAmount: deposit, remainingAmount: Math.max(0, total - paid), status },
+      });
+    }
+  });
 
   revalidatePath("/staff/shipments");
   revalidatePath("/admin/shipments");
   revalidatePath("/dashboard");
+  revalidatePath("/staff/shipping-marks");
   return { success: true };
 }
