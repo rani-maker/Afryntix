@@ -68,6 +68,11 @@ function parseRemoteHosts(): { protocol: "https"; hostname: string }[] {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Force la racine de file-tracing au répertoire du projet pour silencer
+  // l'avertissement « multiple lockfiles » quand le projet vit dans un
+  // worktree imbriqué (le parent peut contenir un autre package-lock.json
+  // appartenant à une autre checkout — Next prendrait le mauvais).
+  outputFileTracingRoot: __dirname,
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
