@@ -33,7 +33,9 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       // Tailwind JIT en dev + styles inline générés par next/image.
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      // Tuiles cartographiques (Leaflet + CARTO basemaps via CDN) — sans cela
+      // la carte de suivi ne charge aucune tuile (conteneur vide).
+      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
       "font-src 'self' data:",
       // Connexions XHR/fetch/WebSocket : self uniquement (Twilio/Resend
       // tournent côté serveur, jamais via le navigateur).
