@@ -126,6 +126,60 @@ export async function sendReceptionNotice(shippingMarkId: string): Promise<Resul
   return { success: true };
 }
 
+/**
+ * Met à jour un shipping mark existant (édition côté staff).
+ *
+ * Couple `name + phone` est `@@unique` en DB : si on tente de renommer vers
+ * une combinaison déjà prise par un autre mark, on retourne une erreur
+ * explicite plutôt qu'une violation de contrainte cryptique.
+ */
+export async function updateShippingMark(input: {
+  id: string;
+  name: string;
+  phone: string;
+  whatsapp?: string;
+  notes?: string;
+}): Promise<Result> {
+  await requireRole("STAFF", "ADMIN");
+
+  const id = input.id.trim();
+  const name = input.name.trim();
+  const phone = input.phone.trim();
+  if (!id) return { success: false, error: "Identifiant requis." };
+  if (!name) return { success: false, error: "Nom requis." };
+  if (!phone) return { success: false, error: "Téléphone requis." };
+
+  const existing = await prisma.shippingMark.findUnique({ where: { id } });
+  if (!existing) return { success: false, error: "Shipping mark introuvable." };
+
+  // Conflit name+phone avec un autre mark ?
+  if (name !== existing.name || phone !== existing.phone) {
+    const conflict = await prisma.shippingMark.findUnique({
+      where: { name_phone: { name, phone } },
+    });
+    if (conflict && conflict.id !== id) {
+      return {
+        success: false,
+        error: `Un autre shipping mark existe déjà pour ${name} / ${phone}. Fusionne-les manuellement si c'est le même client.`,
+      };
+    }
+  }
+
+  await prisma.shippingMark.update({
+    where: { id },
+    data: {
+      name,
+      phone,
+      whatsapp: input.whatsapp?.trim() || null,
+      notes: input.notes?.trim() || null,
+    },
+  });
+
+  revalidatePath("/staff/shipping-marks");
+  revalidatePath(`/staff/shipping-marks/${id}`);
+  return { success: true };
+}
+
 export async function linkShippingMarkToUser(input: {
   shippingMarkId: string;
   userId: string;

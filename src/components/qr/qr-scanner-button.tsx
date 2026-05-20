@@ -146,19 +146,31 @@ function QrScannerModal({
 /**
  * Extrait un numéro de suivi depuis le texte décodé par le scanner.
  *
- * Les étiquettes AFRYNTIX encodent l'URL publique de tracking :
+ * Format AFRYNTIX : `AFR-{A|M|V|B|S}-{YYYY}-{NNNNNN}`
+ * (cf. `generateTrackingNumber` dans `src/lib/utils.ts`).
+ *
+ * Les étiquettes maison encodent l'URL publique de tracking :
  *   https://app.afryntix.com/tracking/AFR-A-2026-000123
  *
- * Mais on accepte aussi qu'un utilisateur scanne un code qui ne contient
- * QUE le numéro (impression externe, code de test, etc.) — on prend la
- * première séquence qui ressemble à un tracking number.
+ * Mais on accepte aussi :
+ *  - le numéro brut tapé/scanné depuis n'importe quelle source
+ *  - une URL avec query string ou path additionnel
+ *  - du texte qui contient le numéro entouré de bruit (étiquette imprimée
+ *    avec autres infos, copier-coller d'un message…)
+ *
+ * On extrait simplement la première occurrence du pattern AFR-... dans la
+ * chaîne, ce qui couvre tous les cas ci-dessus sans dépendre du format URL.
  */
 export function extractTrackingNumber(decoded: string): string | null {
-  // URL `/tracking/X` → prend X
-  const m = decoded.match(/\/tracking\/([A-Za-z0-9-]+)/);
-  if (m) return m[1].toUpperCase();
-  // Sinon : si le texte EST déjà un tracking number (AFR-X-YYYY-NNNNNN ou similaire)
-  const tn = decoded.trim().match(/^[A-Z0-9-]{5,40}$/i);
-  if (tn) return tn[0].toUpperCase();
+  const text = decoded.trim();
+  // 1) Match direct du pattern AFRYNTIX où qu'il soit dans le texte
+  const afr = text.match(/AFR-[AMVBS]-\d{4}-\d{6}/i);
+  if (afr) return afr[0].toUpperCase();
+  // 2) Fallback URL générique `/tracking/X`
+  const url = text.match(/\/tracking\/([A-Za-z0-9-]+)/);
+  if (url) return url[1].toUpperCase();
+  // 3) Fallback : la chaîne entière ressemble à un tracking sans préfixe AFR
+  const bare = text.match(/^[A-Z0-9-]{5,40}$/i);
+  if (bare) return bare[0].toUpperCase();
   return null;
 }

@@ -7,6 +7,7 @@ import { ShipmentStatusBadge } from "@/components/dashboard/status-badge";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { formatXOF, formatDate } from "@/lib/utils";
 import { SendReceptionNoticeButton } from "./send-notice-button";
+import { EditShippingMarkButton } from "./edit-mark-button";
 
 export default async function ShippingMarksPage({
   searchParams,
@@ -114,6 +115,15 @@ export default async function ShippingMarksPage({
                       totalDeposit={totalPendingDeposit}
                     />
                   )}
+                  <EditShippingMarkButton
+                    mark={{
+                      id: mark.id,
+                      name: mark.name,
+                      phone: mark.phone,
+                      whatsapp: mark.whatsapp,
+                      notes: mark.notes,
+                    }}
+                  />
                 </div>
               </div>
             </CardHeader>

@@ -24,6 +24,7 @@ import { Printer } from "lucide-react";
 import { DocumentsSection } from "@/components/documents/documents-section";
 import { DOCUMENT_TYPES_FOR_SHIPMENT } from "@/lib/document-labels";
 import { ClaimsSection } from "@/components/claims/claims-section";
+import { DeleteShipmentCard } from "./delete-shipment-card";
 
 export default async function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -371,6 +372,26 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+
+      {/* Zone sensible — suppression */}
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="text-base text-red-900">Zone sensible</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Supprime ce colis en cas d&apos;erreur de saisie. La suppression est refusée si le colis
+            est rattaché à un envoi, livré, ou a déjà reçu un paiement.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DeleteShipmentCard
+            shipmentId={shipment.id}
+            trackingNumber={shipment.trackingNumber}
+            isAttachedToEnvoi={shipment.envoiId != null}
+            amountPaid={shipment.amountPaid}
+            isDelivered={shipment.status === "DELIVERED"}
+          />
         </CardContent>
       </Card>
     </div>
