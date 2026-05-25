@@ -325,6 +325,87 @@ ${appUrl}/withdraw/${args.withdrawalCode}
 ${BRAND_FOOTER}`;
 }
 
+// ── Commission créditée (envoyé au PARTENAIRE) ────────────────
+export function partnerCommissionTemplate(args: {
+  partnerName: string;
+  trackingNumber: string;
+  commissionAmount: number;
+  newBalance: number;
+}): string {
+  const appUrl = getAppUrl();
+  return `${brandHeader("Commission créditée")}
+
+Bonjour *${args.partnerName}*,
+
+💰 *Bonne nouvelle — commission créditée !*
+
+━━━━━━━━━━━━━━━━━━━
+📦 Colis : \`${args.trackingNumber}\`
+✅ Statut : Soldé par le client
+💵 Commission : *${formatXOF(args.commissionAmount)}*
+🏦 Nouveau solde : ${formatXOF(args.newBalance)}
+━━━━━━━━━━━━━━━━━━━
+
+Consulter votre portail :
+${appUrl}/partner
+${BRAND_FOOTER}`;
+}
+
+// ── Versement effectué (envoyé au PARTENAIRE) ─────────────────
+export function partnerPayoutTemplate(args: {
+  partnerName: string;
+  reference: string;
+  amount: number;
+  method: string;
+  remainingBalance: number;
+}): string {
+  return `${brandHeader("Versement effectué")}
+
+Bonjour *${args.partnerName}*,
+
+✅ *Versement effectué*
+
+━━━━━━━━━━━━━━━━━━━
+🔖 Référence : \`${args.reference}\`
+💵 Montant versé : *${formatXOF(args.amount)}*
+💳 Moyen : ${args.method}
+🏦 Solde restant : ${formatXOF(args.remainingBalance)}
+━━━━━━━━━━━━━━━━━━━
+
+Merci pour votre collaboration.
+${BRAND_FOOTER}`;
+}
+
+// ── Bienvenue partenaire (identifiants) ────────────────────────
+export function partnerWelcomeTemplate(args: {
+  partnerName: string;
+  email: string;
+  password: string;
+  referralCode: string;
+}): string {
+  const appUrl = getAppUrl();
+  return `${brandHeader("Bienvenue partenaire")}
+
+Bonjour *${args.partnerName}*,
+
+🎉 *Bienvenue dans le réseau AFRYNTIX !*
+
+Votre compte partenaire a été créé. Voici vos accès :
+
+━━━━━━━━━━━━━━━━━━━
+🔐 Email : \`${args.email}\`
+🔑 Mot de passe temporaire : *${args.password}*
+🎟️ Votre code parrain : *${args.referralCode}*
+━━━━━━━━━━━━━━━━━━━
+
+🌐 Portail : ${appUrl}/login
+
+Communiquez votre code parrain à vos clients. Chaque colis traité sera automatiquement comptabilisé pour votre commission.
+
+⚠️ Changez votre mot de passe à la première connexion.
+${BRAND_FOOTER}`;
+}
+
 // ── Réservation validée (envoyé au CLIENT) ────────────────────
 export function reservationValidatedTemplate(args: {
   clientName: string;
