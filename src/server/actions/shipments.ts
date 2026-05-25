@@ -129,6 +129,18 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
 
   const chargeableWeight = pricing.unit === "kg" ? pricing.chargeableQuantity : undefined;
 
+  // Auto-attribution au partenaire qui a apporté ce client (si actif)
+  let referredByPartnerId: string | null = null;
+  if (client?.referredByPartnerId) {
+    const refPartner = await prisma.partner.findUnique({
+      where: { id: client.referredByPartnerId },
+      select: { status: true },
+    });
+    if (refPartner && refPartner.status === "ACTIVE") {
+      referredByPartnerId = client.referredByPartnerId;
+    }
+  }
+
   const shipment = await prisma.shipment.create({
     data: {
       trackingNumber,
@@ -136,6 +148,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       clientName: data.clientId ? null : data.clientName,
       clientPhone: data.clientId ? null : data.clientPhone,
       shippingMarkId,
+      referredByPartnerId,
       mode: data.mode as TransportMode,
       category: data.category as CargoCategory,
       description: data.description,
@@ -546,10 +559,23 @@ export async function recordShipmentPayment(input: {
   if (newPaid >= shipment.totalAmount) paymentStatus = "FULLY_PAID";
   else if (newPaid >= shipment.depositAmount) paymentStatus = "DEPOSIT_PAID";
 
+  const becameFullyPaid =
+    shipment.paymentStatus !== "FULLY_PAID" && paymentStatus === "FULLY_PAID";
+
   await prisma.shipment.update({
     where: { id: input.shipmentId },
     data: { amountPaid: newPaid, paymentStatus },
   });
+
+  // Crédit auto de la commission partenaire si le colis vient d'être soldé
+  if (becameFullyPaid && shipment.referredByPartnerId) {
+    try {
+      const { creditPartnerCommission } = await import("./partners");
+      await creditPartnerCommission(input.shipmentId);
+    } catch (err) {
+      console.error("[Partner] Erreur crédit commission:", err);
+    }
+  }
 
   // Mettre à jour la facture liée si elle existe
   if (shipment.factureId) {

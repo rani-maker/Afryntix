@@ -3,6 +3,8 @@ node_modules
 .env
 .env.local
 .env.*.local
+.claude/
+tsconfig.tsbuildinfo
 *.log
 .DS_Store
 .vscode

@@ -20,6 +20,7 @@ import {
   Warehouse,
   AlertTriangle,
   Umbrella,
+  Handshake,
 } from "lucide-react";
 
 const items: DashNavItem[] = [
@@ -28,6 +29,7 @@ const items: DashNavItem[] = [
   { href: "/admin/analytics", label: "Analytics avancé", icon: <BarChart3 />, section: "Pilotage" },
   { href: "/admin/staff", label: "Équipe (Staff)", icon: <UserCog />, section: "Personnes" },
   { href: "/admin/clients", label: "Clients", icon: <Users />, section: "Personnes" },
+  { href: "/admin/partners", label: "Partenaires", icon: <Handshake />, section: "Personnes" },
   { href: "/admin/shipments", label: "Expéditions", icon: <Package />, section: "Opérations" },
   { href: "/admin/reservations", label: "Réservations", icon: <ClipboardList />, section: "Opérations" },
   { href: "/admin/services", label: "Demandes de service", icon: <Briefcase />, section: "Opérations" },

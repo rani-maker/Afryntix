@@ -34,6 +34,7 @@ export function RegisterForm() {
       whatsapp: whatsapp.length >= 8 ? whatsapp : phone,
       city: String(fd.get("city") || ""),
       country: String(fd.get("country") || ""),
+      referralCode: String(fd.get("referralCode") || "") || undefined,
     });
     if (!result.success) {
       setError(result.error);
@@ -94,6 +95,20 @@ export function RegisterForm() {
           <Label htmlFor="country">Pays</Label>
           <Input id="country" name="country" defaultValue="Côte d'Ivoire" />
         </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="referralCode" className="flex items-center gap-1">
+          Code parrain <span className="text-xs text-muted-foreground font-normal">(optionnel)</span>
+        </Label>
+        <Input
+          id="referralCode"
+          name="referralCode"
+          placeholder="Ex: BOUAKE-DIALLO-A3F2"
+          className="font-mono"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Si un partenaire AFRYNTIX vous a recommandé, saisissez son code ici.
+        </p>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>

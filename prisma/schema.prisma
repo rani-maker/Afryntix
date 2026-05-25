@@ -21,6 +21,7 @@ enum Role {
   ADMIN
   STAFF
   CLIENT
+  PARTNER
 }
 
 model User {
@@ -65,6 +66,11 @@ model User {
   claimsResolved      Claim[]         @relation("ClaimResolvedBy")
   contractPricing     ClientPricingRule[] @relation("ClientPricingRules")
   suppliers           Supplier[]
+
+  // === Partenariats ===
+  partner             Partner?        @relation("PartnerUser")
+  referredByPartnerId String?
+  referredByPartner   Partner?        @relation("PartnerReferralClient", fields: [referredByPartnerId], references: [id], onDelete: SetNull)
 }
 
 // Auth.js Session/Account models
@@ -222,6 +228,19 @@ model Shipment {
 
   status          ShipmentStatus  @default(REGISTERED)
 
+  // === Partenariats ===
+  referredByPartnerId    String?
+  referredByPartner      Partner?  @relation("PartnerReferral", fields: [referredByPartnerId], references: [id], onDelete: SetNull)
+  partnerCommission      Float?
+  partnerCommissionPaid  Boolean   @default(false)
+
+  lastMilePartnerId      String?
+  lastMilePartner        Partner?  @relation("PartnerLastMile", fields: [lastMilePartnerId], references: [id], onDelete: SetNull)
+  lastMileAmount         Float?
+  lastMileSettled        Boolean   @default(false)
+  lastMileAssignedAt     DateTime?
+  lastMileDeliveredAt    DateTime?
+
   // Notification d'enregistrement envoyée manuellement par le staff
   registrationNotifiedAt DateTime?
 
@@ -276,6 +295,8 @@ model Shipment {
   @@index([containerId])
   @@index([shippingMarkId])
   @@index([factureId])
+  @@index([referredByPartnerId])
+  @@index([lastMilePartnerId])
 }
 
 model ShipmentPhoto {
@@ -524,11 +545,16 @@ model Reservation {
 
   shipment            Shipment?         @relation("ReservationToShipment")
 
+  // Saisie par un partenaire revendeur au nom de son client
+  createdByPartnerId  String?
+  createdByPartner    Partner?          @relation("PartnerReservation", fields: [createdByPartnerId], references: [id], onDelete: SetNull)
+
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
   @@index([clientId])
   @@index([status])
+  @@index([createdByPartnerId])
 }
 
 // Calendrier d'envois (publié par Admin/Staff)
@@ -972,4 +998,139 @@ model AuditLog {
 
   @@index([userId])
   @@index([entity, entityId])
+}
+
+// -----------------------------------------------------------------
+// Partenaires / Sous-traitants
+// -----------------------------------------------------------------
+
+enum PartnerType {
+  APPORTEUR
+  REVENDEUR
+  TRANSPORTEUR_RELAIS
+  AGENT_CHINE
+  CONFRERE_FORWARDER
+}
+
+enum PartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum CommissionModel {
+  PERCENT_OF_REVENUE
+  PERCENT_OF_MARGIN
+  FIXED_PER_SHIPMENT
+  FIXED_PER_KG
+  FIXED_PER_CBM
+  WHOLESALE_TARIFF
+}
+
+enum PartnerLedgerType {
+  COMMISSION_EARNED
+  PAYOUT
+  ADJUSTMENT
+  REFUND
+}
+
+enum PartnerPayoutMethod {
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CASH
+  OTHER
+}
+
+enum PartnerPayoutStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model Partner {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  type            PartnerType
+  status          PartnerStatus   @default(PENDING)
+
+  companyName     String
+  legalForm       String?
+  taxId           String?
+  contactName     String
+  contactPhone    String
+  whatsapp        String?
+  email           String?
+
+  country         String
+  city            String
+  serviceAreas    String[]
+  originSide      String?
+
+  userId          String?         @unique
+  user            User?           @relation("PartnerUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  commissionModel CommissionModel
+  commissionRate  Float?
+  currency        Currency        @default(XOF)
+
+  referralCode    String          @unique
+
+  idDocumentNumber  String?
+  idDocumentUrl     String?
+  contractUrl       String?
+  contractSignedAt  DateTime?
+
+  balance         Float           @default(0)
+
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  shipmentsReferred   Shipment[]    @relation("PartnerReferral")
+  shipmentsLastMile   Shipment[]    @relation("PartnerLastMile")
+  reservationsCreated Reservation[] @relation("PartnerReservation")
+  clientsReferred     User[]        @relation("PartnerReferralClient")
+  ledgerEntries       PartnerLedger[]
+  payouts             PartnerPayout[]
+
+  @@index([type, status])
+  @@index([country, city])
+  @@index([referralCode])
+}
+
+model PartnerLedger {
+  id          String            @id @default(cuid())
+  partnerId   String
+  partner     Partner           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  shipmentId  String?
+  payoutId    String?
+  type        PartnerLedgerType
+  amount      Float
+  currency    Currency          @default(XOF)
+  note        String?
+  createdAt   DateTime          @default(now())
+  createdById String?
+
+  @@index([partnerId, createdAt])
+  @@index([shipmentId])
+}
+
+model PartnerPayout {
+  id          String              @id @default(cuid())
+  reference   String              @unique
+  partnerId   String
+  partner     Partner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  amount      Float
+  currency    Currency            @default(XOF)
+  method      PartnerPayoutMethod
+  status      PartnerPayoutStatus @default(PENDING)
+  paidAt      DateTime?
+  proofUrl    String?
+  notes       String?
+  createdAt   DateTime            @default(now())
+  createdById String?
+
+  @@index([partnerId])
+  @@index([status])
 }

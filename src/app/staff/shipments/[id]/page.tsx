@@ -25,6 +25,7 @@ import { DocumentsSection } from "@/components/documents/documents-section";
 import { DOCUMENT_TYPES_FOR_SHIPMENT } from "@/lib/document-labels";
 import { ClaimsSection } from "@/components/claims/claims-section";
 import { DeleteShipmentCard } from "./delete-shipment-card";
+import { LastMileSection } from "./last-mile-section";
 
 export default async function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -46,9 +47,18 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
           resolvedBy: { select: { name: true } },
         },
       },
+      lastMilePartner: { select: { id: true, code: true, companyName: true, contactName: true, contactPhone: true } },
+      referredByPartner: { select: { id: true, code: true, companyName: true } },
     },
   });
   if (!shipment) notFound();
+
+  // Liste des transporteurs disponibles pour assignation last-mile
+  const transporteurs = await prisma.partner.findMany({
+    where: { type: "TRANSPORTEUR_RELAIS", status: "ACTIVE" },
+    select: { id: true, companyName: true, contactName: true, city: true },
+    orderBy: { companyName: "asc" },
+  });
 
   const storageSetting = await getActiveStorageSetting();
   const insuranceSetting = await getActiveInsuranceSetting();
@@ -270,6 +280,44 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
             shipmentId={shipment.id}
             declaredWeightKg={shipment.declaredWeightKg ?? null}
             currentVerified={shipment.verifiedWeightKg ?? null}
+          />
+        </CardContent>
+      </Card>
+
+      {shipment.referredByPartner && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Partenaire apporteur</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <Link href={`/admin/partners/${shipment.referredByPartner.id}`} className="hover:underline">
+              <span className="font-mono text-xs text-muted-foreground">{shipment.referredByPartner.code}</span>{" "}
+              · <span className="font-medium">{shipment.referredByPartner.companyName}</span>
+            </Link>
+            <div className="mt-2 text-xs text-muted-foreground">
+              {shipment.partnerCommission != null ? (
+                <>Commission : {formatXOF(shipment.partnerCommission)} {shipment.partnerCommissionPaid ? "✓ créditée" : "en attente"}</>
+              ) : (
+                <>Commission calculée à l'encaissement complet</>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Livraison locale (last-mile)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LastMileSection
+            shipmentId={shipment.id}
+            currentPartner={shipment.lastMilePartner}
+            currentAmount={shipment.lastMileAmount}
+            assignedAt={shipment.lastMileAssignedAt}
+            deliveredAt={shipment.lastMileDeliveredAt}
+            settled={shipment.lastMileSettled}
+            transporteurs={transporteurs}
           />
         </CardContent>
       </Card>

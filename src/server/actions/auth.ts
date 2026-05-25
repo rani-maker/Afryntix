@@ -27,6 +27,7 @@ const RegisterSchema = z.object({
   whatsapp: phoneSchema.optional().or(z.literal("")),
   city: z.string().optional(),
   country: z.string().optional(),
+  referralCode: z.string().optional(),
 });
 
 type Result<T = void> = { success: true; data?: T } | { success: false; error: string };
@@ -39,6 +40,17 @@ export async function registerClient(input: z.infer<typeof RegisterSchema>): Pro
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { success: false, error: "Un compte avec cet email existe déjà." };
 
+  // Vérification optionnelle du code parrain
+  let referredByPartnerId: string | null = null;
+  if (parsed.data.referralCode && parsed.data.referralCode.trim()) {
+    const partner = await prisma.partner.findUnique({
+      where: { referralCode: parsed.data.referralCode.trim() },
+    });
+    if (!partner) return { success: false, error: "Code parrain introuvable." };
+    if (partner.status === "TERMINATED") return { success: false, error: "Ce partenaire n'est plus actif." };
+    referredByPartnerId = partner.id;
+  }
+
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   await prisma.user.create({
     data: {
@@ -50,6 +62,7 @@ export async function registerClient(input: z.infer<typeof RegisterSchema>): Pro
       role: "CLIENT",
       city: parsed.data.city,
       country: parsed.data.country,
+      referredByPartnerId,
     },
   });
   return { success: true };

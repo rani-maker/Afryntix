@@ -21,17 +21,29 @@ export default auth((req) => {
 
   // Protection par rôle
   if (path.startsWith("/admin")) {
-    if (role !== "ADMIN") return NextResponse.redirect(new URL("/dashboard", nextUrl));
-  }
-  if (path.startsWith("/staff")) {
-    if (role !== "STAFF" && role !== "ADMIN") {
+    if (role !== "ADMIN") {
+      if (role === "PARTNER") return NextResponse.redirect(new URL("/partner", nextUrl));
       return NextResponse.redirect(new URL("/dashboard", nextUrl));
     }
   }
-  // ADMIN ou STAFF qui arrivent sur /dashboard → renvoyer vers leur portail
+  if (path.startsWith("/staff")) {
+    if (role !== "STAFF" && role !== "ADMIN") {
+      if (role === "PARTNER") return NextResponse.redirect(new URL("/partner", nextUrl));
+      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    }
+  }
+  if (path.startsWith("/partner")) {
+    if (role !== "PARTNER") {
+      if (role === "ADMIN") return NextResponse.redirect(new URL("/admin", nextUrl));
+      if (role === "STAFF") return NextResponse.redirect(new URL("/staff", nextUrl));
+      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    }
+  }
+  // ADMIN, STAFF ou PARTNER qui arrivent sur /dashboard → leur portail
   if (path.startsWith("/dashboard")) {
     if (role === "ADMIN") return NextResponse.redirect(new URL("/admin", nextUrl));
     if (role === "STAFF") return NextResponse.redirect(new URL("/staff", nextUrl));
+    if (role === "PARTNER") return NextResponse.redirect(new URL("/partner", nextUrl));
   }
 
   return NextResponse.next();
