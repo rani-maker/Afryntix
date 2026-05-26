@@ -3,7 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth, requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { generateReference } from "@/lib/utils";
+import { generateReference, generateTrackingNumber } from "@/lib/utils";
+import { computePrice, trackingPrefix } from "@/lib/pricing";
+import { getActivePricingGrid } from "./pricing";
 import {
   sendWhatsApp,
   partnerCommissionTemplate,
@@ -1052,5 +1054,493 @@ export async function resetPartnerPassword(partnerId: string): Promise<Result<{ 
 
   revalidatePath(`/admin/partners/${partnerId}`);
   return { success: true, data: { password } };
+}
+
+// =================================================================
+// AGENT_CHINE — Réception physique + QC + création du Shipment
+// =================================================================
+
+export async function getAgentReceptionQueue(): Promise<Result<{
+  reservations: Array<{
+    id: string;
+    supplierTrackingNumber: string | null;
+    mode: string;
+    category: string;
+    description: string | null;
+    estimatedWeightKg: number | null;
+    estimatedVolumeCBM: number | null;
+    recipientName: string | null;
+    clientName: string;
+    clientPhone: string | null;
+    createdAt: Date;
+  }>;
+}>> {
+  const session = await requireRole("PARTNER");
+  const partner = await prisma.partner.findFirst({ where: { userId: session.user.id } });
+  if (!partner) return { success: false, error: "Compte partenaire introuvable." };
+  if (partner.type !== "AGENT_CHINE") return { success: false, error: "Réservé aux agents Chine." };
+  if (partner.status !== "ACTIVE") return { success: false, error: "Compte non actif." };
+
+  const reservations = await prisma.reservation.findMany({
+    where: { status: "VALIDATED" },
+    orderBy: { validatedAt: "desc" },
+    take: 100,
+    include: { client: { select: { name: true, phone: true } } },
+  });
+
+  return {
+    success: true,
+    data: {
+      reservations: reservations.map((r) => ({
+        id: r.id,
+        supplierTrackingNumber: r.supplierTrackingNumber,
+        mode: r.mode,
+        category: r.category,
+        description: r.description,
+        estimatedWeightKg: r.estimatedWeightKg,
+        estimatedVolumeCBM: r.estimatedVolumeCBM,
+        recipientName: r.recipientName,
+        clientName: r.client.name,
+        clientPhone: r.client.phone,
+        createdAt: r.createdAt,
+      })),
+    },
+  };
+}
+
+const ReceiveReservationSchema = z.object({
+  reservationId: z.string(),
+  pieces: z.coerce.number().int().min(1),
+  weightKg: z.coerce.number().positive(),
+  lengthCm: z.coerce.number().nonnegative().optional(),
+  widthCm: z.coerce.number().nonnegative().optional(),
+  heightCm: z.coerce.number().nonnegative().optional(),
+  volumeCBM: z.coerce.number().nonnegative().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  photosBase64: z.array(z.string()).max(8).optional(),
+});
+
+export async function receiveReservationAsAgent(
+  input: z.infer<typeof ReceiveReservationSchema>,
+): Promise<Result<{ trackingNumber: string; shipmentId: string }>> {
+  const session = await requireRole("PARTNER");
+  const parsed = ReceiveReservationSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  const partner = await prisma.partner.findFirst({ where: { userId: session.user.id } });
+  if (!partner) return { success: false, error: "Compte partenaire introuvable." };
+  if (partner.type !== "AGENT_CHINE") return { success: false, error: "Réservé aux agents Chine." };
+  if (partner.status !== "ACTIVE") return { success: false, error: "Compte non actif." };
+
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: parsed.data.reservationId },
+    include: { client: true, shipment: true },
+  });
+  if (!reservation) return { success: false, error: "Réservation introuvable." };
+  if (reservation.status !== "VALIDATED") {
+    return { success: false, error: "Cette réservation n'est pas dans l'état attendu (VALIDATED requise)." };
+  }
+  if (reservation.shipment) return { success: false, error: "Déjà réceptionnée." };
+
+  // Tarification basée sur les MESURES RÉELLES
+  let pricing;
+  try {
+    const pricingGrid = await getActivePricingGrid();
+    pricing = computePrice({
+      mode: reservation.mode,
+      category: reservation.category,
+      pieces: parsed.data.pieces,
+      weightKg: parsed.data.weightKg,
+      lengthCm: parsed.data.lengthCm,
+      widthCm: parsed.data.widthCm,
+      heightCm: parsed.data.heightCm,
+      volumeCBM: parsed.data.volumeCBM,
+      pricingGrid,
+    });
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul." };
+  }
+
+  let trackingNumber = generateTrackingNumber(trackingPrefix(reservation.mode));
+  for (let i = 0; i < 5; i++) {
+    const exists = await prisma.shipment.findUnique({ where: { trackingNumber } });
+    if (!exists) break;
+    trackingNumber = generateTrackingNumber(trackingPrefix(reservation.mode));
+  }
+
+  const chargeableWeight = pricing.unit === "kg" ? pricing.chargeableQuantity : undefined;
+
+  // Auto-attribution partenaire apporteur (du client)
+  let referredByPartnerId: string | null = null;
+  if (reservation.client.referredByPartnerId) {
+    const refPartner = await prisma.partner.findUnique({
+      where: { id: reservation.client.referredByPartnerId },
+      select: { status: true },
+    });
+    if (refPartner && refPartner.status === "ACTIVE") {
+      referredByPartnerId = reservation.client.referredByPartnerId;
+    }
+  }
+
+  const shipment = await prisma.shipment.create({
+    data: {
+      trackingNumber,
+      clientId: reservation.clientId,
+      reservationId: reservation.id,
+      referredByPartnerId,
+      mode: reservation.mode,
+      category: reservation.category,
+      description: parsed.data.description ?? reservation.description,
+      pieces: parsed.data.pieces,
+      weightKg: parsed.data.weightKg,
+      declaredWeightKg: reservation.estimatedWeightKg,
+      verifiedWeightKg: parsed.data.weightKg,
+      weightVerifiedAt: new Date(),
+      weightVerifiedById: session.user.id,
+      lengthCm: parsed.data.lengthCm,
+      widthCm: parsed.data.widthCm,
+      heightCm: parsed.data.heightCm,
+      volumeCBM: parsed.data.volumeCBM ?? pricing.cbm,
+      volumetricWeight: pricing.volumetricWeight,
+      chargeableWeight,
+      recipientName: reservation.recipientName,
+      recipientPhone: reservation.recipientPhone,
+      recipientAddress: reservation.recipientAddress,
+      unitPrice: pricing.unitPrice,
+      totalAmount: pricing.totalAmount,
+      depositAmount: pricing.depositAmount,
+      remainingAmount: pricing.remainingAmount,
+      status: "RECEIVED_CHINA",
+      history: {
+        create: [
+          { status: "REGISTERED", note: "Réservation convertie en colis" },
+          { status: "RECEIVED_CHINA", note: `Reçu et pesé par agent ${partner.companyName}`, createdBy: session.user.id },
+        ],
+      },
+    },
+  });
+
+  await prisma.reservation.update({
+    where: { id: reservation.id },
+    data: { status: "RECEIVED" },
+  });
+
+  // Photos QC (best-effort)
+  if (parsed.data.photosBase64 && parsed.data.photosBase64.length > 0) {
+    for (const dataUrl of parsed.data.photosBase64) {
+      try {
+        await prisma.shipmentPhoto.create({
+          data: { shipmentId: shipment.id, url: dataUrl, caption: `QC par ${partner.companyName}` },
+        });
+      } catch (err) {
+        console.error("[Agent] Erreur photo QC:", err);
+      }
+    }
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: "AGENT_RECEIVED_RESERVATION",
+      entity: "Shipment",
+      entityId: shipment.id,
+      metadata: {
+        partnerId: partner.id,
+        reservationId: reservation.id,
+        declaredWeight: reservation.estimatedWeightKg,
+        verifiedWeight: parsed.data.weightKg,
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  // Crédit commission agent (FIXED_PER_SHIPMENT / FIXED_PER_KG / FIXED_PER_CBM)
+  if (
+    partner.commissionRate &&
+    partner.commissionRate > 0 &&
+    (partner.commissionModel === "FIXED_PER_SHIPMENT" ||
+      partner.commissionModel === "FIXED_PER_KG" ||
+      partner.commissionModel === "FIXED_PER_CBM")
+  ) {
+    let amount = 0;
+    if (partner.commissionModel === "FIXED_PER_SHIPMENT") amount = Math.round(partner.commissionRate);
+    else if (partner.commissionModel === "FIXED_PER_KG")
+      amount = Math.round((parsed.data.weightKg ?? 0) * partner.commissionRate);
+    else if (partner.commissionModel === "FIXED_PER_CBM")
+      amount = Math.round((parsed.data.volumeCBM ?? pricing.cbm ?? 0) * partner.commissionRate);
+
+    if (amount > 0) {
+      try {
+        await prisma.$transaction([
+          prisma.partnerLedger.create({
+            data: {
+              partnerId: partner.id,
+              shipmentId: shipment.id,
+              type: "COMMISSION_EARNED",
+              amount,
+              currency: partner.currency,
+              note: `Réception ${trackingNumber}`,
+              createdById: session.user.id,
+            },
+          }),
+          prisma.partner.update({
+            where: { id: partner.id },
+            data: { balance: { increment: amount } },
+          }),
+        ]);
+        const updated = await prisma.partner.findUnique({ where: { id: partner.id } });
+        if (updated) {
+          try {
+            await sendWhatsApp({
+              to: updated.whatsapp || updated.contactPhone,
+              body: partnerCommissionTemplate({
+                partnerName: updated.contactName,
+                trackingNumber,
+                commissionAmount: amount,
+                newBalance: updated.balance,
+              }),
+              template: "partner_reception_commission",
+              userId: updated.userId ?? undefined,
+            });
+          } catch { /* best-effort */ }
+        }
+      } catch (err) {
+        console.error("[Agent] Erreur crédit commission:", err);
+      }
+    }
+  }
+
+  revalidatePath("/partner/warehouse");
+  revalidatePath("/staff/shipments");
+  revalidatePath("/admin/shipments");
+  revalidatePath(`/admin/partners/${partner.id}`);
+  return { success: true, data: { trackingNumber, shipmentId: shipment.id } };
+}
+
+// =================================================================
+// CONFRERE_FORWARDER — Création de colis au tarif gros
+// =================================================================
+
+const ForwarderShipmentSchema = z.object({
+  mode: z.enum(["AIR_EXPRESS", "AIR_NORMAL", "SEA_LCL", "SEA_FCL", "VEHICLE", "BTP_EQUIPMENT", "STORAGE"]),
+  category: z.enum(["ORDINARY", "BATTERY", "LIQUID", "COSMETIC", "POWDER", "PHONE", "COMPUTER", "VEHICLE", "BTP", "OTHER"]),
+  description: z.string().optional(),
+  supplierTrackingNumber: z.string().optional(),
+  pieces: z.coerce.number().int().min(1).default(1),
+  weightKg: z.coerce.number().nonnegative().optional(),
+  lengthCm: z.coerce.number().nonnegative().optional(),
+  widthCm: z.coerce.number().nonnegative().optional(),
+  heightCm: z.coerce.number().nonnegative().optional(),
+  volumeCBM: z.coerce.number().nonnegative().optional(),
+  destinationCity: z.string().min(1, "Destination requise"),
+  destinationCountry: z.string().optional(),
+  recipientName: z.string().min(2, "Nom destinataire requis"),
+  recipientPhone: z.string().min(6, "Téléphone destinataire requis"),
+  recipientAddress: z.string().optional(),
+});
+
+export async function createForwarderShipment(
+  input: z.infer<typeof ForwarderShipmentSchema>,
+): Promise<Result<{ trackingNumber: string; shipmentId: string; wholesaleTotal: number; publicTotal: number }>> {
+  const session = await requireRole("PARTNER");
+  const parsed = ForwarderShipmentSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  const partner = await prisma.partner.findFirst({ where: { userId: session.user.id } });
+  if (!partner) return { success: false, error: "Compte partenaire introuvable." };
+  if (partner.type !== "CONFRERE_FORWARDER") {
+    return { success: false, error: "Réservé aux confrères forwarders." };
+  }
+  if (partner.status !== "ACTIVE") return { success: false, error: "Compte non actif." };
+  if (!partner.userId) return { success: false, error: "Pas de compte utilisateur lié." };
+
+  let pricing;
+  try {
+    const pricingGrid = await getActivePricingGrid();
+    pricing = computePrice({
+      mode: parsed.data.mode,
+      category: parsed.data.category,
+      pieces: parsed.data.pieces,
+      weightKg: parsed.data.weightKg,
+      lengthCm: parsed.data.lengthCm,
+      widthCm: parsed.data.widthCm,
+      heightCm: parsed.data.heightCm,
+      volumeCBM: parsed.data.volumeCBM,
+      pricingGrid,
+    });
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul." };
+  }
+
+  const discountPercent =
+    partner.commissionModel === "WHOLESALE_TARIFF" && partner.commissionRate
+      ? Math.min(Math.max(partner.commissionRate, 0), 100)
+      : 0;
+  const discountFactor = 1 - discountPercent / 100;
+
+  const wholesaleUnitPrice = pricing.unitPrice ? Math.round(pricing.unitPrice * discountFactor) : null;
+  const wholesaleTotal = Math.round(pricing.totalAmount * discountFactor);
+  const wholesaleDeposit = Math.round(pricing.depositAmount * discountFactor);
+  const wholesaleRemaining = wholesaleTotal - wholesaleDeposit;
+
+  let trackingNumber = generateTrackingNumber(trackingPrefix(parsed.data.mode));
+  for (let i = 0; i < 5; i++) {
+    const exists = await prisma.shipment.findUnique({ where: { trackingNumber } });
+    if (!exists) break;
+    trackingNumber = generateTrackingNumber(trackingPrefix(parsed.data.mode));
+  }
+
+  const chargeableWeight = pricing.unit === "kg" ? pricing.chargeableQuantity : undefined;
+
+  const shipment = await prisma.shipment.create({
+    data: {
+      trackingNumber,
+      clientId: partner.userId,
+      referredByPartnerId: partner.id,
+      mode: parsed.data.mode,
+      category: parsed.data.category,
+      description: parsed.data.description,
+      pieces: parsed.data.pieces,
+      weightKg: parsed.data.weightKg,
+      declaredWeightKg: parsed.data.weightKg,
+      lengthCm: parsed.data.lengthCm,
+      widthCm: parsed.data.widthCm,
+      heightCm: parsed.data.heightCm,
+      volumeCBM: parsed.data.volumeCBM ?? pricing.cbm,
+      volumetricWeight: pricing.volumetricWeight,
+      chargeableWeight,
+      destinationCity: parsed.data.destinationCity,
+      destinationCountry: parsed.data.destinationCountry,
+      recipientName: parsed.data.recipientName,
+      recipientPhone: parsed.data.recipientPhone,
+      recipientAddress: parsed.data.recipientAddress,
+      unitPrice: wholesaleUnitPrice,
+      totalAmount: wholesaleTotal,
+      depositAmount: wholesaleDeposit,
+      remainingAmount: wholesaleRemaining,
+      partnerCommission: 0,
+      partnerCommissionPaid: true,
+      history: {
+        create: [
+          {
+            status: "REGISTERED",
+            note: `Saisie confrère ${partner.companyName} — tarif gros ${discountPercent}% de remise`,
+            createdBy: session.user.id,
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: "FORWARDER_CREATED_SHIPMENT",
+      entity: "Shipment",
+      entityId: shipment.id,
+      metadata: {
+        partnerId: partner.id,
+        discountPercent,
+        publicTotal: pricing.totalAmount,
+        wholesaleTotal,
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  revalidatePath("/partner/wholesale");
+  revalidatePath("/staff/shipments");
+  revalidatePath("/admin/shipments");
+
+  return {
+    success: true,
+    data: {
+      trackingNumber,
+      shipmentId: shipment.id,
+      wholesaleTotal,
+      publicTotal: pricing.totalAmount,
+    },
+  };
+}
+
+export async function bulkCreateForwarderShipments(
+  inputs: z.infer<typeof ForwarderShipmentSchema>[],
+): Promise<Result<{ created: number; failed: number; trackingNumbers: string[] }>> {
+  if (!Array.isArray(inputs) || inputs.length === 0) {
+    return { success: false, error: "Aucun colis à créer." };
+  }
+  if (inputs.length > 50) {
+    return { success: false, error: "Maximum 50 colis par lot." };
+  }
+
+  let created = 0;
+  let failed = 0;
+  const trackingNumbers: string[] = [];
+
+  for (const input of inputs) {
+    const res = await createForwarderShipment(input);
+    if (res.success && res.data) {
+      created++;
+      trackingNumbers.push(res.data.trackingNumber);
+    } else {
+      failed++;
+    }
+  }
+
+  return { success: true, data: { created, failed, trackingNumbers } };
+}
+
+export async function previewForwarderPricing(input: {
+  mode: string;
+  category: string;
+  pieces?: number;
+  weightKg?: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  volumeCBM?: number;
+}): Promise<Result<{
+  publicTotal: number;
+  wholesaleTotal: number;
+  discountPercent: number;
+  unit: string;
+  chargeableQuantity: number;
+}>> {
+  const session = await requireRole("PARTNER");
+  const partner = await prisma.partner.findFirst({ where: { userId: session.user.id } });
+  if (!partner) return { success: false, error: "Compte partenaire introuvable." };
+  if (partner.type !== "CONFRERE_FORWARDER") {
+    return { success: false, error: "Réservé aux confrères forwarders." };
+  }
+
+  try {
+    const pricingGrid = await getActivePricingGrid();
+    const pricing = computePrice({
+      mode: input.mode as Parameters<typeof computePrice>[0]["mode"],
+      category: input.category as Parameters<typeof computePrice>[0]["category"],
+      pieces: input.pieces ?? 1,
+      weightKg: input.weightKg,
+      lengthCm: input.lengthCm,
+      widthCm: input.widthCm,
+      heightCm: input.heightCm,
+      volumeCBM: input.volumeCBM,
+      pricingGrid,
+    });
+    const discountPercent =
+      partner.commissionModel === "WHOLESALE_TARIFF" && partner.commissionRate
+        ? Math.min(Math.max(partner.commissionRate, 0), 100)
+        : 0;
+    return {
+      success: true,
+      data: {
+        publicTotal: pricing.totalAmount,
+        wholesaleTotal: Math.round(pricing.totalAmount * (1 - discountPercent / 100)),
+        discountPercent,
+        unit: pricing.unit,
+        chargeableQuantity: pricing.chargeableQuantity,
+      },
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Erreur de calcul." };
+  }
 }
 

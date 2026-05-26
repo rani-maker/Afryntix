@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
 import { DashTopbar } from "@/components/dashboard/dash-topbar";
 import { DashThemeProvider } from "@/components/dashboard/ui/theme-provider";
-import { LayoutDashboard, Package, Coins, UserCircle, Truck, FileText } from "lucide-react";
+import { LayoutDashboard, Package, Coins, UserCircle, Truck, FileText, Warehouse, ShoppingBag } from "lucide-react";
 
 export default async function PartnerLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -31,8 +31,18 @@ export default async function PartnerLayout({ children }: { children: React.Reac
       { href: "/partner/orders", label: "Mes commandes", icon: <FileText />, section: "Activité" },
       { href: "/partner/shipments", label: "Colis livrés", icon: <Package />, section: "Activité" },
     );
+  } else if (partner?.type === "AGENT_CHINE") {
+    items.push(
+      { href: "/partner/warehouse", label: "Réception entrepôt", icon: <Warehouse />, section: "Activité" },
+      { href: "/partner/shipments", label: "Colis traités", icon: <Package />, section: "Activité" },
+    );
+  } else if (partner?.type === "CONFRERE_FORWARDER") {
+    items.push(
+      { href: "/partner/wholesale", label: "Mes envois gros", icon: <ShoppingBag />, section: "Activité" },
+      { href: "/partner/wholesale/new", label: "+ Nouveau colis gros", icon: <Package />, section: "Activité" },
+    );
   } else {
-    // APPORTEUR, AGENT_CHINE, CONFRERE_FORWARDER
+    // APPORTEUR
     items.push({ href: "/partner/shipments", label: "Colis apportés", icon: <Package />, section: "Activité" });
   }
 
