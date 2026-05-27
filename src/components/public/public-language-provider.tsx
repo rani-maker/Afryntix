@@ -76,7 +76,13 @@ export function PublicLanguageProvider({
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang =
-        lang === "zh" ? "zh-CN" : lang === "es" ? "es" : "fr";
+        lang === "zh"
+          ? "zh-CN"
+          : lang === "es"
+            ? "es"
+            : lang === "en"
+              ? "en"
+              : "fr";
     }
     persistLang(lang);
   }, [lang]);

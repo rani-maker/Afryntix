@@ -68,13 +68,13 @@ export function ClientDashShell({
     },
     {
       href: "/dashboard/suppliers",
-      label: "Mes fournisseurs",
+      label: t("dash.nav.suppliers"),
       icon: <Store />,
       section: sectionServices,
     },
     {
       href: "/dashboard/account",
-      label: "Mon relevé",
+      label: t("dash.nav.statement"),
       icon: <Wallet />,
       section: sectionAccount,
     },

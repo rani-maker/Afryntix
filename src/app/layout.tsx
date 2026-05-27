@@ -102,7 +102,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialLang: Lang = (LANG_ORDER as readonly string[]).includes(cookieLang ?? "")
     ? (cookieLang as Lang)
     : "fr";
-  const htmlLang = initialLang === "zh" ? "zh-CN" : initialLang === "es" ? "es" : "fr";
+  const htmlLang =
+    initialLang === "zh"
+      ? "zh-CN"
+      : initialLang === "es"
+        ? "es"
+        : initialLang === "en"
+          ? "en"
+          : "fr";
   return (
     <html
       lang={htmlLang}

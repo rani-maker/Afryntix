@@ -8,6 +8,7 @@ import { PanelLeft, PanelLeftClose, X } from "lucide-react";
 import { SectionLabel } from "./ui/section-label";
 import { Logo } from "@/components/brand/logo";
 import { useDashTheme } from "./ui/theme-provider";
+import { useLang } from "@/components/public/public-language-provider";
 
 export type DashNavItem = {
   href: string;
@@ -47,6 +48,7 @@ function SidebarNav({
 }) {
   const pathname = usePathname();
   const { theme } = useDashTheme();
+  const { t } = useLang();
   const grouped = groupItems(items);
 
   return (
@@ -69,7 +71,7 @@ function SidebarNav({
           <button
             type="button"
             onClick={onToggleCollapse}
-            aria-label={collapsed ? "Déplier la sidebar" : "Replier la sidebar"}
+            aria-label={collapsed ? t("dash.sidebar.expand") : t("dash.sidebar.collapse")}
             aria-expanded={!collapsed}
             className="grid h-8 w-8 place-items-center rounded-lg text-[var(--dash-text-muted)] hover:bg-[var(--dash-hover)] hover:text-[var(--dash-text)] transition-colors"
           >
@@ -80,7 +82,7 @@ function SidebarNav({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer le menu"
+            aria-label={t("dash.menu.close")}
             className="grid h-8 w-8 place-items-center rounded-lg text-[var(--dash-text-muted)] hover:bg-[var(--dash-hover)] hover:text-[var(--dash-text)] transition-colors"
           >
             <X className="h-4 w-4" />
