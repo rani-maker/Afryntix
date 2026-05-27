@@ -6,14 +6,33 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  */
 let _client: SupabaseClient | null = null;
 
+function cleanEnv(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  let v = value.trim();
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
+    v = v.slice(1, -1).trim();
+  }
+  return v.length > 0 ? v : undefined;
+}
+
 function getSupabaseAdmin(): SupabaseClient {
   if (_client) return _client;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const serviceKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!url || !serviceKey) {
+    const missing = [
+      !url && "NEXT_PUBLIC_SUPABASE_URL",
+      !serviceKey && "SUPABASE_SERVICE_ROLE_KEY",
+    ]
+      .filter(Boolean)
+      .join(", ");
     throw new Error(
-      "Configuration Supabase incomplète : définissez NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY dans .env.local",
+      `Configuration Supabase incomplète (variable(s) manquante(s) : ${missing}). ` +
+        `Vérifiez .env.local (en dev, redémarrez le serveur après modification) ou les variables d'environnement de l'hébergeur (Render/Vercel).`,
     );
   }
   _client = createClient(url, serviceKey, {

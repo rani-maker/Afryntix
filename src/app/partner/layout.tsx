@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
-import { DashTopbar } from "@/components/dashboard/dash-topbar";
-import { DashThemeProvider } from "@/components/dashboard/ui/theme-provider";
-import { LayoutDashboard, Package, Coins, UserCircle, Truck, FileText, Warehouse, ShoppingBag } from "lucide-react";
+import { PartnerDashShell, type PartnerType } from "./partner-shell";
 
 export default async function PartnerLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -20,51 +17,17 @@ export default async function PartnerLayout({ children }: { children: React.Reac
     select: { type: true, status: true, companyName: true },
   });
 
-  const items: DashNavItem[] = [
-    { href: "/partner", label: "Tableau de bord", icon: <LayoutDashboard />, exact: true, section: "Pilotage" },
-  ];
-
-  if (partner?.type === "TRANSPORTEUR_RELAIS") {
-    items.push({ href: "/partner/deliveries", label: "Livraisons à effectuer", icon: <Truck />, section: "Activité" });
-  } else if (partner?.type === "REVENDEUR") {
-    items.push(
-      { href: "/partner/orders", label: "Mes commandes", icon: <FileText />, section: "Activité" },
-      { href: "/partner/shipments", label: "Colis livrés", icon: <Package />, section: "Activité" },
-    );
-  } else if (partner?.type === "AGENT_CHINE") {
-    items.push(
-      { href: "/partner/warehouse", label: "Réception entrepôt", icon: <Warehouse />, section: "Activité" },
-      { href: "/partner/shipments", label: "Colis traités", icon: <Package />, section: "Activité" },
-    );
-  } else if (partner?.type === "CONFRERE_FORWARDER") {
-    items.push(
-      { href: "/partner/wholesale", label: "Mes envois gros", icon: <ShoppingBag />, section: "Activité" },
-      { href: "/partner/wholesale/new", label: "+ Nouveau colis gros", icon: <Package />, section: "Activité" },
-    );
-  } else {
-    // APPORTEUR
-    items.push({ href: "/partner/shipments", label: "Colis apportés", icon: <Package />, section: "Activité" });
-  }
-
-  items.push(
-    { href: "/partner/commissions", label: "Commissions & versements", icon: <Coins />, section: "Activité" },
-    { href: "/partner/profile", label: "Mon profil", icon: <UserCircle />, section: "Compte" },
-  );
-
   return (
-    <DashThemeProvider>
-      <div className="h-screen flex overflow-hidden">
-        <DashSidebar brandSubtitle="Espace Partenaire" items={items} />
-        <div className="flex-1 flex flex-col min-w-0 bg-[var(--dash-bg)] h-screen overflow-y-auto">
-          <DashTopbar
-            title="Portail Partenaire"
-            subtitle={partner?.companyName ?? "Suivi de votre activité"}
-            status={{ label: "Connecté", tone: "live" }}
-            user={{ name: session.user.name, email: session.user.email, role: session.user.role }}
-          />
-          <main className="flex-1 p-6">{children}</main>
-        </div>
-      </div>
-    </DashThemeProvider>
+    <PartnerDashShell
+      user={{
+        name: session.user.name,
+        email: session.user.email,
+        role: String(session.user.role),
+      }}
+      partnerType={(partner?.type as PartnerType) ?? null}
+      companyName={partner?.companyName ?? null}
+    >
+      {children}
+    </PartnerDashShell>
   );
 }
