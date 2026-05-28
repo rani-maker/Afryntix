@@ -195,12 +195,45 @@ const UpdatePartnerSchema = CreatePartnerSchema.partial().extend({
 });
 
 export async function updatePartner(input: z.infer<typeof UpdatePartnerSchema>): Promise<Result> {
-  await requireRole("ADMIN");
+  const session = await requireRole("ADMIN");
   const parsed = UpdatePartnerSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
   }
   const { id, ...d } = parsed.data;
+
+  // Récupère l'état avant pour détecter une renégociation (modèle ou taux de commission)
+  const before = await prisma.partner.findUnique({
+    where: { id },
+    select: { commissionModel: true, commissionRate: true },
+  });
+  if (!before) return { success: false, error: "Partenaire introuvable." };
+
+  // Si la commission change, on revalide les contraintes (même règles que createPartner)
+  const nextModel = (d.commissionModel ?? before.commissionModel) as CommissionModel;
+  const nextRate = d.commissionRate === undefined ? before.commissionRate : d.commissionRate;
+  const modelChanged = d.commissionModel != null && d.commissionModel !== before.commissionModel;
+  const rateChanged = d.commissionRate !== undefined && d.commissionRate !== before.commissionRate;
+  const commissionChanged = modelChanged || rateChanged;
+
+  if (commissionChanged) {
+    if (
+      (nextModel === "PERCENT_OF_REVENUE" ||
+        nextModel === "PERCENT_OF_MARGIN" ||
+        nextModel === "WHOLESALE_TARIFF") &&
+      (nextRate == null || nextRate <= 0 || nextRate > 100)
+    ) {
+      return { success: false, error: "Le taux % doit être entre 0 et 100." };
+    }
+    if (
+      (nextModel === "FIXED_PER_SHIPMENT" ||
+        nextModel === "FIXED_PER_KG" ||
+        nextModel === "FIXED_PER_CBM") &&
+      (nextRate == null || nextRate <= 0)
+    ) {
+      return { success: false, error: "Le montant forfaitaire doit être supérieur à 0." };
+    }
+  }
 
   await prisma.partner.update({
     where: { id },
@@ -223,6 +256,28 @@ export async function updatePartner(input: z.infer<typeof UpdatePartnerSchema>):
       notes: d.notes ?? undefined,
     },
   });
+
+  // Audit : si la commission change, on garde une trace consultable de la renégociation
+  if (commissionChanged) {
+    await prisma.auditLog.create({
+      data: {
+        action: "PARTNER_COMMISSION_UPDATED",
+        entity: "Partner",
+        entityId: id,
+        userId: session.user.id,
+        metadata: {
+          from: {
+            model: before.commissionModel,
+            rate: before.commissionRate,
+          },
+          to: {
+            model: nextModel,
+            rate: nextRate,
+          },
+        } as Prisma.InputJsonValue,
+      },
+    });
+  }
 
   revalidatePath("/admin/partners");
   revalidatePath(`/admin/partners/${id}`);

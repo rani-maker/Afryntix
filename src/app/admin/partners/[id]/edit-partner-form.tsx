@@ -8,11 +8,30 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updatePartner } from "@/server/actions/partners";
 
+const COMMISSION_MODELS: { value: string; label: string; unit: string; isPercent: boolean }[] = [
+  { value: "PERCENT_OF_REVENUE", label: "% sur CA encaissé", unit: "%", isPercent: true },
+  { value: "PERCENT_OF_MARGIN", label: "% sur marge brute", unit: "%", isPercent: true },
+  { value: "FIXED_PER_SHIPMENT", label: "Forfait / colis", unit: "XOF", isPercent: false },
+  { value: "FIXED_PER_KG", label: "Forfait / kg", unit: "XOF / kg", isPercent: false },
+  { value: "FIXED_PER_CBM", label: "Forfait / CBM", unit: "XOF / CBM", isPercent: false },
+  { value: "WHOLESALE_TARIFF", label: "Tarif gros (remise %)", unit: "%", isPercent: true },
+];
+
 export function EditPartnerForm({ partner }: { partner: Partner }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [model, setModel] = useState<string>(partner.commissionModel);
+  const [rate, setRate] = useState<string>(
+    partner.commissionRate != null ? String(partner.commissionRate) : "",
+  );
+
+  const currentModel = COMMISSION_MODELS.find((m) => m.value === model);
+  const modelChanged = model !== partner.commissionModel;
+  const rateChanged =
+    (rate === "" ? null : Number(rate)) !== (partner.commissionRate ?? null);
+  const commissionChanged = modelChanged || rateChanged;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -24,7 +43,6 @@ export function EditPartnerForm({ partner }: { partner: Partner }) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const rate = fd.get("commissionRate");
 
     const res = await updatePartner({
       id: partner.id,
@@ -38,7 +56,14 @@ export function EditPartnerForm({ partner }: { partner: Partner }) {
       country: String(fd.get("country") ?? ""),
       city: String(fd.get("city") ?? ""),
       serviceAreas,
-      commissionRate: rate && String(rate).trim() ? Number(rate) : undefined,
+      commissionModel: model as
+        | "PERCENT_OF_REVENUE"
+        | "PERCENT_OF_MARGIN"
+        | "FIXED_PER_SHIPMENT"
+        | "FIXED_PER_KG"
+        | "FIXED_PER_CBM"
+        | "WHOLESALE_TARIFF",
+      commissionRate: rate.trim() ? Number(rate) : undefined,
       notes: String(fd.get("notes") ?? "") || undefined,
     });
     setLoading(false);
@@ -46,12 +71,16 @@ export function EditPartnerForm({ partner }: { partner: Partner }) {
       setErr(res.error);
       return;
     }
-    setMsg("Fiche mise à jour.");
+    setMsg(
+      commissionChanged
+        ? "Fiche mise à jour. Renégociation enregistrée dans l'historique."
+        : "Fiche mise à jour.",
+    );
     router.refresh();
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="companyName">Société</Label>
@@ -82,16 +111,6 @@ export function EditPartnerForm({ partner }: { partner: Partner }) {
           <Input id="email" name="email" type="email" defaultValue={partner.email ?? ""} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="commissionRate">Taux / Montant</Label>
-          <Input
-            id="commissionRate"
-            name="commissionRate"
-            type="number"
-            step="0.01"
-            defaultValue={partner.commissionRate ?? ""}
-          />
-        </div>
-        <div className="space-y-1.5">
           <Label htmlFor="country">Pays</Label>
           <Input id="country" name="country" defaultValue={partner.country} required />
         </div>
@@ -100,6 +119,90 @@ export function EditPartnerForm({ partner }: { partner: Partner }) {
           <Input id="city" name="city" defaultValue={partner.city} required />
         </div>
       </div>
+
+      {/* Bloc commission — renégociation */}
+      <div
+        className={`rounded-md border p-3 space-y-3 ${
+          commissionChanged
+            ? "border-amber-300 bg-amber-50/50"
+            : "border-border bg-muted/30"
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium">Commission négociée</div>
+            <div className="text-xs text-muted-foreground">
+              Changer le modèle ou le taux enregistre l'événement dans l'historique
+              (audit). Les colis déjà créés conservent leur commission d'origine ;
+              seuls les nouveaux colis utilisent les nouvelles valeurs.
+            </div>
+          </div>
+          {commissionChanged && (
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+              Renégociation
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="commissionModel">Modèle</Label>
+            <select
+              id="commissionModel"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {COMMISSION_MODELS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="commissionRate">
+              Valeur {currentModel ? `(${currentModel.unit})` : ""}
+            </Label>
+            <Input
+              id="commissionRate"
+              name="commissionRate"
+              type="number"
+              step="0.01"
+              min="0"
+              max={currentModel?.isPercent ? "100" : undefined}
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              placeholder={
+                currentModel?.isPercent ? "ex. 5 = 5 %" : "ex. 500 = 500 XOF"
+              }
+            />
+            {currentModel?.isPercent && Number(rate) > 100 && (
+              <p className="text-xs text-destructive">
+                Un taux % doit être entre 0 et 100.
+              </p>
+            )}
+          </div>
+        </div>
+        {commissionChanged && (
+          <div className="text-xs space-y-0.5">
+            <div>
+              <span className="text-muted-foreground">Avant :</span>{" "}
+              <span className="font-mono">
+                {COMMISSION_MODELS.find((m) => m.value === partner.commissionModel)?.label ?? partner.commissionModel}
+                {" · "}
+                {partner.commissionRate ?? "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Après :</span>{" "}
+              <span className="font-mono font-medium text-amber-800">
+                {currentModel?.label ?? model} · {rate || "—"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="serviceAreas">Zones desservies (séparées par virgule)</Label>
         <Input id="serviceAreas" name="serviceAreas" defaultValue={partner.serviceAreas.join(", ")} />
@@ -111,7 +214,11 @@ export function EditPartnerForm({ partner }: { partner: Partner }) {
       {err && <p className="text-sm text-destructive">{err}</p>}
       {msg && <p className="text-sm text-emerald-700">{msg}</p>}
       <Button type="submit" disabled={loading}>
-        {loading ? "Enregistrement…" : "Mettre à jour"}
+        {loading
+          ? "Enregistrement…"
+          : commissionChanged
+            ? "Enregistrer la renégociation"
+            : "Mettre à jour"}
       </Button>
     </form>
   );
