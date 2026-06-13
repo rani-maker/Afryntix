@@ -16,14 +16,15 @@ export default async function PrintManifestPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ containerId?: string }>;
+  searchParams: Promise<{ containerId?: string; audience?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (session.user.role !== "STAFF" && session.user.role !== "ADMIN") redirect("/dashboard");
 
   const { id } = await params;
-  const { containerId } = await searchParams;
+  const { containerId, audience: audienceRaw } = await searchParams;
+  const forwarderView = audienceRaw === "forwarder";
 
   const envoi = await prisma.envoi.findUnique({
     where: { id },
@@ -74,8 +75,15 @@ export default async function PrintManifestPage({
 
         <header className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">MANIFESTE</h1>
+            <h1 className="text-2xl font-bold">
+              MANIFESTE{forwarderView ? " — VERSION TRANSITAIRE" : ""}
+            </h1>
             <p className="text-sm text-gray-600">AFRYNTIX — Transport &amp; Logistique</p>
+            {forwarderView && (
+              <p className="text-xs text-amber-700 mt-1 font-medium">
+                Coordonnées destinataires (téléphones) masquées sur cette version.
+              </p>
+            )}
           </div>
           <div className="text-right text-sm">
             <div className="font-mono font-semibold">{envoi.reference}</div>
@@ -124,7 +132,13 @@ export default async function PrintManifestPage({
               <tr key={s.id}>
                 <td>{idx + 1}</td>
                 <td className="font-mono">{s.trackingNumber}</td>
-                <td>{s.shippingMark ? `${s.shippingMark.name} · ${s.shippingMark.phone}` : "—"}</td>
+                <td>
+                  {s.shippingMark
+                    ? forwarderView
+                      ? s.shippingMark.name
+                      : `${s.shippingMark.name} · ${s.shippingMark.phone}`
+                    : "—"}
+                </td>
                 <td>{s.client?.name ?? s.clientName ?? "—"}</td>
                 <td>{CARGO_CATEGORY_LABELS[s.category]}</td>
                 <td>{s.description ?? "—"}</td>

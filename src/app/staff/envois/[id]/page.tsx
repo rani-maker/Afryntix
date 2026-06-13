@@ -103,17 +103,40 @@ export default async function EnvoiDetailPage({
                 {envoi.departureDate && <div>Départ : {formatDate(envoi.departureDate)}</div>}
                 {envoi.arrivalDate && <div>Arrivée : {formatDate(envoi.arrivalDate)}</div>}
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/api/manifest/envoi/${envoi.id}`}>
-                    <Download className="h-4 w-4" /> Manifeste CSV
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/print/manifest/envoi/${envoi.id}`} target="_blank">
-                    <Printer className="h-4 w-4" /> Manifeste imprimable
-                  </Link>
-                </Button>
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">
+                  Manifeste interne
+                </div>
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/api/manifest/envoi/${envoi.id}`}>
+                      <Download className="h-4 w-4" /> CSV
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/print/manifest/envoi/${envoi.id}`} target="_blank">
+                      <Printer className="h-4 w-4" /> Imprimable
+                    </Link>
+                  </Button>
+                </div>
+                <div className="text-xs font-semibold text-amber-700 uppercase tracking-wide text-right pt-1">
+                  Pour transitaire (sans téléphones)
+                </div>
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/api/manifest/envoi/${envoi.id}?audience=forwarder`}>
+                      <Download className="h-4 w-4" /> CSV
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      href={`/print/manifest/envoi/${envoi.id}?audience=forwarder`}
+                      target="_blank"
+                    >
+                      <Printer className="h-4 w-4" /> Imprimable
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

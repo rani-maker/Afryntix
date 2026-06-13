@@ -10,6 +10,7 @@ import {
   User,
   Wallet,
   Store,
+  Users,
 } from "lucide-react";
 import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
 import { DashTopbar } from "@/components/dashboard/dash-topbar";
@@ -70,6 +71,12 @@ export function ClientDashShell({
       href: "/dashboard/suppliers",
       label: t("dash.nav.suppliers"),
       icon: <Store />,
+      section: sectionServices,
+    },
+    {
+      href: "/dashboard/recipients",
+      label: "Mes destinataires",
+      icon: <Users />,
       section: sectionServices,
     },
     {

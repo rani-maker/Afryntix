@@ -37,40 +37,41 @@ model User {
   image         String?
 
   // Adresse client
-  city          String?
-  country       String?
-  address       String?
+  city    String?
+  country String?
+  address String?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  shipmentsAsClient   Shipment[]      @relation("ShipmentClient")
-  reservations        Reservation[]
-  reservationsHandled Reservation[]   @relation("ReservationHandler")
-  billPaymentsClient    BillPayment[]   @relation("BillPaymentClient")
-  billPaymentsStaff     BillPayment[]   @relation("BillPaymentStaff")
-  billPaymentsCompleted BillPayment[]   @relation("BillPaymentCompletedBy")
-  exchangeRatesSet    ExchangeRate[]
-  staffInvitesSent    StaffInvite[]   @relation("StaffInviteAdmin")
-  staffInviteUsed     StaffInvite?    @relation("StaffInviteUser")
-  envoisCreated       Envoi[]         @relation("EnvoiCreator")
-  auditLogs           AuditLog[]
-  notifications       Notification[]
-  sessions            Session[]
-  accounts            Account[]
-  shippingMark        ShippingMark?
-  factures            Facture[]       @relation("FactureClient")
-  documentsUploaded   Document[]      @relation("DocumentUploader")
-  claimsOpened        Claim[]         @relation("ClaimOpenedBy")
-  claimsResolved      Claim[]         @relation("ClaimResolvedBy")
-  contractPricing     ClientPricingRule[] @relation("ClientPricingRules")
-  suppliers           Supplier[]
+  shipmentsAsClient     Shipment[]          @relation("ShipmentClient")
+  reservations          Reservation[]
+  reservationsHandled   Reservation[]       @relation("ReservationHandler")
+  billPaymentsClient    BillPayment[]       @relation("BillPaymentClient")
+  billPaymentsStaff     BillPayment[]       @relation("BillPaymentStaff")
+  billPaymentsCompleted BillPayment[]       @relation("BillPaymentCompletedBy")
+  exchangeRatesSet      ExchangeRate[]
+  staffInvitesSent      StaffInvite[]       @relation("StaffInviteAdmin")
+  staffInviteUsed       StaffInvite?        @relation("StaffInviteUser")
+  envoisCreated         Envoi[]             @relation("EnvoiCreator")
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+  sessions              Session[]
+  accounts              Account[]
+  shippingMark          ShippingMark?
+  factures              Facture[]           @relation("FactureClient")
+  documentsUploaded     Document[]          @relation("DocumentUploader")
+  claimsOpened          Claim[]             @relation("ClaimOpenedBy")
+  claimsResolved        Claim[]             @relation("ClaimResolvedBy")
+  contractPricing       ClientPricingRule[] @relation("ClientPricingRules")
+  suppliers             Supplier[]
+  recipients            Recipient[]
 
   // === Partenariats ===
-  partner             Partner?        @relation("PartnerUser")
+  partner             Partner? @relation("PartnerUser")
   referredByPartnerId String?
-  referredByPartner   Partner?        @relation("PartnerReferralClient", fields: [referredByPartnerId], references: [id], onDelete: SetNull)
+  referredByPartner   Partner? @relation("PartnerReferralClient", fields: [referredByPartnerId], references: [id], onDelete: SetNull)
 }
 
 // Auth.js Session/Account models
@@ -110,15 +111,15 @@ model VerificationToken {
 
 // Invitation Staff (admin only)
 model StaffInvite {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  token      String   @unique
+  id          String   @id @default(cuid())
+  email       String   @unique
+  token       String   @unique
   invitedById String
-  invitedBy  User     @relation("StaffInviteAdmin", fields: [invitedById], references: [id])
-  usedById   String?  @unique
-  usedBy     User?    @relation("StaffInviteUser", fields: [usedById], references: [id])
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  invitedBy   User     @relation("StaffInviteAdmin", fields: [invitedById], references: [id])
+  usedById    String?  @unique
+  usedBy      User?    @relation("StaffInviteUser", fields: [usedById], references: [id])
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
 }
 
 // -----------------------------------------------------------------
@@ -126,167 +127,167 @@ model StaffInvite {
 // -----------------------------------------------------------------
 
 enum TransportMode {
-  AIR_EXPRESS    // Aérien Express
-  AIR_NORMAL     // Aérien Normal
-  SEA_LCL        // Maritime Groupage
-  SEA_FCL        // Maritime Conteneur complet
-  VEHICLE        // Transport de véhicule
-  BTP_EQUIPMENT  // Engin BTP
-  STORAGE        // Entreposage
+  AIR_EXPRESS // Aérien Express
+  AIR_NORMAL // Aérien Normal
+  SEA_LCL // Maritime Groupage
+  SEA_FCL // Maritime Conteneur complet
+  VEHICLE // Transport de véhicule
+  BTP_EQUIPMENT // Engin BTP
+  STORAGE // Entreposage
 }
 
 enum CargoCategory {
-  ORDINARY     // Colis ordinaire
-  BATTERY      // Avec batterie
-  LIQUID       // Liquide
-  COSMETIC     // Cosmétique
-  POWDER       // Poudre
-  PHONE        // Téléphone
-  COMPUTER     // Ordinateur
-  VEHICLE      // Véhicule
-  BTP          // Engin BTP
+  ORDINARY // Colis ordinaire
+  BATTERY // Avec batterie
+  LIQUID // Liquide
+  COSMETIC // Cosmétique
+  POWDER // Poudre
+  PHONE // Téléphone
+  COMPUTER // Ordinateur
+  VEHICLE // Véhicule
+  BTP // Engin BTP
   OTHER
 }
 
 enum ShipmentStatus {
-  REGISTERED              // Enregistré
-  RECEIVED_CHINA          // Reçu en Chine
-  IN_TRANSIT              // En transit
-  ARRIVED_DESTINATION     // Arrivé à destination
-  CUSTOMS_CLEARANCE       // Dédouanement
-  AVAILABLE_FOR_DELIVERY  // Colis Disponible Pour Livraison  *** déclenche notif WhatsApp ***
-  DELIVERED               // Livré
-  CANCELLED               // Annulé
+  REGISTERED // Enregistré
+  RECEIVED_CHINA // Reçu en Chine
+  IN_TRANSIT // En transit
+  ARRIVED_DESTINATION // Arrivé à destination
+  CUSTOMS_CLEARANCE // Dédouanement
+  AVAILABLE_FOR_DELIVERY // Colis Disponible Pour Livraison  *** déclenche notif WhatsApp ***
+  DELIVERED // Livré
+  CANCELLED // Annulé
 }
 
 enum PaymentStatus {
   UNPAID
-  DEPOSIT_PAID    // Acompte 50% payé
-  FULLY_PAID      // Soldé
+  DEPOSIT_PAID // Acompte 50% payé
+  FULLY_PAID // Soldé
   REFUNDED
 }
 
 model Shipment {
-  id              String          @id @default(cuid())
-  trackingNumber  String          @unique  // ex: AFR-A-2026-000123
-  clientId        String?
-  client          User?           @relation("ShipmentClient", fields: [clientId], references: [id])
+  id             String  @id @default(cuid())
+  trackingNumber String  @unique // ex: AFR-A-2026-000123
+  clientId       String?
+  client         User?   @relation("ShipmentClient", fields: [clientId], references: [id])
 
   // Client sans compte système (free-text)
-  clientName      String?
-  clientPhone     String?
+  clientName  String?
+  clientPhone String?
 
   // Rattachement à un envoi groupé (voyage / batch)
-  envoiId         String?
-  envoi           Envoi?          @relation(fields: [envoiId], references: [id], onDelete: SetNull)
-  containerId     String?
-  container       Container?      @relation(fields: [containerId], references: [id], onDelete: SetNull)
+  envoiId     String?
+  envoi       Envoi?     @relation(fields: [envoiId], references: [id], onDelete: SetNull)
+  containerId String?
+  container   Container? @relation(fields: [containerId], references: [id], onDelete: SetNull)
 
   // Shipping Mark (identité physique du client sur les cartons)
-  shippingMarkId  String?
-  shippingMark    ShippingMark?   @relation(fields: [shippingMarkId], references: [id], onDelete: SetNull)
+  shippingMarkId String?
+  shippingMark   ShippingMark? @relation(fields: [shippingMarkId], references: [id], onDelete: SetNull)
 
   // Facture groupée (peut regrouper plusieurs colis du même ShippingMark)
-  factureId       String?
-  facture         Facture?        @relation(fields: [factureId], references: [id], onDelete: SetNull)
+  factureId String?
+  facture   Facture? @relation(fields: [factureId], references: [id], onDelete: SetNull)
 
-  mode            TransportMode
-  category        CargoCategory
-  description     String?
+  mode        TransportMode
+  category    CargoCategory
+  description String?
 
   // Mesures
-  pieces             Int          @default(1)
-  weightKg           Float?       // poids effectif (utilisé pour la facturation) = verifié s'il existe, sinon déclaré
-  declaredWeightKg   Float?       // poids annoncé par le client / fournisseur (à la réservation)
-  verifiedWeightKg   Float?       // poids pesé à l'entrepôt Chine
+  pieces             Int       @default(1)
+  weightKg           Float? // poids effectif (utilisé pour la facturation) = verifié s'il existe, sinon déclaré
+  declaredWeightKg   Float? // poids annoncé par le client / fournisseur (à la réservation)
+  verifiedWeightKg   Float? // poids pesé à l'entrepôt Chine
   weightVerifiedAt   DateTime?
   weightVerifiedById String?
-  lengthCm          Float?
-  widthCm           Float?
-  heightCm          Float?
-  volumeCBM         Float?         // volume calculé/saisi (maritime)
-  volumetricWeight  Float?         // poids volumique calculé (aérien)
-  chargeableWeight  Float?         // max(réel, volumique)
+  lengthCm           Float?
+  widthCm            Float?
+  heightCm           Float?
+  volumeCBM          Float? // volume calculé/saisi (maritime)
+  volumetricWeight   Float? // poids volumique calculé (aérien)
+  chargeableWeight   Float? // max(réel, volumique)
 
   // Origine / Destination
-  originCity      String?         @default("Guangzhou")
-  destinationCity String?
+  originCity         String? @default("Guangzhou")
+  destinationCity    String?
   destinationCountry String?
 
   // Receveur
-  recipientName   String?
-  recipientPhone  String?
+  recipientName    String?
+  recipientPhone   String?
   recipientAddress String?
 
   // Tarification
-  unitPrice       Float?          // prix unitaire appliqué (FCFA/kg ou FCFA/CBM ou FCFA/pcs)
-  totalAmount     Float           // montant total FCFA
-  depositAmount   Float           // 50%
-  remainingAmount Float           // 50%
-  paymentStatus   PaymentStatus   @default(UNPAID)
-  amountPaid      Float           @default(0)
+  unitPrice       Float? // prix unitaire appliqué (FCFA/kg ou FCFA/CBM ou FCFA/pcs)
+  totalAmount     Float // montant total FCFA
+  depositAmount   Float // 50%
+  remainingAmount Float // 50%
+  paymentStatus   PaymentStatus @default(UNPAID)
+  amountPaid      Float         @default(0)
 
-  status          ShipmentStatus  @default(REGISTERED)
+  status ShipmentStatus @default(REGISTERED)
 
   // === Partenariats ===
-  referredByPartnerId    String?
-  referredByPartner      Partner?  @relation("PartnerReferral", fields: [referredByPartnerId], references: [id], onDelete: SetNull)
-  partnerCommission      Float?
-  partnerCommissionPaid  Boolean   @default(false)
+  referredByPartnerId   String?
+  referredByPartner     Partner? @relation("PartnerReferral", fields: [referredByPartnerId], references: [id], onDelete: SetNull)
+  partnerCommission     Float?
+  partnerCommissionPaid Boolean  @default(false)
 
-  lastMilePartnerId      String?
-  lastMilePartner        Partner?  @relation("PartnerLastMile", fields: [lastMilePartnerId], references: [id], onDelete: SetNull)
-  lastMileAmount         Float?
-  lastMileSettled        Boolean   @default(false)
-  lastMileAssignedAt     DateTime?
-  lastMileDeliveredAt    DateTime?
+  lastMilePartnerId   String?
+  lastMilePartner     Partner?  @relation("PartnerLastMile", fields: [lastMilePartnerId], references: [id], onDelete: SetNull)
+  lastMileAmount      Float?
+  lastMileSettled     Boolean   @default(false)
+  lastMileAssignedAt  DateTime?
+  lastMileDeliveredAt DateTime?
 
   // Notification d'enregistrement envoyée manuellement par le staff
   registrationNotifiedAt DateTime?
 
   // Entreposage / surestaries
-  availableSinceAt   DateTime?  // date où le statut est passé à AVAILABLE_FOR_DELIVERY (départ free-time)
-  storageDaysCharged Int?       // nombre de jours d'entreposage facturés
-  storageFeeAmount   Float?     // montant FCFA facturé pour l'entreposage
-  storageChargedAt   DateTime?  // date à laquelle les frais ont été ajoutés au total
+  availableSinceAt   DateTime? // date où le statut est passé à AVAILABLE_FOR_DELIVERY (départ free-time)
+  storageDaysCharged Int? // nombre de jours d'entreposage facturés
+  storageFeeAmount   Float? // montant FCFA facturé pour l'entreposage
+  storageChargedAt   DateTime? // date à laquelle les frais ont été ajoutés au total
 
   // Last-mile / Preuve de livraison (POD)
-  pickupCode          String?   @unique  // code OTP de retrait (5-6 chiffres) communiqué au client
+  pickupCode          String?   @unique // code OTP de retrait (5-6 chiffres) communiqué au client
   pickupCodeIssuedAt  DateTime?
   deliveredAt         DateTime?
-  deliveredToName     String?   // nom de la personne ayant retiré le colis
+  deliveredToName     String? // nom de la personne ayant retiré le colis
   deliveredToPhone    String?
-  deliveredToIdNumber String?   // n° pièce d'identité de la personne présente au retrait
-  deliveredById       String?   // staff qui a effectué la remise
+  deliveredToIdNumber String? // n° pièce d'identité de la personne présente au retrait
+  deliveredById       String? // staff qui a effectué la remise
 
   // Réclamations (litiges)
-  claims              Claim[]
+  claims Claim[]
 
   // Assurance cargo
-  insuranceOptedIn    Boolean   @default(false)
-  declaredValue       Float?    // valeur déclarée FCFA (base de calcul de la prime + indemnité)
-  insurancePremium    Float?    // prime calculée FCFA (incluse dans totalAmount)
-  insuranceMaxCoverage Float?   // plafond d'indemnisation FCFA
+  insuranceOptedIn     Boolean @default(false)
+  declaredValue        Float? // valeur déclarée FCFA (base de calcul de la prime + indemnité)
+  insurancePremium     Float? // prime calculée FCFA (incluse dans totalAmount)
+  insuranceMaxCoverage Float? // plafond d'indemnisation FCFA
 
   // Conformité douanière
-  hsCode              String?   // code SH 6/8/10 chiffres (ex: 8517.13.00)
-  incoterm            String?   // EXW, FOB, CIF, CFR, DDP, DAP, FCA, CPT, CIP, DPU, DAT
-  countryOfOrigin     String?   // ISO 2 lettres (ex: CN, FR, DE)
-  declaredCustomsValue Float?   // valeur en douane FCFA (peut différer de declaredValue assurance)
+  hsCode               String? // code SH 6/8/10 chiffres (ex: 8517.13.00)
+  incoterm             String? // EXW, FOB, CIF, CFR, DDP, DAP, FCA, CPT, CIP, DPU, DAT
+  countryOfOrigin      String? // ISO 2 lettres (ex: CN, FR, DE)
+  declaredCustomsValue Float? // valeur en douane FCFA (peut différer de declaredValue assurance)
 
   // Photos
-  photos          ShipmentPhoto[]
+  photos ShipmentPhoto[]
 
   // Documents logistiques (B/L, AWB, packing list, facture commerciale...)
-  documents       Document[]
+  documents Document[]
 
   // Historique
-  history         ShipmentHistory[]
-  reservation     Reservation?    @relation("ReservationToShipment", fields: [reservationId], references: [id])
-  reservationId   String?         @unique
+  history       ShipmentHistory[]
+  reservation   Reservation?      @relation("ReservationToShipment", fields: [reservationId], references: [id])
+  reservationId String?           @unique
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([trackingNumber])
   @@index([clientId])
@@ -326,13 +327,13 @@ model ShipmentHistory {
 // -----------------------------------------------------------------
 
 enum EnvoiStatus {
-  PLANNED      // Créé, en préparation
-  LOADING      // Chargement en cours en Chine
-  DEPARTED     // Parti de Chine
-  IN_TRANSIT   // En transit (mer / air)
-  ARRIVED      // Arrivé à destination
-  CLEARED      // Dédouané
-  DELIVERED    // Tous les colis livrés
+  PLANNED // Créé, en préparation
+  LOADING // Chargement en cours en Chine
+  DEPARTED // Parti de Chine
+  IN_TRANSIT // En transit (mer / air)
+  ARRIVED // Arrivé à destination
+  CLEARED // Dédouané
+  DELIVERED // Tous les colis livrés
   CANCELLED
 }
 
@@ -355,10 +356,10 @@ enum Carrier {
 }
 
 enum ContainerType {
-  TWENTY_GP    // 20'GP
-  FORTY_GP     // 40'GP
-  FORTY_HQ     // 40'HQ (High Cube)
-  FORTY_FIVE   // 45'HQ
+  TWENTY_GP // 20'GP
+  FORTY_GP // 40'GP
+  FORTY_HQ // 40'HQ (High Cube)
+  FORTY_FIVE // 45'HQ
   REEFER_20
   REEFER_40
   OPEN_TOP
@@ -367,38 +368,38 @@ enum ContainerType {
 }
 
 model Envoi {
-  id             String       @id @default(cuid())
-  reference      String       @unique  // ex: AFR-ENV-2026-000123
-  mode           TransportMode
-  status         EnvoiStatus  @default(PLANNED)
+  id        String        @id @default(cuid())
+  reference String        @unique // ex: AFR-ENV-2026-000123
+  mode      TransportMode
+  status    EnvoiStatus   @default(PLANNED)
 
   // Itinéraire
-  origin         String       @default("Guangzhou")
-  destination    String
-  departureDate  DateTime?
-  arrivalDate    DateTime?
+  origin        String    @default("Guangzhou")
+  destination   String
+  departureDate DateTime?
+  arrivalDate   DateTime?
 
   // Identification carrier
-  carrier        Carrier?
-  bookingNumber  String?      // numéro de booking carrier
-  vesselName     String?      // nom du navire (maritime)
-  voyageNumber   String?      // numéro de voyage (maritime)
-  mawb           String?      // Master Air Waybill (aérien)
-  flightNumber   String?      // numéro de vol (aérien)
+  carrier       Carrier?
+  bookingNumber String? // numéro de booking carrier
+  vesselName    String? // nom du navire (maritime)
+  voyageNumber  String? // numéro de voyage (maritime)
+  mawb          String? // Master Air Waybill (aérien)
+  flightNumber  String? // numéro de vol (aérien)
 
-  notes          String?
+  notes String?
 
   // Relations
-  containers     Container[]
-  shipments      Shipment[]
-  history        EnvoiHistory[]
-  factures       Facture[]
-  documents      Document[]
+  containers Container[]
+  shipments  Shipment[]
+  history    EnvoiHistory[]
+  factures   Facture[]
+  documents  Document[]
 
-  createdById    String?
-  createdBy      User?        @relation("EnvoiCreator", fields: [createdById], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdById String?
+  createdBy   User?    @relation("EnvoiCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([reference])
   @@index([status])
@@ -407,20 +408,20 @@ model Envoi {
 }
 
 model Container {
-  id             String         @id @default(cuid())
-  envoiId        String
-  envoi          Envoi          @relation(fields: [envoiId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  envoiId String
+  envoi   Envoi  @relation(fields: [envoiId], references: [id], onDelete: Cascade)
 
-  refInternal    String         @unique  // notre code interne, ex: AFR-CTN-2026-0001
-  carrierNumber  String?        // numéro réel carrier saisi après chargement, ex: MSCU1234567
-  sealNumber     String?
-  type           ContainerType?
-  notes          String?
+  refInternal   String         @unique // notre code interne, ex: AFR-CTN-2026-0001
+  carrierNumber String? // numéro réel carrier saisi après chargement, ex: MSCU1234567
+  sealNumber    String?
+  type          ContainerType?
+  notes         String?
 
-  shipments      Shipment[]
+  shipments Shipment[]
 
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([envoiId])
   @@index([carrierNumber])
@@ -439,27 +440,56 @@ model EnvoiHistory {
 }
 
 // -----------------------------------------------------------------
+// Recipient — carnet de destinataires d'un client
+// Un client peut sauvegarder N destinataires (famille, partenaires, dépôts)
+// et en choisir un lors de chaque réservation / shipment.
+// -----------------------------------------------------------------
+
+model Recipient {
+  id       String @id @default(cuid())
+  clientId String
+  client   User   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name     String
+  phone    String
+  whatsapp String?
+  address  String?
+  city     String?
+  country  String?
+  notes    String?
+
+  isDefault Boolean @default(false)
+  archived  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([clientId, archived])
+}
+
+// -----------------------------------------------------------------
 // Shipping Mark — identité physique du client sur les cartons
 // Un ShippingMark = Nom + Tel inscrits sur les colis par le client/fournisseur
 // Peut exister sans compte système (clientId nullable)
 // -----------------------------------------------------------------
 
 model ShippingMark {
-  id          String     @id @default(cuid())
-  name        String
-  phone       String
-  whatsapp    String?
-  notes       String?
+  id       String  @id @default(cuid())
+  name     String
+  phone    String
+  whatsapp String?
+  notes    String?
 
   // Lien optionnel vers un compte système
-  userId      String?    @unique
-  user        User?      @relation(fields: [userId], references: [id])
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
 
-  shipments   Shipment[]
-  factures    Facture[]
+  shipments Shipment[]
+  factures  Facture[]
 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([name, phone])
   @@index([phone])
@@ -471,31 +501,31 @@ model ShippingMark {
 // -----------------------------------------------------------------
 
 model Facture {
-  id              String        @id @default(cuid())
-  reference       String        @unique   // AFR-FAC-2026-000123
+  id        String @id @default(cuid())
+  reference String @unique // AFR-FAC-2026-000123
 
-  shippingMarkId  String?
-  shippingMark    ShippingMark? @relation(fields: [shippingMarkId], references: [id], onDelete: SetNull)
-  clientId        String?
-  client          User?         @relation("FactureClient", fields: [clientId], references: [id], onDelete: SetNull)
+  shippingMarkId String?
+  shippingMark   ShippingMark? @relation(fields: [shippingMarkId], references: [id], onDelete: SetNull)
+  clientId       String?
+  client         User?         @relation("FactureClient", fields: [clientId], references: [id], onDelete: SetNull)
 
   // Voyage auquel cette facture est rattachée (optionnel)
-  envoiId         String?
-  envoi           Envoi?        @relation(fields: [envoiId], references: [id], onDelete: SetNull)
+  envoiId String?
+  envoi   Envoi?  @relation(fields: [envoiId], references: [id], onDelete: SetNull)
 
   // Colis couverts (N colis → 1 facture)
-  shipments       Shipment[]
+  shipments Shipment[]
 
   // Montants agrégés (somme des totalAmount des colis liés)
   totalAmount     Float
-  depositAmount   Float                   // 50%
+  depositAmount   Float // 50%
   amountPaid      Float         @default(0)
   remainingAmount Float
   status          PaymentStatus @default(UNPAID)
 
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([shippingMarkId])
   @@index([clientId])
@@ -508,49 +538,49 @@ model Facture {
 // -----------------------------------------------------------------
 
 enum ReservationStatus {
-  PENDING       // En attente de validation Staff
-  VALIDATED     // Validée par Staff (devient un Shipment)
-  REJECTED      // Rejetée
-  RECEIVED      // Colis reçu en Chine -> shipment créé
+  PENDING // En attente de validation Staff
+  VALIDATED // Validée par Staff (devient un Shipment)
+  REJECTED // Rejetée
+  RECEIVED // Colis reçu en Chine -> shipment créé
 }
 
 model Reservation {
-  id                  String            @id @default(cuid())
-  clientId            String
-  client              User              @relation(fields: [clientId], references: [id])
+  id       String @id @default(cuid())
+  clientId String
+  client   User   @relation(fields: [clientId], references: [id])
 
-  scheduleId          String?
-  schedule            ShippingSchedule? @relation(fields: [scheduleId], references: [id])
+  scheduleId String?
+  schedule   ShippingSchedule? @relation(fields: [scheduleId], references: [id])
 
-  mode                TransportMode
-  category            CargoCategory
-  description         String?
-  estimatedWeightKg   Float?
-  estimatedVolumeCBM  Float?
+  mode               TransportMode
+  category           CargoCategory
+  description        String?
+  estimatedWeightKg  Float?
+  estimatedVolumeCBM Float?
 
   // Tracking fournisseur (livraison locale Chine)
   supplierTrackingNumber String?
-  photoUrl            String?           // photo du colis fournie par client
+  photoUrl               String? // photo du colis fournie par client
 
   // Receveur
-  recipientName       String?
-  recipientPhone      String?
-  recipientAddress    String?
+  recipientName    String?
+  recipientPhone   String?
+  recipientAddress String?
 
-  status              ReservationStatus @default(PENDING)
-  rejectionReason     String?
-  validatedById       String?
-  validatedBy         User?             @relation("ReservationHandler", fields: [validatedById], references: [id])
-  validatedAt         DateTime?
+  status          ReservationStatus @default(PENDING)
+  rejectionReason String?
+  validatedById   String?
+  validatedBy     User?             @relation("ReservationHandler", fields: [validatedById], references: [id])
+  validatedAt     DateTime?
 
-  shipment            Shipment?         @relation("ReservationToShipment")
+  shipment Shipment? @relation("ReservationToShipment")
 
   // Saisie par un partenaire revendeur au nom de son client
-  createdByPartnerId  String?
-  createdByPartner    Partner?          @relation("PartnerReservation", fields: [createdByPartnerId], references: [id], onDelete: SetNull)
+  createdByPartnerId String?
+  createdByPartner   Partner? @relation("PartnerReservation", fields: [createdByPartnerId], references: [id], onDelete: SetNull)
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId])
   @@index([status])
@@ -559,14 +589,14 @@ model Reservation {
 
 // Calendrier d'envois (publié par Admin/Staff)
 model ShippingSchedule {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   mode          TransportMode
   departureDate DateTime
   arrivalDate   DateTime?
-  cutoffDate    DateTime       // date limite de réservation
-  origin        String         @default("Guangzhou")
+  cutoffDate    DateTime // date limite de réservation
+  origin        String        @default("Guangzhou")
   destination   String
-  capacity      String?        // libellé libre, ex: "1 conteneur 40HQ"
+  capacity      String? // libellé libre, ex: "1 conteneur 40HQ"
   // Capacité numérique exprimée dans l'unité du mode :
   //   - SEA_LCL / SEA_FCL : CBM (m³). Pour un 40HQ on saisit ~68.
   //   - AIR_EXPRESS / AIR_NORMAL : kg.
@@ -576,9 +606,9 @@ model ShippingSchedule {
   // refusées et l'UI suggère le prochain départ du même mode.
   capacityValue Float?
   notes         String?
-  active        Boolean        @default(true)
+  active        Boolean       @default(true)
   reservations  Reservation[]
-  createdAt     DateTime       @default(now())
+  createdAt     DateTime      @default(now())
 }
 
 // -----------------------------------------------------------------
@@ -586,16 +616,16 @@ model ShippingSchedule {
 // -----------------------------------------------------------------
 
 model PricingRule {
-  id          String         @id @default(cuid())
-  mode        TransportMode
-  category    CargoCategory
-  unit        String         // "kg", "pcs", "cbm", "vehicle"
-  pricePerUnit Float         // FCFA
-  minQuantity Float?         // ex: applicable à partir de 5 CBM
-  description String?
-  active      Boolean        @default(true)
-  updatedAt   DateTime       @updatedAt
-  createdAt   DateTime       @default(now())
+  id           String        @id @default(cuid())
+  mode         TransportMode
+  category     CargoCategory
+  unit         String // "kg", "pcs", "cbm", "vehicle"
+  pricePerUnit Float // FCFA
+  minQuantity  Float? // ex: applicable à partir de 5 CBM
+  description  String?
+  active       Boolean       @default(true)
+  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime      @default(now())
 
   @@unique([mode, category, unit, minQuantity])
 }
@@ -606,19 +636,19 @@ model PricingRule {
 // -----------------------------------------------------------------
 
 model ClientPricingRule {
-  id           String         @id @default(cuid())
+  id           String        @id @default(cuid())
   clientId     String
-  client       User           @relation("ClientPricingRules", fields: [clientId], references: [id], onDelete: Cascade)
+  client       User          @relation("ClientPricingRules", fields: [clientId], references: [id], onDelete: Cascade)
   mode         TransportMode
   category     CargoCategory
-  unit         String         // doit correspondre au mode/catégorie ("kg", "cbm", "pcs", "vehicle")
-  pricePerUnit Float          // FCFA
+  unit         String // doit correspondre au mode/catégorie ("kg", "cbm", "pcs", "vehicle")
+  pricePerUnit Float // FCFA
   notes        String?
-  active       Boolean        @default(true)
+  active       Boolean       @default(true)
   validFrom    DateTime?
   validUntil   DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@unique([clientId, mode, category, unit])
   @@index([clientId])
@@ -630,13 +660,13 @@ model ClientPricingRule {
 // -----------------------------------------------------------------
 
 model StorageSetting {
-  id              String   @id @default(cuid())
-  freeDays        Int      @default(7)          // jours gratuits après mise à disposition
-  dailyRateXOF    Float    @default(1000)        // FCFA / jour / colis au-delà du free-time
-  active          Boolean  @default(true)
-  notes           String?
-  updatedAt       DateTime @updatedAt
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  freeDays     Int      @default(7) // jours gratuits après mise à disposition
+  dailyRateXOF Float    @default(1000) // FCFA / jour / colis au-delà du free-time
+  active       Boolean  @default(true)
+  notes        String?
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
 }
 
 // -----------------------------------------------------------------
@@ -644,14 +674,14 @@ model StorageSetting {
 // -----------------------------------------------------------------
 
 model InsuranceSetting {
-  id              String   @id @default(cuid())
-  ratePercent     Float    @default(1.5)        // % de la valeur déclarée
-  minPremiumXOF   Float    @default(2000)       // prime plancher
-  maxCoverageXOF  Float    @default(5000000)    // plafond d'indemnisation
-  active          Boolean  @default(true)
-  notes           String?
-  updatedAt       DateTime @updatedAt
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  ratePercent    Float    @default(1.5) // % de la valeur déclarée
+  minPremiumXOF  Float    @default(2000) // prime plancher
+  maxCoverageXOF Float    @default(5000000) // plafond d'indemnisation
+  active         Boolean  @default(true)
+  notes          String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
 }
 
 // -----------------------------------------------------------------
@@ -659,21 +689,21 @@ model InsuranceSetting {
 // -----------------------------------------------------------------
 
 enum Currency {
-  XOF   // FCFA
-  RMB   // Yuan
+  XOF // FCFA
+  RMB // Yuan
   EUR
   USD
 }
 
 model ExchangeRate {
-  id         String   @id @default(cuid())
-  date       DateTime @default(now()) @db.Date
-  fromCcy    Currency
-  toCcy      Currency
-  rate       Float    // 1 fromCcy = rate toCcy
-  setById    String
-  setBy      User     @relation(fields: [setById], references: [id])
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  date      DateTime @default(now()) @db.Date
+  fromCcy   Currency
+  toCcy     Currency
+  rate      Float // 1 fromCcy = rate toCcy
+  setById   String
+  setBy     User     @relation(fields: [setById], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([date, fromCcy, toCcy])
   @@index([date])
@@ -684,70 +714,70 @@ model ExchangeRate {
 // -----------------------------------------------------------------
 
 enum BillPaymentType {
-  INVOICE_PAYMENT   // Paiement de facture fournisseur
-  MONEY_TRANSFER    // Transfert / retrait
+  INVOICE_PAYMENT // Paiement de facture fournisseur
+  MONEY_TRANSFER // Transfert / retrait
 }
 
 enum BillPaymentStatus {
   PENDING
-  WITHDRAWAL_CODE_SENT  // Code de retrait communiqué au client
+  WITHDRAWAL_CODE_SENT // Code de retrait communiqué au client
   COMPLETED
   CANCELLED
 }
 
 model BillPayment {
-  id              String              @id @default(cuid())
-  reference       String              @unique // AFR-PAY-2026-000123
-  type            BillPaymentType
+  id        String          @id @default(cuid())
+  reference String          @unique // AFR-PAY-2026-000123
+  type      BillPaymentType
 
   // Client (compte système, optionnel)
-  clientId        String?
-  client          User?               @relation("BillPaymentClient", fields: [clientId], references: [id])
+  clientId String?
+  client   User?   @relation("BillPaymentClient", fields: [clientId], references: [id])
 
   // Client sans compte (free-text)
-  clientName      String?
-  clientPhone     String?
+  clientName  String?
+  clientPhone String?
 
   // Staff qui initie (obligatoire - le client ne peut pas initier)
-  initiatedById   String
-  initiatedBy     User                @relation("BillPaymentStaff", fields: [initiatedById], references: [id])
+  initiatedById String
+  initiatedBy   User   @relation("BillPaymentStaff", fields: [initiatedById], references: [id])
 
   // Staff qui valide / complète le retrait (renseigné quand le code est utilisé)
-  completedById   String?
-  completedBy     User?               @relation("BillPaymentCompletedBy", fields: [completedById], references: [id])
+  completedById String?
+  completedBy   User?   @relation("BillPaymentCompletedBy", fields: [completedById], references: [id])
 
   // Montants
-  amountSource    Float               // montant en devise source
-  sourceCurrency  Currency
-  amountTarget    Float               // montant converti en devise cible
-  targetCurrency  Currency
-  exchangeRate    Float                // taux appliqué
-  fees            Float                @default(0)
+  amountSource   Float // montant en devise source
+  sourceCurrency Currency
+  amountTarget   Float // montant converti en devise cible
+  targetCurrency Currency
+  exchangeRate   Float // taux appliqué
+  fees           Float    @default(0)
 
   // Receveur (en Chine pour retrait, ou fournisseur pour facture)
-  recipientName   String
-  recipientPhone  String?
-  recipientId     String?              // pièce d'identité receveur
-  recipientBank   String?
+  recipientName    String
+  recipientPhone   String?
+  recipientId      String? // pièce d'identité receveur
+  recipientBank    String?
   recipientAccount String?
   recipientAddress String?
-  invoiceNumber   String?               // si paiement de facture
-  invoiceUrl      String?               // photo facture
+  invoiceNumber    String? // si paiement de facture
+  invoiceUrl       String? // photo facture
 
   // Code de retrait (unique, communiqué au client)
-  withdrawalCode  String?               @unique
+  withdrawalCode String? @unique
 
   // Personne effectivement présente au retrait (peut différer du bénéficiaire)
   pickupPersonName  String?
   pickupPersonPhone String?
-  pickupPersonId    String?             // pièce d'identité de la personne présente
+  pickupPersonId    String? // pièce d'identité de la personne présente
 
-  status          BillPaymentStatus     @default(PENDING)
-  notes           String?
+  status BillPaymentStatus @default(PENDING)
+  notes  String?
 
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  completedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
 
   @@index([clientId])
   @@index([status])
@@ -759,10 +789,10 @@ model BillPayment {
 // -----------------------------------------------------------------
 
 enum AddressType {
-  AIR_WAREHOUSE       // Entrepôt aérien Chine
-  SEA_WAREHOUSE       // Entrepôt maritime Chine
-  RECEPTION           // Adresse de réception (Afrique)
-  OFFICE              // Bureau
+  AIR_WAREHOUSE // Entrepôt aérien Chine
+  SEA_WAREHOUSE // Entrepôt maritime Chine
+  RECEPTION // Adresse de réception (Afrique)
+  OFFICE // Bureau
 }
 
 model CompanyAddress {
@@ -805,19 +835,19 @@ enum ServiceRequestStatus {
 }
 
 model ServiceRequest {
-  id          String                @id @default(cuid())
-  reference   String                @unique
+  id          String               @id @default(cuid())
+  reference   String               @unique
   type        ServiceType
   clientName  String
   clientEmail String?
   clientPhone String
   message     String
   budget      String?
-  status      ServiceRequestStatus  @default(REQUESTED)
+  status      ServiceRequestStatus @default(REQUESTED)
   handledById String?
   notes       String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 }
 
 // -----------------------------------------------------------------
@@ -842,15 +872,15 @@ model Notification {
   userId     String?
   user       User?               @relation(fields: [userId], references: [id])
   channel    NotificationChannel @default(WHATSAPP)
-  to         String              // numéro destinataire (ou userId pour IN_APP)
-  template   String              // ex: "shipment_created", "available_for_delivery"
-  title      String?             // titre court (IN_APP)
+  to         String // numéro destinataire (ou userId pour IN_APP)
+  template   String // ex: "shipment_created", "available_for_delivery"
+  title      String? // titre court (IN_APP)
   body       String              @db.Text
-  link       String?             // URL cible (IN_APP)
+  link       String? // URL cible (IN_APP)
   status     NotificationStatus  @default(QUEUED)
-  providerId String?             // SID Twilio
+  providerId String? // SID Twilio
   error      String?             @db.Text
-  readAt     DateTime?           // lu par le client (IN_APP)
+  readAt     DateTime? // lu par le client (IN_APP)
   createdAt  DateTime            @default(now())
   sentAt     DateTime?
 
@@ -867,39 +897,39 @@ model Notification {
 // -----------------------------------------------------------------
 
 enum DocumentType {
-  BILL_OF_LADING         // B/L Maritime
-  AIR_WAYBILL            // HAWB / AWB (House)
-  MASTER_AIR_WAYBILL     // MAWB (Master, niveau Envoi)
-  PACKING_LIST           // Liste de colisage
-  COMMERCIAL_INVOICE     // Facture commerciale fournisseur
-  CERTIFICATE_OF_ORIGIN  // Certificat d'origine (CO)
-  CUSTOMS_DECLARATION    // Déclaration douanière (DAU, BAE...)
-  INSURANCE_CERTIFICATE  // Certificat d'assurance cargo
-  PROOF_OF_DELIVERY      // POD signé
-  CONTAINER_MANIFEST     // Manifeste container
-  PHOTO                  // Photo colis / dommage / chargement
+  BILL_OF_LADING // B/L Maritime
+  AIR_WAYBILL // HAWB / AWB (House)
+  MASTER_AIR_WAYBILL // MAWB (Master, niveau Envoi)
+  PACKING_LIST // Liste de colisage
+  COMMERCIAL_INVOICE // Facture commerciale fournisseur
+  CERTIFICATE_OF_ORIGIN // Certificat d'origine (CO)
+  CUSTOMS_DECLARATION // Déclaration douanière (DAU, BAE...)
+  INSURANCE_CERTIFICATE // Certificat d'assurance cargo
+  PROOF_OF_DELIVERY // POD signé
+  CONTAINER_MANIFEST // Manifeste container
+  PHOTO // Photo colis / dommage / chargement
   OTHER
 }
 
 model Document {
-  id           String       @id @default(cuid())
-  type         DocumentType
-  label        String?      // libellé court (ex: "AWB 235-12345678 CDG")
-  fileName     String       // nom du fichier original
-  fileUrl      String       // chemin servi (ex: /uploads/documents/xxx.pdf)
-  fileSize     Int?         // octets
-  mimeType     String?
+  id       String       @id @default(cuid())
+  type     DocumentType
+  label    String? // libellé court (ex: "AWB 235-12345678 CDG")
+  fileName String // nom du fichier original
+  fileUrl  String // chemin servi (ex: /uploads/documents/xxx.pdf)
+  fileSize Int? // octets
+  mimeType String?
 
-  shipmentId   String?
-  shipment     Shipment?    @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  envoiId      String?
-  envoi        Envoi?       @relation(fields: [envoiId], references: [id], onDelete: Cascade)
+  shipmentId String?
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  envoiId    String?
+  envoi      Envoi?    @relation(fields: [envoiId], references: [id], onDelete: Cascade)
 
   uploadedById String?
-  uploadedBy   User?        @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  uploadedBy   User?   @relation("DocumentUploader", fields: [uploadedById], references: [id])
 
-  notes        String?
-  createdAt    DateTime     @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
 
   @@index([shipmentId])
   @@index([envoiId])
@@ -914,16 +944,16 @@ model Supplier {
   id            String   @id @default(cuid())
   clientId      String
   client        User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name          String                        // raison sociale
-  contactPerson String?                       // contact principal
+  name          String // raison sociale
+  contactPerson String? // contact principal
   phone         String?
   whatsapp      String?
-  wechat        String?                       // ID WeChat
+  wechat        String? // ID WeChat
   email         String?
-  city          String?                       // ville Chine (ex: Guangzhou, Yiwu)
+  city          String? // ville Chine (ex: Guangzhou, Yiwu)
   address       String?
-  alibabaUrl    String?                       // page Alibaba / 1688
-  category      String?                       // ex: "Électronique", "Textile", "Pièces auto"
+  alibabaUrl    String? // page Alibaba / 1688
+  category      String? // ex: "Électronique", "Textile", "Pièces auto"
   notes         String?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -937,11 +967,11 @@ model Supplier {
 // -----------------------------------------------------------------
 
 enum ClaimType {
-  LOSS          // Colis perdu
-  DAMAGE        // Colis endommagé
-  DELAY         // Retard de livraison
-  MISSING_ITEM  // Marchandise manquante
-  WRONG_ITEM    // Erreur de marchandise
+  LOSS // Colis perdu
+  DAMAGE // Colis endommagé
+  DELAY // Retard de livraison
+  MISSING_ITEM // Marchandise manquante
+  WRONG_ITEM // Erreur de marchandise
   OTHER
 }
 
@@ -954,28 +984,28 @@ enum ClaimStatus {
 }
 
 model Claim {
-  id              String       @id @default(cuid())
-  reference       String       @unique          // AFR-CLM-2026-000123
-  shipmentId      String
-  shipment        Shipment     @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  reference  String   @unique // AFR-CLM-2026-000123
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
-  type            ClaimType
-  status          ClaimStatus  @default(OPEN)
-  title           String
-  description     String       @db.Text
+  type        ClaimType
+  status      ClaimStatus @default(OPEN)
+  title       String
+  description String      @db.Text
 
-  amountClaimed   Float?       // demandé par le client (FCFA)
-  amountGranted   Float?       // accordé par AFRYNTIX (FCFA)
-  resolution      String?      @db.Text
+  amountClaimed Float? // demandé par le client (FCFA)
+  amountGranted Float? // accordé par AFRYNTIX (FCFA)
+  resolution    String? @db.Text
 
-  openedById      String?
-  openedBy        User?        @relation("ClaimOpenedBy", fields: [openedById], references: [id])
-  resolvedById    String?
-  resolvedBy      User?        @relation("ClaimResolvedBy", fields: [resolvedById], references: [id])
-  resolvedAt      DateTime?
+  openedById   String?
+  openedBy     User?     @relation("ClaimOpenedBy", fields: [openedById], references: [id])
+  resolvedById String?
+  resolvedBy   User?     @relation("ClaimResolvedBy", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([shipmentId])
   @@index([status])
@@ -1049,48 +1079,48 @@ enum PartnerPayoutStatus {
 }
 
 model Partner {
-  id              String          @id @default(cuid())
-  code            String          @unique
-  type            PartnerType
-  status          PartnerStatus   @default(PENDING)
+  id     String        @id @default(cuid())
+  code   String        @unique
+  type   PartnerType
+  status PartnerStatus @default(PENDING)
 
-  companyName     String
-  legalForm       String?
-  taxId           String?
-  contactName     String
-  contactPhone    String
-  whatsapp        String?
-  email           String?
+  companyName  String
+  legalForm    String?
+  taxId        String?
+  contactName  String
+  contactPhone String
+  whatsapp     String?
+  email        String?
 
-  country         String
-  city            String
-  serviceAreas    String[]
-  originSide      String?
+  country      String
+  city         String
+  serviceAreas String[]
+  originSide   String?
 
-  userId          String?         @unique
-  user            User?           @relation("PartnerUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId String? @unique
+  user   User?   @relation("PartnerUser", fields: [userId], references: [id], onDelete: SetNull)
 
   commissionModel CommissionModel
   commissionRate  Float?
   currency        Currency        @default(XOF)
 
-  referralCode    String          @unique
+  referralCode String @unique
 
-  idDocumentNumber  String?
-  idDocumentUrl     String?
-  contractUrl       String?
-  contractSignedAt  DateTime?
+  idDocumentNumber String?
+  idDocumentUrl    String?
+  contractUrl      String?
+  contractSignedAt DateTime?
 
-  balance         Float           @default(0)
+  balance Float @default(0)
 
-  notes           String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  shipmentsReferred   Shipment[]    @relation("PartnerReferral")
-  shipmentsLastMile   Shipment[]    @relation("PartnerLastMile")
-  reservationsCreated Reservation[] @relation("PartnerReservation")
-  clientsReferred     User[]        @relation("PartnerReferralClient")
+  shipmentsReferred   Shipment[]      @relation("PartnerReferral")
+  shipmentsLastMile   Shipment[]      @relation("PartnerLastMile")
+  reservationsCreated Reservation[]   @relation("PartnerReservation")
+  clientsReferred     User[]          @relation("PartnerReferralClient")
   ledgerEntries       PartnerLedger[]
   payouts             PartnerPayout[]
 

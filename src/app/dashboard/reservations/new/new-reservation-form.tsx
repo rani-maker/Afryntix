@@ -10,10 +10,21 @@ import { TRANSPORT_MODE_LABELS, CARGO_CATEGORY_LABELS, isExpressEligible } from 
 import { createReservation } from "@/server/actions/reservations";
 import { formatDate } from "@/lib/utils";
 import { getCapacityUnit, CAPACITY_UNIT_LABEL } from "@/lib/schedule-capacity";
+import Link from "next/link";
 import type { TransportMode, CargoCategory } from "@prisma/client";
 
 const MODES = Object.keys(TRANSPORT_MODE_LABELS) as TransportMode[];
 const CATS = Object.keys(CARGO_CATEGORY_LABELS) as CargoCategory[];
+
+export type SavedRecipient = {
+  id: string;
+  name: string;
+  phone: string;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  isDefault: boolean;
+};
 
 type Schedule = {
   id: string;
@@ -49,11 +60,13 @@ export function NewReservationForm({
   defaultScheduleId,
   defaultMode,
   nextSuggestions = {},
+  savedRecipients = [],
 }: {
   schedules: Schedule[];
   defaultScheduleId?: string;
   defaultMode?: TransportMode;
   nextSuggestions?: Record<string, { id: string; departureDate: Date } | null>;
+  savedRecipients?: SavedRecipient[];
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<TransportMode>(defaultMode ?? "SEA_LCL");
@@ -62,11 +75,38 @@ export function NewReservationForm({
   const [scheduleId, setScheduleId] = useState(defaultScheduleId ?? "");
   const [estimatedWeightKg, setEstimatedWeightKg] = useState("");
   const [estimatedVolumeCBM, setEstimatedVolumeCBM] = useState("");
-  const [recipientName, setRecipientName] = useState("");
-  const [recipientPhone, setRecipientPhone] = useState("");
-  const [recipientAddress, setRecipientAddress] = useState("");
+  const defaultRecipient = savedRecipients.find((r) => r.isDefault);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string>(
+    defaultRecipient?.id ?? "",
+  );
+  const [recipientName, setRecipientName] = useState(defaultRecipient?.name ?? "");
+  const [recipientPhone, setRecipientPhone] = useState(defaultRecipient?.phone ?? "");
+  const [recipientAddress, setRecipientAddress] = useState(
+    defaultRecipient
+      ? [defaultRecipient.address, defaultRecipient.city, defaultRecipient.country]
+          .filter(Boolean)
+          .join(", ")
+      : "",
+  );
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+
+  function applyRecipient(id: string) {
+    setSelectedRecipientId(id);
+    if (!id) {
+      setRecipientName("");
+      setRecipientPhone("");
+      setRecipientAddress("");
+      return;
+    }
+    const r = savedRecipients.find((x) => x.id === id);
+    if (!r) return;
+    setRecipientName(r.name);
+    setRecipientPhone(r.phone);
+    setRecipientAddress(
+      [r.address, r.city, r.country].filter(Boolean).join(", "),
+    );
+  }
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -286,14 +326,64 @@ export function NewReservationForm({
         />
       </div>
 
+      <div className="rounded-md border border-dashed p-3 space-y-2 bg-muted/30">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Label htmlFor="recipientPick" className="text-sm font-medium">
+            Destinataire
+          </Label>
+          <Link
+            href="/dashboard/recipients"
+            target="_blank"
+            className="text-xs text-primary hover:underline"
+          >
+            Gérer mon carnet ↗
+          </Link>
+        </div>
+        {savedRecipients.length > 0 ? (
+          <Select
+            id="recipientPick"
+            value={selectedRecipientId}
+            onChange={(e) => applyRecipient(e.target.value)}
+          >
+            <option value="">— Saisir un nouveau destinataire —</option>
+            {savedRecipients.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} · {r.phone}
+                {r.city ? ` · ${r.city}` : ""}
+                {r.isDefault ? " (par défaut)" : ""}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Votre carnet est vide. Saisissez le destinataire ci-dessous — vous pourrez
+            l&apos;enregistrer plus tard depuis « Mes destinataires ».
+          </p>
+        )}
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="recipientName">Nom destinataire</Label>
-          <Input id="recipientName" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+          <Input
+            id="recipientName"
+            value={recipientName}
+            onChange={(e) => {
+              setRecipientName(e.target.value);
+              if (selectedRecipientId) setSelectedRecipientId("");
+            }}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="recipientPhone">Téléphone destinataire</Label>
-          <Input id="recipientPhone" value={recipientPhone} onChange={(e) => setRecipientPhone(e.target.value)} />
+          <Input
+            id="recipientPhone"
+            value={recipientPhone}
+            onChange={(e) => {
+              setRecipientPhone(e.target.value);
+              if (selectedRecipientId) setSelectedRecipientId("");
+            }}
+          />
         </div>
       </div>
 
@@ -303,7 +393,10 @@ export function NewReservationForm({
           id="recipientAddress"
           rows={2}
           value={recipientAddress}
-          onChange={(e) => setRecipientAddress(e.target.value)}
+          onChange={(e) => {
+            setRecipientAddress(e.target.value);
+            if (selectedRecipientId) setSelectedRecipientId("");
+          }}
         />
       </div>
 

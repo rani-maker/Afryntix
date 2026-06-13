@@ -96,6 +96,14 @@ export default async function PartnerDetailPage({
     .filter((p) => p.status === "PAID")
     .reduce((sum, p) => sum + p.amount, 0);
 
+  // Historique des renégociations (audit)
+  const commissionHistory = await prisma.auditLog.findMany({
+    where: { entity: "Partner", entityId: partner.id, action: "PARTNER_COMMISSION_UPDATED" },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { user: { select: { name: true, email: true } } },
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -114,9 +122,22 @@ export default async function PartnerDetailPage({
             <Badge variant={STATUS_VARIANT[partner.status]}>{STATUS_LABELS[partner.status]}</Badge>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs text-muted-foreground">Code parrain à communiquer</div>
-          <div className="font-mono text-lg font-bold">{partner.referralCode}</div>
+        <div className="text-right space-y-2">
+          <div>
+            <div className="text-xs text-muted-foreground">Code parrain à communiquer</div>
+            <div className="font-mono text-lg font-bold">{partner.referralCode}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Commission actuelle</div>
+            <div className="text-sm font-medium">
+              {COMMISSION_LABELS[partner.commissionModel] ?? partner.commissionModel}
+              {partner.commissionRate != null && (
+                <span className="ml-1 font-mono text-emerald-700">
+                  · {partner.commissionRate}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -214,6 +235,64 @@ export default async function PartnerDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Historique des renégociations de commission */}
+      {commissionHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Historique des renégociations ({commissionHistory.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Par</TableHead>
+                  <TableHead>Avant</TableHead>
+                  <TableHead>Après</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {commissionHistory.map((h) => {
+                  const meta =
+                    (h.metadata as {
+                      from?: { model?: string; rate?: number | null };
+                      to?: { model?: string; rate?: number | null };
+                    } | null) ?? null;
+                  const from = meta?.from;
+                  const to = meta?.to;
+                  return (
+                    <TableRow key={h.id}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(h.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {h.user?.name ?? h.user?.email ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">
+                        {from?.model
+                          ? `${COMMISSION_LABELS[from.model] ?? from.model} · ${
+                              from.rate ?? "—"
+                            }`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono font-medium text-emerald-700">
+                        {to?.model
+                          ? `${COMMISSION_LABELS[to.model] ?? to.model} · ${
+                              to.rate ?? "—"
+                            }`
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Compte courant (ledger) */}
       <Card>
