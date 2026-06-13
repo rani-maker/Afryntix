@@ -180,6 +180,43 @@ export async function updateShippingMark(input: {
   return { success: true };
 }
 
+/**
+ * Suppression d'un shipping mark — bloquée si la mark est référencée par
+ * un colis ou une facture (préserve l'intégrité historique et comptable).
+ * Si elle est liée à un compte (User), on autorise la suppression mais on
+ * laisse le User intact (relation @unique sur ShippingMark.userId).
+ */
+export async function deleteShippingMark(id: string): Promise<Result> {
+  await requireRole("STAFF", "ADMIN");
+
+  const mark = await prisma.shippingMark.findUnique({
+    where: { id },
+    include: {
+      _count: { select: { shipments: true, factures: true } },
+    },
+  });
+  if (!mark) return { success: false, error: "Shipping mark introuvable." };
+
+  if (mark._count.shipments > 0 || mark._count.factures > 0) {
+    const parts: string[] = [];
+    if (mark._count.shipments > 0) {
+      parts.push(`${mark._count.shipments} colis`);
+    }
+    if (mark._count.factures > 0) {
+      parts.push(`${mark._count.factures} facture${mark._count.factures > 1 ? "s" : ""}`);
+    }
+    return {
+      success: false,
+      error: `Suppression impossible : cette mark est rattachée à ${parts.join(" et ")}. Détache-les avant de supprimer.`,
+    };
+  }
+
+  await prisma.shippingMark.delete({ where: { id } });
+
+  revalidatePath("/staff/shipping-marks");
+  return { success: true };
+}
+
 export async function linkShippingMarkToUser(input: {
   shippingMarkId: string;
   userId: string;

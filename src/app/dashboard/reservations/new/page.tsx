@@ -63,6 +63,21 @@ export default async function NewReservationPage({
     };
   });
 
+  // Carnet de destinataires du client (pour pré-remplissage)
+  const recipients = await prisma.recipient.findMany({
+    where: { clientId: session.user.id, archived: false },
+    orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      address: true,
+      city: true,
+      country: true,
+      isDefault: true,
+    },
+  });
+
   // Prochain départ disponible du même mode pour chaque calendrier plein.
   const nextSuggestions: Record<string, { id: string; departureDate: Date } | null> = {};
   for (const s of schedules) {
@@ -103,6 +118,7 @@ export default async function NewReservationPage({
             defaultScheduleId={defaultScheduleId}
             defaultMode={defaultMode}
             nextSuggestions={nextSuggestions}
+            savedRecipients={recipients}
           />
         </CardContent>
       </Card>

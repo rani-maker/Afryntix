@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { buildManifestCsv, type ManifestRow } from "@/lib/manifest";
+import { buildManifestCsv, type ManifestAudience, type ManifestRow } from "@/lib/manifest";
 import {
   TRANSPORT_MODE_LABELS,
   CARRIER_LABELS,
@@ -17,6 +17,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const containerId = req.nextUrl.searchParams.get("containerId");
+  const audience: ManifestAudience =
+    req.nextUrl.searchParams.get("audience") === "forwarder" ? "forwarder" : "internal";
 
   const envoi = await prisma.envoi.findUnique({
     where: { id },
@@ -44,7 +46,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const rows: ManifestRow[] = envoi.shipments.map((s) => ({
     trackingNumber: s.trackingNumber,
-    shippingMark: s.shippingMark ? `${s.shippingMark.name} (${s.shippingMark.phone})` : null,
+    shippingMark: s.shippingMark
+      ? audience === "forwarder"
+        ? s.shippingMark.name
+        : `${s.shippingMark.name} (${s.shippingMark.phone})`
+      : null,
     client: s.client?.name ?? s.clientName ?? "—",
     pieces: s.pieces,
     weightKg: s.weightKg,
@@ -79,11 +85,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       containerLabel,
     },
     rows,
+    audience,
   );
 
+  const suffix = audience === "forwarder" ? "-transitaire" : "";
   const filename = containerId
-    ? `manifeste-${envoi.reference}-${containerLabel?.replace(/\W+/g, "_") ?? "container"}.csv`
-    : `manifeste-${envoi.reference}.csv`;
+    ? `manifeste${suffix}-${envoi.reference}-${containerLabel?.replace(/\W+/g, "_") ?? "container"}.csv`
+    : `manifeste${suffix}-${envoi.reference}.csv`;
 
   return new NextResponse(csv, {
     headers: {

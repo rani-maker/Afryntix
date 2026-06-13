@@ -8,6 +8,7 @@ import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { formatXOF, formatDate } from "@/lib/utils";
 import { SendReceptionNoticeButton } from "./send-notice-button";
 import { EditShippingMarkButton } from "./edit-mark-button";
+import { DeleteShippingMarkButton } from "./delete-mark-button";
 
 export default async function ShippingMarksPage({
   searchParams,
@@ -30,6 +31,7 @@ export default async function ShippingMarksPage({
     orderBy: { updatedAt: "desc" },
     include: {
       user: { select: { id: true, name: true, email: true } },
+      _count: { select: { factures: true } },
       shipments: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -123,6 +125,11 @@ export default async function ShippingMarksPage({
                       whatsapp: mark.whatsapp,
                       notes: mark.notes,
                     }}
+                  />
+                  <DeleteShippingMarkButton
+                    markId={mark.id}
+                    markName={mark.name}
+                    attachedCount={mark.shipments.length + mark._count.factures}
                   />
                 </div>
               </div>

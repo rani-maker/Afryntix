@@ -48,10 +48,19 @@ function escapeCsv(value: string | number | null | undefined): string {
   return s;
 }
 
-export function buildManifestCsv(header: ManifestHeader, rows: ManifestRow[]): string {
+export type ManifestAudience = "internal" | "forwarder";
+
+export function buildManifestCsv(
+  header: ManifestHeader,
+  rows: ManifestRow[],
+  audience: ManifestAudience = "internal",
+): string {
   const lines: string[] = [];
   // Méta-en-tête (commentaires CSV — certains lecteurs les ignorent, mais ils restent lisibles)
   lines.push(`# MANIFESTE AFRYNTIX`);
+  if (audience === "forwarder") {
+    lines.push(`# Version transitaire — informations destinataires masquees`);
+  }
   lines.push(`# Envoi: ${header.envoiReference}`);
   lines.push(`# Mode: ${header.envoiMode}`);
   lines.push(`# Itinéraire: ${header.origin} -> ${header.destination}`);
