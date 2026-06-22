@@ -81,7 +81,7 @@ export default async function PrintManifestPage({
             <p className="text-sm text-gray-600">AFRYNTIX — Transport &amp; Logistique</p>
             {forwarderView && (
               <p className="text-xs text-amber-700 mt-1 font-medium">
-                Coordonnées destinataires (téléphones) masquées sur cette version.
+                Téléphones, montants et statuts internes masqués sur cette version.
               </p>
             )}
           </div>
@@ -123,8 +123,8 @@ export default async function PrintManifestPage({
               <th>Taxable</th>
               <th>CBM</th>
               <th>Destination</th>
-              <th>Montant</th>
-              <th>Statut</th>
+              {!forwarderView && <th>Montant</th>}
+              {!forwarderView && <th>Statut</th>}
             </tr>
           </thead>
           <tbody>
@@ -147,8 +147,10 @@ export default async function PrintManifestPage({
                 <td className="text-right">{s.chargeableWeight != null ? s.chargeableWeight.toFixed(2) : "—"}</td>
                 <td className="text-right">{s.volumeCBM != null ? s.volumeCBM.toFixed(3) : "—"}</td>
                 <td>{[s.destinationCity, s.destinationCountry].filter(Boolean).join(", ") || "—"}</td>
-                <td className="text-right">{formatXOF(s.totalAmount)}</td>
-                <td>{SHIPMENT_STATUS_LABELS[s.status]}</td>
+                {!forwarderView && (
+                  <td className="text-right">{formatXOF(s.totalAmount)}</td>
+                )}
+                {!forwarderView && <td>{SHIPMENT_STATUS_LABELS[s.status]}</td>}
               </tr>
             ))}
             <tr className="total">
@@ -158,8 +160,10 @@ export default async function PrintManifestPage({
               <td className="text-right">{totals.chargeable.toFixed(2)}</td>
               <td className="text-right">{totals.cbm.toFixed(3)}</td>
               <td></td>
-              <td className="text-right">{formatXOF(totals.amount)}</td>
-              <td></td>
+              {!forwarderView && (
+                <td className="text-right">{formatXOF(totals.amount)}</td>
+              )}
+              {!forwarderView && <td></td>}
             </tr>
           </tbody>
         </table>
