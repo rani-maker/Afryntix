@@ -119,8 +119,11 @@ export default async function EnvoiDetailPage({
                     </Link>
                   </Button>
                 </div>
-                <div className="text-xs font-semibold text-amber-700 uppercase tracking-wide text-right pt-1">
-                  Pour transitaire (sans téléphones)
+                <div
+                  className="text-xs font-semibold text-amber-700 uppercase tracking-wide text-right pt-1"
+                  title="Téléphones, montants et statuts internes sont masqués"
+                >
+                  Pour transitaire (sans téléphones / montants)
                 </div>
                 <div className="flex gap-2 justify-end flex-wrap">
                   <Button asChild size="sm" variant="outline">

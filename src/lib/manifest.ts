@@ -59,7 +59,7 @@ export function buildManifestCsv(
   // Méta-en-tête (commentaires CSV — certains lecteurs les ignorent, mais ils restent lisibles)
   lines.push(`# MANIFESTE AFRYNTIX`);
   if (audience === "forwarder") {
-    lines.push(`# Version transitaire — informations destinataires masquees`);
+    lines.push(`# Version transitaire — telephone, montant et statut masques`);
   }
   lines.push(`# Envoi: ${header.envoiReference}`);
   lines.push(`# Mode: ${header.envoiMode}`);
@@ -73,55 +73,53 @@ export function buildManifestCsv(
   if (header.arrivalDate) lines.push(`# Arrivée: ${header.arrivalDate.toISOString().slice(0, 10)}`);
   lines.push(``);
 
-  // En-tête tableau
-  lines.push(
-    [
-      "Tracking",
-      "Shipping Mark",
-      "Client",
-      "Pieces",
-      "Poids reel (kg)",
-      "Poids volumique (kg)",
-      "Poids taxable (kg)",
-      "Volume (CBM)",
-      "Categorie",
-      "Description",
-      "Destination",
-      "Code SH",
-      "Incoterm",
-      "Origine",
-      "Valeur douaniere (FCFA)",
-      "Montant (FCFA)",
-      "Statut",
-    ]
-      .map(escapeCsv)
-      .join(";"),
-  );
+  const isForwarder = audience === "forwarder";
+
+  // En-tête tableau (les colonnes Montant + Statut sont retirées en version transitaire)
+  const headerRow = [
+    "Tracking",
+    "Shipping Mark",
+    "Client",
+    "Pieces",
+    "Poids reel (kg)",
+    "Poids volumique (kg)",
+    "Poids taxable (kg)",
+    "Volume (CBM)",
+    "Categorie",
+    "Description",
+    "Destination",
+    "Code SH",
+    "Incoterm",
+    "Origine",
+    "Valeur douaniere (FCFA)",
+  ];
+  if (!isForwarder) {
+    headerRow.push("Montant (FCFA)", "Statut");
+  }
+  lines.push(headerRow.map(escapeCsv).join(";"));
 
   for (const r of rows) {
-    lines.push(
-      [
-        r.trackingNumber,
-        r.shippingMark ?? "",
-        r.client,
-        r.pieces,
-        r.weightKg ?? "",
-        r.volumetricWeight != null ? r.volumetricWeight.toFixed(2) : "",
-        r.chargeableWeight != null ? r.chargeableWeight.toFixed(2) : "",
-        r.volumeCBM != null ? r.volumeCBM.toFixed(3) : "",
-        r.category,
-        r.description ?? "",
-        r.destination,
-        r.hsCode ?? "",
-        r.incoterm ?? "",
-        r.countryOfOrigin ?? "",
-        r.declaredCustomsValue ?? "",
-        r.totalAmount,
-        r.status,
-      ]
-        .map(escapeCsv)
-        .join(";"),
-    );
+    const dataRow: Array<string | number | null | undefined> = [
+      r.trackingNumber,
+      r.shippingMark ?? "",
+      r.client,
+      r.pieces,
+      r.weightKg ?? "",
+      r.volumetricWeight != null ? r.volumetricWeight.toFixed(2) : "",
+      r.chargeableWeight != null ? r.chargeableWeight.toFixed(2) : "",
+      r.volumeCBM != null ? r.volumeCBM.toFixed(3) : "",
+      r.category,
+      r.description ?? "",
+      r.destination,
+      r.hsCode ?? "",
+      r.incoterm ?? "",
+      r.countryOfOrigin ?? "",
+      r.declaredCustomsValue ?? "",
+    ];
+    if (!isForwarder) {
+      dataRow.push(r.totalAmount, r.status);
+    }
+    lines.push(dataRow.map(escapeCsv).join(";"));
   }
 
   // Totaux
@@ -132,29 +130,27 @@ export function buildManifestCsv(
   const totalAmount = rows.reduce((s, r) => s + r.totalAmount, 0);
 
   lines.push(``);
-  lines.push(
-    [
-      "TOTAL",
-      "",
-      `${rows.length} colis`,
-      totalPieces,
-      totalWeight.toFixed(2),
-      "",
-      totalChargeable.toFixed(2),
-      totalCBM.toFixed(3),
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      totalAmount,
-      "",
-    ]
-      .map(escapeCsv)
-      .join(";"),
-  );
+  const totalRow: Array<string | number> = [
+    "TOTAL",
+    "",
+    `${rows.length} colis`,
+    totalPieces,
+    totalWeight.toFixed(2),
+    "",
+    totalChargeable.toFixed(2),
+    totalCBM.toFixed(3),
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ];
+  if (!isForwarder) {
+    totalRow.push(totalAmount, "");
+  }
+  lines.push(totalRow.map(escapeCsv).join(";"));
 
   // BOM UTF-8 pour qu'Excel reconnaisse les accents
   return "﻿" + lines.join("\n");
