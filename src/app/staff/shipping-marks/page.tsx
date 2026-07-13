@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { formatXOF, formatDate } from "@/lib/utils";
 import { SendReceptionNoticeButton } from "./send-notice-button";
 import { EditShippingMarkButton } from "./edit-mark-button";
 import { DeleteShippingMarkButton } from "./delete-mark-button";
+import { AuditIncorrectLinksButton } from "./audit-links-button";
 
 export default async function ShippingMarksPage({
   searchParams,
@@ -17,6 +19,8 @@ export default async function ShippingMarksPage({
 }) {
   const { q } = await searchParams;
   const search = q?.trim() ?? "";
+  const session = await auth();
+  const isAdmin = session?.user?.role === "ADMIN";
 
   const marks = await prisma.shippingMark.findMany({
     where: search
@@ -56,6 +60,7 @@ export default async function ShippingMarksPage({
 
   return (
     <div className="space-y-4">
+      {isAdmin && <AuditIncorrectLinksButton />}
       <Card>
         <CardHeader className="space-y-3">
           <CardTitle>Shipping Marks ({marks.length})</CardTitle>

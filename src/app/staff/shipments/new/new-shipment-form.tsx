@@ -59,6 +59,10 @@ type Initial = {
   category?: CargoCategory;
   weightKg?: string;
   volumeCBM?: string;
+  description?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  recipientAddress?: string;
 };
 
 const MODES = Object.keys(TRANSPORT_MODE_LABELS) as TransportMode[];
@@ -88,10 +92,10 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const [volumeCBM, setVolumeCBM] = useState(initial?.volumeCBM ?? "");
   const [destinationCity, setDestinationCity] = useState("Abidjan");
   const [destinationCountry, setDestinationCountry] = useState("Côte d'Ivoire");
-  const [recipientName, setRecipientName] = useState("");
-  const [recipientPhone, setRecipientPhone] = useState("");
-  const [recipientAddress, setRecipientAddress] = useState("");
-  const [description, setDescription] = useState("");
+  const [recipientName, setRecipientName] = useState(initial?.recipientName ?? "");
+  const [recipientPhone, setRecipientPhone] = useState(initial?.recipientPhone ?? "");
+  const [recipientAddress, setRecipientAddress] = useState(initial?.recipientAddress ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
   const [overrideUnitPrice, setOverrideUnitPrice] = useState("");
 
   const selectedClient = useMemo(

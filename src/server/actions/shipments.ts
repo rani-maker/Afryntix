@@ -108,21 +108,54 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
   }
 
   // Upsert du ShippingMark — nom/téléphone du destinataire (physique sur les cartons)
-  // Priorité : recipientName+recipientPhone si renseignés, sinon clientName+clientPhone
+  // Priorité : recipientName+recipientPhone si renseignés, sinon clientName+clientPhone.
+  //
+  // ⚠ Sémantique importante : `ShippingMark.userId` (contrainte @unique) désigne
+  // l'utilisateur DONT LA MARK EST L'IDENTITÉ PERSONNELLE DE DESTINATAIRE, pas
+  // le sender/payeur du colis. Un même client (payeur) peut envoyer à N tiers
+  // différents (ami, partenaire, société), chacun avec sa propre mark — ces
+  // marks NE DOIVENT PAS être reliées au userId du client, sinon la 2e mark
+  // violerait l'unicité et bloquerait toute création de colis vers un
+  // destinataire différent.
+  const hasExplicitRecipient = !!(
+    data.recipientName?.trim() && data.recipientPhone?.trim()
+  );
   const markName = data.recipientName || (client ? client.name : data.clientName) || null;
-  const markPhone = data.recipientPhone || (client ? client.whatsapp || client.phone : data.clientPhone) || null;
+  const markPhone =
+    data.recipientPhone || (client ? client.whatsapp || client.phone : data.clientPhone) || null;
 
   let shippingMarkId: string | null = null;
   if (markName && markPhone) {
     const mark = await upsertShippingMark({ name: markName, phone: markPhone });
     if (mark) {
       shippingMarkId = mark.id;
-      // Lier au compte client si pas encore fait
+
       if (client && !mark.userId) {
-        await prisma.shippingMark.update({
-          where: { id: mark.id },
-          data: { userId: client.id },
-        });
+        // La mark représente le client LUI-MÊME ("j'envoie à moi") uniquement si :
+        //   - aucun destinataire explicite (fallback sur ses infos), OU
+        //   - le couple name+phone saisi correspond à ses propres coordonnées.
+        // Dans tous les autres cas, la mark est celle d'un TIERS et on la
+        // laisse dissociée de tout compte utilisateur.
+        const isSelfMark =
+          !hasExplicitRecipient ||
+          (markName === client.name &&
+            (markPhone === client.phone || markPhone === client.whatsapp));
+
+        if (isSelfMark) {
+          try {
+            await prisma.shippingMark.update({
+              where: { id: mark.id },
+              data: { userId: client.id },
+            });
+          } catch (err) {
+            // Sécurité : si le client a déjà une mark personnelle liée à un
+            // autre couple name+phone, on ne bloque pas la création du colis.
+            // Le staff pourra relier manuellement via linkShippingMarkToUser.
+            console.warn(
+              `[shipments] Auto-liaison ShippingMark ${mark.id} → User ${client.id} ignorée : ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
       }
     }
   }

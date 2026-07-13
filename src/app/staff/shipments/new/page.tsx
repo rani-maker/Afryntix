@@ -17,13 +17,70 @@ export default async function NewShipmentPage({
     select: { id: true, name: true, email: true, phone: true },
   });
 
+  // Si la création part d'une réservation, on hydrate le formulaire avec
+  // TOUTES les infos saisies par le client (mode, catégorie, description,
+  // dimensions, et surtout DESTINATAIRE) : sinon le staff les retape à la
+  // main et c'est une source majeure d'erreurs (mauvais destinataire, etc.).
+  const reservationId = pick("reservationId");
+  let reservationPrefill: {
+    clientId?: string;
+    mode?: TransportMode;
+    category?: CargoCategory;
+    description?: string;
+    weightKg?: string;
+    volumeCBM?: string;
+    recipientName?: string;
+    recipientPhone?: string;
+    recipientAddress?: string;
+  } = {};
+  if (reservationId) {
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      select: {
+        clientId: true,
+        mode: true,
+        category: true,
+        description: true,
+        estimatedWeightKg: true,
+        estimatedVolumeCBM: true,
+        recipientName: true,
+        recipientPhone: true,
+        recipientAddress: true,
+      },
+    });
+    if (reservation) {
+      reservationPrefill = {
+        clientId: reservation.clientId ?? undefined,
+        mode: reservation.mode,
+        category: reservation.category,
+        description: reservation.description ?? undefined,
+        weightKg:
+          reservation.estimatedWeightKg != null
+            ? String(reservation.estimatedWeightKg)
+            : undefined,
+        volumeCBM:
+          reservation.estimatedVolumeCBM != null
+            ? String(reservation.estimatedVolumeCBM)
+            : undefined,
+        recipientName: reservation.recipientName ?? undefined,
+        recipientPhone: reservation.recipientPhone ?? undefined,
+        recipientAddress: reservation.recipientAddress ?? undefined,
+      };
+    }
+  }
+
   const initial = {
-    reservationId: pick("reservationId"),
-    clientId: pick("clientId"),
-    mode: pick("mode") as TransportMode | undefined,
-    category: pick("category") as CargoCategory | undefined,
-    weightKg: pick("weightKg"),
-    volumeCBM: pick("volumeCBM"),
+    reservationId,
+    clientId: pick("clientId") ?? reservationPrefill.clientId,
+    mode: (pick("mode") as TransportMode | undefined) ?? reservationPrefill.mode,
+    category:
+      (pick("category") as CargoCategory | undefined) ?? reservationPrefill.category,
+    weightKg: pick("weightKg") ?? reservationPrefill.weightKg,
+    volumeCBM: pick("volumeCBM") ?? reservationPrefill.volumeCBM,
+    description: reservationPrefill.description,
+    recipientName: reservationPrefill.recipientName,
+    recipientPhone: reservationPrefill.recipientPhone,
+    recipientAddress: reservationPrefill.recipientAddress,
   };
 
   return (
