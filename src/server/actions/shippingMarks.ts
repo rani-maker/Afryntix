@@ -217,6 +217,85 @@ export async function deleteShippingMark(id: string): Promise<Result> {
   return { success: true };
 }
 
+/**
+ * Détecte et détache les shipping marks incorrectement liées à un compte
+ * utilisateur — vestige d'un bug historique où la mark d'un TIERS était
+ * rattachée au userId du client-payeur, violant la sémantique et bloquant
+ * ensuite tout envoi vers un autre destinataire (contrainte @unique).
+ *
+ * Une mark est "mal liée" si son (name, phone) ne correspond pas à
+ * (user.name, user.phone) ni à (user.name, user.whatsapp).
+ *
+ * L'action est en dry-run par défaut : elle renvoie la liste sans écrire.
+ * Passer `apply: true` pour effectuer le détachement.
+ * Réservé ADMIN.
+ */
+export async function auditIncorrectShippingMarkLinks(input?: {
+  apply?: boolean;
+}): Promise<
+  Result<{
+    total: number;
+    incorrect: Array<{
+      markId: string;
+      markName: string;
+      markPhone: string;
+      userId: string;
+      userName: string;
+      userPhone: string | null;
+      userWhatsapp: string | null;
+    }>;
+    unlinked: number;
+  }>
+> {
+  await requireRole("ADMIN");
+
+  const linkedMarks = await prisma.shippingMark.findMany({
+    where: { userId: { not: null } },
+    include: {
+      user: { select: { id: true, name: true, phone: true, whatsapp: true } },
+    },
+  });
+
+  const incorrect = linkedMarks
+    .filter((m) => {
+      if (!m.user) return false;
+      const nameMatch = m.name.trim() === m.user.name.trim();
+      const phoneMatch =
+        (m.user.phone && m.phone === m.user.phone) ||
+        (m.user.whatsapp && m.phone === m.user.whatsapp);
+      return !(nameMatch && phoneMatch);
+    })
+    .map((m) => ({
+      markId: m.id,
+      markName: m.name,
+      markPhone: m.phone,
+      userId: m.user!.id,
+      userName: m.user!.name,
+      userPhone: m.user!.phone,
+      userWhatsapp: m.user!.whatsapp,
+    }));
+
+  let unlinked = 0;
+  if (input?.apply && incorrect.length > 0) {
+    const result = await prisma.shippingMark.updateMany({
+      where: { id: { in: incorrect.map((i) => i.markId) } },
+      data: { userId: null },
+    });
+    unlinked = result.count;
+    revalidatePath("/admin/shipping-marks");
+    revalidatePath("/staff/shipping-marks");
+  }
+
+  return {
+    success: true,
+    data: {
+      total: linkedMarks.length,
+      incorrect,
+      unlinked,
+    },
+  };
+}
+
 export async function linkShippingMarkToUser(input: {
   shippingMarkId: string;
   userId: string;
