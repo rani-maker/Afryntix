@@ -155,3 +155,121 @@ export function buildManifestCsv(
   // BOM UTF-8 pour qu'Excel reconnaisse les accents
   return "﻿" + lines.join("\n");
 }
+
+/* =========================================================================
+ * PACKING LIST — un packing list par Shipping Mark, à envoyer au client.
+ * Vue "client" : sans prix ni statut de paiement (comme la vue transitaire),
+ * mais avec les dimensions physiques de chaque colis (L × l × H) qui sont
+ * absentes du manifeste, car c'est ce que le client destinataire attend
+ * pour son dédouanement / réception.
+ * ========================================================================= */
+
+export type PackingListRow = {
+  trackingNumber: string;
+  pieces: number;
+  weightKg: number | null;
+  lengthCm: number | null;
+  widthCm: number | null;
+  heightCm: number | null;
+  volumeCBM: number | null;
+  description: string | null;
+  category: string;
+  hsCode: string | null;
+  incoterm: string | null;
+  countryOfOrigin: string | null;
+  declaredCustomsValue: number | null;
+};
+
+export type PackingListMark = {
+  name: string;
+  phone: string | null;
+  recipientName: string | null;
+  destination: string;
+};
+
+export function buildPackingListCsv(
+  header: ManifestHeader,
+  mark: PackingListMark,
+  rows: PackingListRow[],
+): string {
+  const lines: string[] = [];
+  lines.push(`# PACKING LIST AFRYNTIX`);
+  lines.push(`# Shipping Mark: ${mark.name}`);
+  if (mark.recipientName) lines.push(`# Destinataire: ${mark.recipientName}`);
+  if (mark.destination) lines.push(`# Destination: ${mark.destination}`);
+  lines.push(`# Envoi: ${header.envoiReference}`);
+  lines.push(`# Mode: ${header.envoiMode}`);
+  lines.push(`# Itinéraire: ${header.origin} -> ${header.destination}`);
+  if (header.carrier) lines.push(`# Carrier: ${header.carrier}`);
+  if (header.bookingNumber) lines.push(`# Booking: ${header.bookingNumber}`);
+  if (header.vesselName) lines.push(`# Navire: ${header.vesselName} / Voyage: ${header.voyageNumber ?? ""}`);
+  if (header.mawb) lines.push(`# MAWB: ${header.mawb} / Vol: ${header.flightNumber ?? ""}`);
+  if (header.containerLabel) lines.push(`# Container: ${header.containerLabel}`);
+  if (header.departureDate) lines.push(`# Départ: ${header.departureDate.toISOString().slice(0, 10)}`);
+  if (header.arrivalDate) lines.push(`# Arrivée: ${header.arrivalDate.toISOString().slice(0, 10)}`);
+  lines.push(``);
+
+  const headerRow = [
+    "N°",
+    "Tracking",
+    "Catégorie",
+    "Description",
+    "Pièces",
+    "Poids (kg)",
+    "Longueur (cm)",
+    "Largeur (cm)",
+    "Hauteur (cm)",
+    "Volume (CBM)",
+    "Code SH",
+    "Incoterm",
+    "Origine",
+    "Valeur douanière (FCFA)",
+  ];
+  lines.push(headerRow.map(escapeCsv).join(";"));
+
+  rows.forEach((r, idx) => {
+    const dataRow: Array<string | number | null | undefined> = [
+      idx + 1,
+      r.trackingNumber,
+      r.category,
+      r.description ?? "",
+      r.pieces,
+      r.weightKg ?? "",
+      r.lengthCm ?? "",
+      r.widthCm ?? "",
+      r.heightCm ?? "",
+      r.volumeCBM != null ? r.volumeCBM.toFixed(3) : "",
+      r.hsCode ?? "",
+      r.incoterm ?? "",
+      r.countryOfOrigin ?? "",
+      r.declaredCustomsValue ?? "",
+    ];
+    lines.push(dataRow.map(escapeCsv).join(";"));
+  });
+
+  const totalPieces = rows.reduce((s, r) => s + r.pieces, 0);
+  const totalWeight = rows.reduce((s, r) => s + (r.weightKg ?? 0), 0);
+  const totalCBM = rows.reduce((s, r) => s + (r.volumeCBM ?? 0), 0);
+  const totalCustomsValue = rows.reduce((s, r) => s + (r.declaredCustomsValue ?? 0), 0);
+
+  lines.push(``);
+  const totalRow: Array<string | number> = [
+    "TOTAL",
+    `${rows.length} colis`,
+    "",
+    "",
+    totalPieces,
+    totalWeight.toFixed(2),
+    "",
+    "",
+    "",
+    totalCBM.toFixed(3),
+    "",
+    "",
+    "",
+    totalCustomsValue,
+  ];
+  lines.push(totalRow.map(escapeCsv).join(";"));
+
+  return "﻿" + lines.join("\n");
+}

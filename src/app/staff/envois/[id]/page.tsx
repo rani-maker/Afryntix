@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Printer } from "lucide-react";
 import { FclInvoiceForm } from "./fcl-invoice-form";
 import { DeleteEnvoiButton } from "./delete-envoi-button";
+import { PackingListsSection } from "./packing-lists-section";
 
 export default async function EnvoiDetailPage({
   params,
@@ -36,8 +37,16 @@ export default async function EnvoiDetailPage({
       containers: { orderBy: { createdAt: "asc" } },
       shipments: {
         include: {
-          client: { select: { name: true } },
+          client: { select: { name: true, email: true } },
           container: { select: { id: true, refInternal: true, carrierNumber: true } },
+          shippingMark: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              user: { select: { email: true } },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -50,6 +59,61 @@ export default async function EnvoiDetailPage({
     },
   });
   if (!envoi) notFound();
+
+  // Groupement des colis par shipping mark pour la génération de packing lists
+  const packingGroupsMap = new Map<
+    string,
+    {
+      markId: string;
+      markName: string;
+      markPhone: string;
+      linkedUserEmail: string | null;
+      fallbackClientEmail: string | null;
+      fallbackClientName: string | null;
+      packagesCount: number;
+      totalPieces: number;
+      totalWeight: number;
+      totalCBM: number;
+      lastSentAt: string | null;
+      lastSentTo: string | null;
+    }
+  >();
+  for (const s of envoi.shipments) {
+    if (!s.shippingMark) continue;
+    const key = s.shippingMark.id;
+    const existing = packingGroupsMap.get(key);
+    if (existing) {
+      existing.packagesCount += 1;
+      existing.totalPieces += s.pieces;
+      existing.totalWeight += s.weightKg ?? 0;
+      existing.totalCBM += s.volumeCBM ?? 0;
+      if (!existing.fallbackClientEmail && s.client?.email) {
+        existing.fallbackClientEmail = s.client.email;
+        existing.fallbackClientName = s.client.name ?? existing.fallbackClientName;
+      }
+    } else {
+      packingGroupsMap.set(key, {
+        markId: s.shippingMark.id,
+        markName: s.shippingMark.name,
+        markPhone: s.shippingMark.phone,
+        linkedUserEmail: s.shippingMark.user?.email ?? null,
+        fallbackClientEmail: s.client?.email ?? null,
+        fallbackClientName: s.client?.name ?? s.clientName ?? null,
+        packagesCount: 1,
+        totalPieces: s.pieces,
+        totalWeight: s.weightKg ?? 0,
+        totalCBM: s.volumeCBM ?? 0,
+        lastSentAt: null,
+        lastSentTo: null,
+      });
+    }
+  }
+  const packingGroups = Array.from(packingGroupsMap.values()).sort((a, b) =>
+    a.markName.localeCompare(b.markName),
+  );
+  const packingListsUnlocked = ["DEPARTED", "IN_TRANSIT", "ARRIVED", "CLEARED", "DELIVERED"].includes(
+    envoi.status,
+  );
 
   // Facture forfaitaire éventuellement déjà liée à cet envoi (FCL uniquement)
   const fclInvoice =
@@ -264,6 +328,33 @@ export default async function EnvoiDetailPage({
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Packing lists par shipping mark (à partir du départ de l'envoi) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Packing lists par shipping mark ({packingGroups.length})
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Un packing list par shipping mark, à envoyer individuellement au client destinataire.
+            Vue « client » : dimensions, poids, CBM, code SH, incoterm, valeur douanière — sans montants ni statut de paiement.
+            {packingListsUnlocked ? (
+              <> Le CSV est joint à l&apos;email et une version imprimable A4 est disponible.</>
+            ) : (
+              <> <span className="text-amber-700 font-medium">Disponible dès que l&apos;envoi passe au statut « Parti » (DEPARTED).</span></>
+            )}
+          </p>
+        </CardHeader>
+        <CardContent className={packingListsUnlocked ? "p-0" : ""}>
+          {packingListsUnlocked ? (
+            <PackingListsSection envoiId={envoi.id} groups={packingGroups} />
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Statut actuel : <Badge variant="secondary">{ENVOI_STATUS_LABELS[envoi.status]}</Badge>
+            </div>
+          )}
         </CardContent>
       </Card>
 
