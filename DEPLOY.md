@@ -14,7 +14,7 @@
 | Docker Hub | https://hub.docker.com | ✅ |
 | Supabase | https://supabase.com | ✅ (500 MB) |
 | Render | https://render.com | ✅ (cold start) |
-| UltraMsg | https://ultramsg.com | ✅ (trial) |
+| Twilio | https://www.twilio.com | ✅ (trial + sandbox WhatsApp) |
 
 ---
 
@@ -74,33 +74,37 @@ npm run db:seed
 
 ---
 
-## ÉTAPE 2 — UltraMsg (notifications WhatsApp)
+## ÉTAPE 2 — Twilio (notifications WhatsApp)
 
-### 2.1 Créer et configurer l'instance
+### 2.1 Créer le compte et connecter WhatsApp
 
-1. Connecte-toi sur [app.ultramsg.com](https://app.ultramsg.com)
-2. **Create Instance** → donne un nom (ex: `afryntix`)
-3. **Scan the QR code** avec WhatsApp depuis le téléphone qui enverra les notifications
-4. Attendre que le statut passe à **Connected**
+1. Créer un compte sur [twilio.com/try-twilio](https://www.twilio.com/try-twilio)
+2. Activer WhatsApp : **Console → Messaging → Try it out → Send a WhatsApp message**
+3. **Sandbox (dev/test)** : chaque destinataire doit envoyer `join <code>` (ex: `join happy-monkey`) au numéro sandbox affiché
+4. **Prod** : vérifier ton entreprise sur Meta Business Manager, puis **Senders → WhatsApp Senders → Create new Sender** pour attacher ton numéro dédié (~1 USD/mois)
 
 ### 2.2 Récupérer les credentials
 
-Dans le dashboard UltraMsg → **Instance Settings** :
+Dans la console Twilio → **Account → API keys & tokens** :
 
 | Variable | Où trouver |
 |---|---|
-| `ULTRAMSG_INSTANCE_ID` | En haut de la page (ex: `instance174294`) |
-| `ULTRAMSG_TOKEN` | Champ "Token" (ex: `qk77uh2wszpn79g9`) |
+| `TWILIO_ACCOUNT_SID` | Commence par `AC...` |
+| `TWILIO_AUTH_TOKEN` | Bouton "View" (⚠️ traiter comme un mot de passe) |
+| `TWILIO_WHATSAPP_FROM` | Numéro sandbox (`whatsapp:+1555...`) ou ton numéro validé (`whatsapp:+225...`) |
 
-### 2.3 Tester l'envoi (optionnel)
+### 2.3 Tester l'envoi (optionnel, sandbox)
 
 ```bash
-curl -X POST "https://api.ultramsg.com/instance174294/messages/chat" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "token=qk77uh2wszpn79g9&to=+2250768271382&body=Test+AFRYNTIX+✅"
+curl -X POST "https://api.twilio.com/2010-04-01/Accounts/AC.../Messages.json" \
+  -u "AC...:AUTH_TOKEN" \
+  --data-urlencode "From=whatsapp:+15559138795" \
+  --data-urlencode "To=whatsapp:+2250768271382" \
+  --data-urlencode "Body=Test AFRYNTIX ✅"
 ```
 
 > ✅ Les notifications WhatsApp sont envoyées automatiquement à chaque changement de statut d'expédition.
+> ⚠️ En prod : chaque template hors fenêtre 24h doit être approuvé Meta via **Content Template Builder**.
 
 ---
 
@@ -130,8 +134,9 @@ docker run -p 3000:3000 \
   -e DATABASE_URL="..." \
   -e AUTH_SECRET="..." \
   -e AUTH_URL="http://localhost:3000" \
-  -e ULTRAMSG_INSTANCE_ID="instance174294" \
-  -e ULTRAMSG_TOKEN="..." \
+  -e TWILIO_ACCOUNT_SID="AC..." \
+  -e TWILIO_AUTH_TOKEN="..." \
+  -e TWILIO_WHATSAPP_FROM="whatsapp:+15559138795" \
   ranidr/afryntix:latest
 
 # Tester le health check
@@ -207,8 +212,9 @@ image:
 | `DIRECT_URL` | Connexion directe Supabase (port 5432) |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `AUTH_URL` | `https://afryntix.onrender.com` |
-| `ULTRAMSG_INSTANCE_ID` | ID d'instance UltraMsg (ex: `instance174294`) |
-| `ULTRAMSG_TOKEN` | Token UltraMsg depuis le dashboard |
+| `TWILIO_ACCOUNT_SID` | SID Twilio (commence par `AC...`) |
+| `TWILIO_AUTH_TOKEN` | Auth Token Twilio (console → API keys & tokens) |
+| `TWILIO_WHATSAPP_FROM` | Numéro d'envoi (`whatsapp:+225...` ou sandbox) |
 | `DEFAULT_ADMIN_EMAIL` | Email admin |
 | `DEFAULT_ADMIN_PASSWORD` | Mot de passe admin fort |
 | `DEFAULT_ADMIN_NAME` | Nom admin |
@@ -238,10 +244,10 @@ Ordre des opérations :
 
 ```
 1. Supabase créé + schéma initialisé (db:push + seed)
-2. UltraMsg : instance créée + QR code scanné + statut Connected
+2. Twilio : compte créé + numéro WhatsApp actif (sandbox ou dédié)
 3. Docker Hub : repo créé + token généré
 4. GitHub : secrets ajoutés (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
-5. Render : service créé + variables d'environnement saisies (dont ULTRAMSG_*)
+5. Render : service créé + variables d'environnement saisies (dont TWILIO_*)
 6. GitHub : secrets ajoutés (RENDER_DEPLOY_HOOK_URL)
 7. git push origin main  →  workflow déclenché automatiquement
 8. Vérifier sur Render : Logs → "✓ Listening on port 3000"

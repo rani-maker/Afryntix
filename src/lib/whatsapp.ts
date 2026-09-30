@@ -2,11 +2,13 @@ import { prisma } from "./prisma";
 import { formatXOF, getAppUrl } from "./utils";
 
 // =============================================================
-// Provider actif : UltraMsg
+// Provider WhatsApp : Twilio (WhatsApp Business API — officiel Meta)
 // =============================================================
 
-const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE_ID;
-const ULTRAMSG_TOKEN    = process.env.ULTRAMSG_TOKEN;
+const TWILIO_SID     = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_TOKEN   = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_FROM    = process.env.TWILIO_WHATSAPP_FROM; // "whatsapp:+..."
+const TWILIO_MSG_SVC = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
 function normalizePhone(phone: string): string {
   const cleaned = phone
@@ -17,33 +19,59 @@ function normalizePhone(phone: string): string {
   return `+${cleaned}`;
 }
 
-async function sendViaUltraMsg(to: string, body: string): Promise<string> {
-  if (!ULTRAMSG_INSTANCE || !ULTRAMSG_TOKEN) {
-    throw new Error("ULTRAMSG_INSTANCE_ID ou ULTRAMSG_TOKEN non défini.");
+type TwilioTemplateArgs = {
+  contentSid: string;                       // "HXxxxx..."
+  contentVariables: Record<string, string>; // { "1": "Kouadio", "2": "AFR-2026-000123", ... }
+};
+
+async function sendViaTwilio(
+  to: string,
+  body: string,
+  template?: TwilioTemplateArgs,
+): Promise<string> {
+  if (!TWILIO_SID || !TWILIO_TOKEN || (!TWILIO_FROM && !TWILIO_MSG_SVC)) {
+    throw new Error(
+      "TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM (ou TWILIO_MESSAGING_SERVICE_SID) manquants.",
+    );
   }
 
-  const res = await fetch(
-    `https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token: ULTRAMSG_TOKEN,
-        to: normalizePhone(to),
-        body,
-        priority: 10,
-      }),
-    }
-  );
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
+  const form = new URLSearchParams();
+  form.set("To", `whatsapp:${normalizePhone(to)}`);
+  if (TWILIO_MSG_SVC) form.set("MessagingServiceSid", TWILIO_MSG_SVC);
+  else if (TWILIO_FROM) form.set("From", TWILIO_FROM);
+
+  if (template) {
+    // Hors fenêtre 24h : template approuvé Meta obligatoire
+    form.set("ContentSid", template.contentSid);
+    form.set("ContentVariables", JSON.stringify(template.contentVariables));
+  } else {
+    // Sandbox OU fenêtre 24h ouverte → freeform
+    form.set("Body", body);
+  }
+
+  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString("base64");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: form.toString(),
+  });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`UltraMsg HTTP ${res.status}: ${text}`);
+    throw new Error(`Twilio HTTP ${res.status}: ${text}`);
   }
 
-  const data = (await res.json()) as { sent?: string; id?: string; error?: string };
-  if (data.error) throw new Error(`UltraMsg erreur: ${data.error}`);
-  return data.id ?? "ultramsg-ok";
+  const data = (await res.json()) as {
+    sid?: string;
+    error_code?: string | null;
+    error_message?: string | null;
+  };
+  if (data.error_message) throw new Error(`Twilio [${data.error_code}]: ${data.error_message}`);
+  return data.sid ?? "twilio-ok";
 }
 
 type SendArgs = {
@@ -51,31 +79,33 @@ type SendArgs = {
   body: string;
   template: string;
   userId?: string;
+  twilioTemplate?: TwilioTemplateArgs;
 };
 
-export async function sendWhatsApp({ to, body, template, userId }: SendArgs) {
+export async function sendWhatsApp({ to, body, template, userId, twilioTemplate }: SendArgs) {
   const notification = await prisma.notification.create({
     data: { userId, to, body, template, channel: "WHATSAPP", status: "QUEUED" },
   });
 
-  if (!ULTRAMSG_INSTANCE || !ULTRAMSG_TOKEN) {
+  const ready = Boolean(TWILIO_SID && TWILIO_TOKEN && (TWILIO_FROM || TWILIO_MSG_SVC));
+  if (!ready) {
     console.warn(
-      `[WhatsApp] UltraMsg non configuré — notification ${notification.id} en attente.`
+      `[WhatsApp] Twilio non configuré — notification ${notification.id} en attente.`,
     );
     return notification;
   }
 
   try {
-    const providerId = await sendViaUltraMsg(to, body);
+    const providerId = await sendViaTwilio(to, body, twilioTemplate);
     await prisma.notification.update({
       where: { id: notification.id },
       data: { status: "SENT", providerId, sentAt: new Date() },
     });
-    console.log(`[WhatsApp] ✅ Envoyé — id: ${providerId}`);
+    console.log(`[WhatsApp] ✅ Envoyé via Twilio — id: ${providerId}`);
     return notification;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[WhatsApp] ❌ Erreur UltraMsg:", errorMessage);
+    console.error("[WhatsApp] ❌ Erreur Twilio:", errorMessage);
     await prisma.notification.update({
       where: { id: notification.id },
       data: { status: "FAILED", error: errorMessage },
