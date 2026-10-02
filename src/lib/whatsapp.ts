@@ -10,6 +10,13 @@ const TWILIO_TOKEN   = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_FROM    = process.env.TWILIO_WHATSAPP_FROM; // "whatsapp:+..."
 const TWILIO_MSG_SVC = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
+// Log diagnostic au démarrage — affiché une fois dans la console serveur.
+console.log(
+  `[WhatsApp] Twilio config → SID=${TWILIO_SID ? "✓(" + TWILIO_SID.slice(0, 6) + "...)" : "✗MANQUANT"}` +
+    ` TOKEN=${TWILIO_TOKEN ? "✓" : "✗MANQUANT"}` +
+    ` FROM=${TWILIO_FROM || "✗MANQUANT"}`,
+);
+
 function normalizePhone(phone: string): string {
   const cleaned = phone
     .replace(/\s/g, "")
