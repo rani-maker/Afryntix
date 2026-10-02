@@ -9,6 +9,10 @@ import {
   shipmentAvailableTemplate,
   shipmentsAvailableTemplate,
 } from "@/lib/whatsapp";
+import {
+  shipmentAvailableTwilioTemplate,
+  shipmentsAvailableMultiTwilioTemplate,
+} from "@/lib/whatsapp-templates";
 import { sendEmail, emailShipmentAvailable } from "@/lib/email";
 import {
   notifyInApp,
@@ -418,6 +422,14 @@ async function handleAvailableForDelivery(
       }),
       template: "available_for_delivery",
       userId: shipment.clientId ?? undefined,
+      twilioTemplate: shipmentsAvailableMultiTwilioTemplate({
+        recipientName,
+        count: allAvailableForThisMark.length,
+        factureReference: facture.reference,
+        trackingList: allAvailableForThisMark.map((s) => s.trackingNumber).join(", "),
+        totalAmount,
+        remainingAmount: totalRemaining,
+      }),
     });
   } else {
     // Template colis unique (avec référence facture en note)
@@ -441,6 +453,12 @@ async function handleAvailableForDelivery(
       }),
       template: "available_for_delivery",
       userId: shipment.clientId ?? undefined,
+      twilioTemplate: shipmentAvailableTwilioTemplate({
+        recipientName,
+        trackingNumber: shipment.trackingNumber,
+        factureReference: facture.reference,
+        remainingAmount: remainingSingle,
+      }),
     });
   }
 }
