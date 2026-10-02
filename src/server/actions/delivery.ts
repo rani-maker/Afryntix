@@ -4,6 +4,7 @@ import { randomInt } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { pickupCodeTwilioTemplate } from "@/lib/whatsapp-templates";
 import { sendEmail, emailPickupCode } from "@/lib/email";
 import { notifyInApp } from "@/lib/notifications";
 import { revalidatePath } from "next/cache";
@@ -101,6 +102,11 @@ export async function generatePickupCode(input: unknown): Promise<Result<{ code:
         body,
         template: "pickup_code",
         userId: shipment.clientId ?? undefined,
+        twilioTemplate: pickupCodeTwilioTemplate({
+          recipientName,
+          trackingNumber: shipment.trackingNumber,
+          code,
+        }),
       });
     }
     // Email parallèle si on a l'adresse client

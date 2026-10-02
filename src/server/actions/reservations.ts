@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth, requireAuth, requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { sendWhatsApp, reservationValidatedTemplate } from "@/lib/whatsapp";
+import { reservationValidatedTwilioTemplate } from "@/lib/whatsapp-templates";
 import { notifyInApp, inAppReservationValidated, inAppReservationRejected } from "@/lib/notifications";
 import { saveBase64File } from "@/lib/storage";
 import {
@@ -187,6 +188,10 @@ export async function validateReservation(input: { id: string }): Promise<Result
       body: `✅ AFRYNTIX - Bonjour ${reservation.client.name},\n\nVotre réservation #${reservation.id.slice(0, 8).toUpperCase()} a été *validée* par notre équipe.\n\nNous attendons la réception de votre colis en Chine. Vous serez notifié dès qu'il arrivera.\n\nL'équipe AFRYNTIX`,
       template: "reservation_validated",
       userId: reservation.clientId,
+      twilioTemplate: reservationValidatedTwilioTemplate({
+        clientName: reservation.client.name,
+        reservationShortId: reservation.id.slice(0, 8).toUpperCase(),
+      }),
     });
   }
 

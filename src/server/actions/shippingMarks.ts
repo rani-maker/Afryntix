@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { sendWhatsApp, receptionNoticeTemplate } from "@/lib/whatsapp";
+import { receptionNoticeTwilioTemplate } from "@/lib/whatsapp-templates";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
@@ -94,25 +95,39 @@ export async function sendReceptionNotice(shippingMarkId: string): Promise<Resul
   const totalAmount = mark.shipments.reduce((s, c) => s + c.totalAmount, 0);
   const destinationCity = mark.shipments.find((s) => s.destinationCity)?.destinationCity ?? undefined;
 
+  const colisForBody = mark.shipments.map((s) => ({
+    trackingNumber: s.trackingNumber,
+    description: s.description,
+    mode: TRANSPORT_MODE_LABELS[s.mode],
+    modeKey: s.mode,
+    totalAmount: s.totalAmount,
+    depositAmount: s.depositAmount,
+    destinationCity: s.destinationCity,
+  }));
+
+  const details = colisForBody
+    .map((c) => `${c.trackingNumber} (${c.mode}${c.description ? ` — ${c.description}` : ""})`)
+    .join(" / ");
+
   await sendWhatsApp({
     to: phone,
     body: receptionNoticeTemplate({
       recipientName: mark.name,
-      colis: mark.shipments.map((s) => ({
-        trackingNumber: s.trackingNumber,
-        description: s.description,
-        mode: TRANSPORT_MODE_LABELS[s.mode],
-        modeKey: s.mode,
-        totalAmount: s.totalAmount,
-        depositAmount: s.depositAmount,
-        destinationCity: s.destinationCity,
-      })),
+      colis: colisForBody,
       totalDeposit,
       totalAmount,
       destinationCity,
     }),
     template: "reception_notice",
     userId: mark.userId ?? undefined,
+    twilioTemplate: receptionNoticeTwilioTemplate({
+      recipientName: mark.name,
+      count: mark.shipments.length,
+      details,
+      totalDeposit,
+      totalAmount,
+      firstTrackingNumber: mark.shipments[0]!.trackingNumber,
+    }),
   });
 
   // Marquer tous ces colis comme notifiés
