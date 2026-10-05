@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,34 +25,40 @@ export function RegisterForm() {
 
     setLoading(true);
     const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email"));
+    const password = String(fd.get("password"));
     const result = await registerClient({
       name: String(fd.get("name")),
-      email: String(fd.get("email")),
-      password: String(fd.get("password")),
+      email,
+      password,
       phone,
       whatsapp: whatsapp.length >= 8 ? whatsapp : phone,
       city: String(fd.get("city") || ""),
       country: String(fd.get("country") || ""),
       referralCode: String(fd.get("referralCode") || "") || undefined,
     });
+    setLoading(false);
     if (!result.success) {
       setError(result.error);
-      setLoading(false);
       return;
     }
-    const signInRes = await signIn("credentials", {
-      email: String(fd.get("email")),
-      password: String(fd.get("password")),
-      redirect: false,
-    });
-    setLoading(false);
-    if (signInRes?.error) {
-      setError("Compte créé mais connexion échouée. Veuillez vous connecter.");
+    // Compte créé → envoi vers la page de saisie OTP (un code vient de partir
+    // sur WhatsApp au numéro saisi). Le signIn se fera après vérification.
+    const otpId = result.data?.otpId;
+    if (!otpId) {
+      setError("Le code n'a pas pu être envoyé. Essayez de vous connecter puis de renvoyer un code.");
       router.push("/login");
       return;
     }
-    router.push("/dashboard");
-    router.refresh();
+    const params = new URLSearchParams({
+      otp: otpId,
+      email,
+      // mdp temporairement passé via sessionStorage (jamais via URL) pour auto-login post vérif
+    });
+    try {
+      sessionStorage.setItem("afx_pending_pw", password);
+    } catch {}
+    router.push(`/register/verify?${params.toString()}`);
   }
 
   return (

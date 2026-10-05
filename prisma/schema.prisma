@@ -25,16 +25,17 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String?
-  name          String
-  phone         String?
-  whatsapp      String?
-  role          Role      @default(CLIENT)
-  active        Boolean   @default(true)
-  emailVerified DateTime?
-  image         String?
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String?
+  name               String
+  phone              String?
+  whatsapp           String?
+  role               Role      @default(CLIENT)
+  active             Boolean   @default(true)
+  emailVerified      DateTime?
+  whatsappVerifiedAt DateTime?
+  image              String?
 
   // Adresse client
   city    String?
@@ -55,6 +56,7 @@ model User {
   staffInvitesSent      StaffInvite[]       @relation("StaffInviteAdmin")
   staffInviteUsed       StaffInvite?        @relation("StaffInviteUser")
   passwordResetTokens   PasswordResetToken[] @relation("UserPasswordResets")
+  whatsappOtps          WhatsAppOtp[]       @relation("UserWhatsAppOtps")
   envoisCreated         Envoi[]             @relation("EnvoiCreator")
   auditLogs             AuditLog[]
   notifications         Notification[]
@@ -108,6 +110,28 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Code OTP WhatsApp (vérification inscription + reset password)
+enum OtpPurpose {
+  SIGNUP
+  PASSWORD_RESET
+}
+
+model WhatsAppOtp {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation("UserWhatsAppOtps", fields: [userId], references: [id], onDelete: Cascade)
+  codeHash   String     // bcrypt hash du code 6 chiffres
+  purpose    OtpPurpose
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime   @default(now())
+  phoneSent  String     // numéro WhatsApp où l'OTP a été envoyé
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
 }
 
 // Jeton de réinitialisation de mot de passe (public — forgot password)

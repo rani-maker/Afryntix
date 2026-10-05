@@ -115,6 +115,26 @@ export function pickupCodeTwilioTemplate(args: {
   };
 }
 
+// ── Template OTP — afryntix_verification_code (AUTHENTICATION) ──
+// Texte Meta attendu (à créer dans Content Template Builder) :
+//   Body : "Bonjour {{1}}, votre code de vérification AFRYNTIX est : {{2}}.
+//           Il expire dans 10 minutes. Ne le partagez avec personne."
+//   Catégorie : AUTHENTICATION ; Bouton : Copy code → {{2}}
+export function verificationCodeTwilioTemplate(args: {
+  recipientName: string;
+  code: string;
+}): TwilioTemplate | undefined {
+  const contentSid = readSid("TWILIO_TEMPLATE_VERIFICATION_CODE_SID");
+  if (!contentSid) return undefined;
+  return {
+    contentSid,
+    contentVariables: {
+      "1": nonEmpty(args.recipientName, "Cher client"),
+      "2": nonEmpty(args.code),
+    },
+  };
+}
+
 // ── Template 7 — afryntix_reservation_validated ──────────────
 // Le trackingNumber AFRYNTIX n'existe pas encore au moment de la validation
 // de la réservation → on envoie un texte explicatif en {{3}}.
