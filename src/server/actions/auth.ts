@@ -6,6 +6,9 @@ import { auth, requireRole, signOut } from "@/auth";
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getAppUrl } from "@/lib/utils";
+import { sendEmail, emailPasswordReset } from "@/lib/email";
+
+const PASSWORD_RESET_EXPIRY_MIN = 60;
 
 export async function serverSignOut() {
   const landingUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "/";
@@ -174,6 +177,76 @@ export async function changePassword(input: { current: string; next: string }): 
 
   const passwordHash = await bcrypt.hash(input.next, 10);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  return { success: true };
+}
+
+// Lance une demande de réinitialisation de mot de passe. Pour éviter l'énumération
+// de comptes, cette action répond toujours success, même si l'email est inconnu.
+export async function requestPasswordReset(email: string): Promise<Result> {
+  const parsed = z.string().email().safeParse(email);
+  if (!parsed.success) return { success: false, error: "Email invalide." };
+
+  const normalized = parsed.data.toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
+
+  // Si l'utilisateur existe ET a un mot de passe (pas un compte OAuth) ET est actif
+  if (user && user.passwordHash && user.active) {
+    // Invalide les anciens tokens non utilisés de ce user pour éviter l'accumulation
+    await prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+      data: { usedAt: new Date() },
+    });
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MIN * 60 * 1000);
+    await prisma.passwordResetToken.create({
+      data: { token, userId: user.id, expiresAt },
+    });
+
+    const resetUrl = `${getAppUrl()}/reset-password/${token}`;
+    const tpl = emailPasswordReset({
+      recipientName: user.name,
+      resetUrl,
+      expiresInMinutes: PASSWORD_RESET_EXPIRY_MIN,
+    });
+    await sendEmail({
+      to: user.email,
+      subject: tpl.subject,
+      html: tpl.html,
+      template: "password_reset",
+      userId: user.id,
+    });
+  }
+
+  return { success: true };
+}
+
+export async function confirmPasswordReset(input: {
+  token: string;
+  password: string;
+}): Promise<Result> {
+  if (!input.token || input.token.length !== 64) {
+    return { success: false, error: "Lien de réinitialisation invalide." };
+  }
+  if (input.password.length < 8) {
+    return { success: false, error: "Le mot de passe doit faire au moins 8 caractères." };
+  }
+
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { token: input.token },
+    include: { user: true },
+  });
+  if (!record) return { success: false, error: "Lien de réinitialisation invalide." };
+  if (record.usedAt) return { success: false, error: "Ce lien a déjà été utilisé." };
+  if (record.expiresAt < new Date()) return { success: false, error: "Ce lien a expiré. Demandez-en un nouveau." };
+  if (!record.user.active) return { success: false, error: "Ce compte est désactivé." };
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+  ]);
+
   return { success: true };
 }
 

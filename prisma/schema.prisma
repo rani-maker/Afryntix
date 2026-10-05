@@ -54,6 +54,7 @@ model User {
   exchangeRatesSet      ExchangeRate[]
   staffInvitesSent      StaffInvite[]       @relation("StaffInviteAdmin")
   staffInviteUsed       StaffInvite?        @relation("StaffInviteUser")
+  passwordResetTokens   PasswordResetToken[] @relation("UserPasswordResets")
   envoisCreated         Envoi[]             @relation("EnvoiCreator")
   auditLogs             AuditLog[]
   notifications         Notification[]
@@ -107,6 +108,20 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Jeton de réinitialisation de mot de passe (public — forgot password)
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation("UserPasswordResets", fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // Invitation Staff (admin only)
