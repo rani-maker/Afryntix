@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { generateReference } from "@/lib/utils";
 import type { TransportMode } from "@prisma/client";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
@@ -21,28 +22,72 @@ const ScheduleSchema = z.object({
   notes: z.string().optional(),
 });
 
-export async function createSchedule(input: unknown): Promise<Result<{ id: string }>> {
-  await requireRole("ADMIN", "STAFF");
+export async function createSchedule(
+  input: unknown,
+): Promise<Result<{ id: string; envoiReference: string }>> {
+  const session = await requireRole("ADMIN", "STAFF");
   const parsed = ScheduleSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
 
-  const created = await prisma.shippingSchedule.create({
-    data: {
-      mode: parsed.data.mode as TransportMode,
-      departureDate: new Date(parsed.data.departureDate),
-      arrivalDate: parsed.data.arrivalDate ? new Date(parsed.data.arrivalDate) : null,
-      cutoffDate: new Date(parsed.data.cutoffDate),
-      origin: parsed.data.origin,
-      destination: parsed.data.destination,
-      capacity: parsed.data.capacity,
-      capacityValue: parsed.data.capacityValue ?? null,
-      notes: parsed.data.notes,
-    },
+  // Référence unique pour l'envoi (voyage) auto-créé — retry en cas de collision.
+  let reference = generateReference("ENV");
+  for (let i = 0; i < 5; i++) {
+    const exists = await prisma.envoi.findUnique({ where: { reference } });
+    if (!exists) break;
+    reference = generateReference("ENV");
+  }
+
+  // Transaction : envoi + schedule liés. Si l'un échoue, rien n'est créé.
+  const result = await prisma.$transaction(async (tx) => {
+    const envoi = await tx.envoi.create({
+      data: {
+        reference,
+        mode: parsed.data.mode as TransportMode,
+        origin: parsed.data.origin,
+        destination: parsed.data.destination,
+        departureDate: new Date(parsed.data.departureDate),
+        arrivalDate: parsed.data.arrivalDate ? new Date(parsed.data.arrivalDate) : null,
+        notes: parsed.data.notes,
+        createdById: session.user.id,
+        history: {
+          create: [
+            {
+              status: "PLANNED",
+              note: `Envoi créé automatiquement depuis le calendrier (${parsed.data.origin} → ${parsed.data.destination})`,
+              createdBy: session.user.id,
+            },
+          ],
+        },
+      },
+    });
+
+    const schedule = await tx.shippingSchedule.create({
+      data: {
+        mode: parsed.data.mode as TransportMode,
+        departureDate: new Date(parsed.data.departureDate),
+        arrivalDate: parsed.data.arrivalDate ? new Date(parsed.data.arrivalDate) : null,
+        cutoffDate: new Date(parsed.data.cutoffDate),
+        origin: parsed.data.origin,
+        destination: parsed.data.destination,
+        capacity: parsed.data.capacity,
+        capacityValue: parsed.data.capacityValue ?? null,
+        notes: parsed.data.notes,
+        envoiId: envoi.id,
+      },
+    });
+
+    return { schedule, envoi };
   });
+
   revalidatePath("/admin/schedules");
   revalidatePath("/staff/schedules");
+  revalidatePath("/staff/envois");
+  revalidatePath("/admin/envois");
   revalidatePath("/dashboard/reservations/new");
-  return { success: true, data: { id: created.id } };
+  return {
+    success: true,
+    data: { id: result.schedule.id, envoiReference: result.envoi.reference },
+  };
 }
 
 export async function toggleScheduleActive(input: { id: string; active: boolean }): Promise<Result> {

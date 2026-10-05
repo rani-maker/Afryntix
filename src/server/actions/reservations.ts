@@ -66,8 +66,16 @@ export async function createReservation(
       where: { id: parsed.data.scheduleId },
       include: {
         reservations: {
-          where: { status: { not: "REJECTED" } },
+          where: { status: { not: "REJECTED" }, shipment: null },
           select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+        },
+        envoi: {
+          select: {
+            shipments: {
+              where: { status: { not: "CANCELLED" } },
+              select: { weightKg: true, volumeCBM: true, pieces: true },
+            },
+          },
         },
       },
     });
@@ -81,6 +89,7 @@ export async function createReservation(
       schedule.capacityValue,
       schedule.reservations,
       schedule.mode,
+      schedule.envoi?.shipments ?? [],
     );
 
     if (occupancy) {

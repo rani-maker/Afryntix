@@ -9,7 +9,7 @@
 // (estimatedVolumeCBM pour le maritime, estimatedWeightKg pour l'aérien).
 // Les modes "unitaires" comptent simplement 1 par réservation.
 
-import type { TransportMode, Reservation } from "@prisma/client";
+import type { TransportMode, Reservation, Shipment } from "@prisma/client";
 
 export type CapacityUnit = "CBM" | "KG" | "UNIT";
 
@@ -69,24 +69,58 @@ export function sumReservationUsage(
   return reservations.reduce((acc, r) => acc + reservationUsage(r, mode), 0);
 }
 
-// Évalue l'occupation d'un calendrier.
-// Retourne { used, capacity, isFull, remaining, percent } ou null si pas de plafond.
+// Quantité réellement occupée par un colis déjà créé et rattaché à l'envoi.
+// On privilégie la mesure effective (weightKg, volumeCBM, pieces) qui a été
+// soit déclarée à la création, soit vérifiée en entrepôt.
+export function shipmentUsage(
+  shipment: Pick<Shipment, "weightKg" | "volumeCBM" | "pieces">,
+  mode: TransportMode,
+): number {
+  const unit = getCapacityUnit(mode);
+  if (unit === "CBM") return shipment.volumeCBM ?? 0;
+  if (unit === "KG") return shipment.weightKg ?? 0;
+  return shipment.pieces ?? 1; // UNIT
+}
+
+export function sumShipmentUsage(
+  shipments: Array<Pick<Shipment, "weightKg" | "volumeCBM" | "pieces">>,
+  mode: TransportMode,
+): number {
+  return shipments.reduce((acc, s) => acc + shipmentUsage(s, mode), 0);
+}
+
+// Évalue l'occupation d'un calendrier :
+//   - Réservations encore en attente (non converties en colis)
+//   - PLUS les colis rattachés à l'envoi associé au calendrier
+//
+// Les colis sont la mesure réelle ; les réservations sont une estimation. Elles
+// sont additionnées, mais le code appelant doit s'assurer que les réservations
+// déjà converties en colis ne sont pas comptées (filtrer `shipment: null`).
+//
+// Retourne null si pas de plafond.
 export function computeOccupancy(
   capacityValue: number | null | undefined,
   reservations: Array<Pick<Reservation, "estimatedWeightKg" | "estimatedVolumeCBM">>,
   mode: TransportMode,
+  shipments: Array<Pick<Shipment, "weightKg" | "volumeCBM" | "pieces">> = [],
 ): {
   used: number;
+  usedReservations: number;
+  usedShipments: number;
   capacity: number;
   remaining: number;
   isFull: boolean;
   percent: number;
 } | null {
   if (capacityValue == null || capacityValue <= 0) return null;
-  const used = sumReservationUsage(reservations, mode);
+  const usedReservations = sumReservationUsage(reservations, mode);
+  const usedShipments = sumShipmentUsage(shipments, mode);
+  const used = usedReservations + usedShipments;
   const remaining = Math.max(0, capacityValue - used);
   return {
     used,
+    usedReservations,
+    usedShipments,
     capacity: capacityValue,
     remaining,
     isFull: used >= capacityValue,

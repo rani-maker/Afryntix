@@ -16,12 +16,23 @@ import {
 export default async function AdminSchedulesPage() {
   const schedules = await prisma.shippingSchedule.findMany({
     orderBy: { departureDate: "asc" },
-    // Pour calculer l'occupation, on a besoin des dimensions de chaque réservation
-    // active. On exclut les rejets, qui ne consomment plus de capacité.
+    // Pour calculer l'occupation :
+    //   - Réservations non rejetées ET non converties en colis (sinon on
+    //     compte 2 fois : la résa + son colis issu de la conversion).
+    //   - Colis rattachés à l'envoi lié (mesure réelle, prioritaire).
     include: {
       reservations: {
-        where: { status: { not: "REJECTED" } },
+        where: { status: { not: "REJECTED" }, shipment: null },
         select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+      },
+      envoi: {
+        select: {
+          reference: true,
+          shipments: {
+            where: { status: { not: "CANCELLED" } },
+            select: { weightKg: true, volumeCBM: true, pieces: true },
+          },
+        },
       },
     },
   });
@@ -65,13 +76,19 @@ export default async function AdminSchedulesPage() {
                 </TableRow>
               ) : (
                 schedules.map((s) => {
-                  const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode);
+                  const shipments = s.envoi?.shipments ?? [];
+                  const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode, shipments);
                   const unit = CAPACITY_UNIT_LABEL[getCapacityUnit(s.mode)];
                   return (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm">{TRANSPORT_MODE_LABELS[s.mode]}</TableCell>
                     <TableCell className="text-sm">
                       {s.origin} → {s.destination}
+                      {s.envoi?.reference && (
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          Envoi : {s.envoi.reference}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>{formatDate(s.departureDate)}</TableCell>
                     <TableCell>{s.arrivalDate ? formatDate(s.arrivalDate) : "—"}</TableCell>
@@ -97,7 +114,7 @@ export default async function AdminSchedulesPage() {
                         >
                           {occ.used.toFixed(2)} / {occ.capacity.toFixed(2)} {unit}
                           <div className="text-[11px] font-normal">
-                            ({s.reservations.length} résa · {occ.percent}%)
+                            ({s.reservations.length} résa · {shipments.length} colis · {occ.percent}%)
                           </div>
                           {occ.isFull && (
                             <div className="text-[11px]">Complet</div>
@@ -105,7 +122,7 @@ export default async function AdminSchedulesPage() {
                         </span>
                       ) : (
                         <span>
-                          {s.reservations.length} résa
+                          {s.reservations.length} résa · {shipments.length} colis
                         </span>
                       )}
                     </TableCell>
