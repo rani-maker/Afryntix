@@ -136,6 +136,26 @@ export function emailPickupCode(args: {
   return { subject, html };
 }
 
+export function emailPasswordReset(args: {
+  recipientName: string;
+  resetUrl: string;
+  expiresInMinutes: number;
+}): { subject: string; html: string } {
+  const subject = `[AFRYNTIX] Réinitialisation de votre mot de passe`;
+  const html = `
+    <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #0f172a;">Bonjour ${escapeHtml(args.recipientName)},</h2>
+      <p>Vous avez demandé à réinitialiser votre mot de passe AFRYNTIX. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>
+      <p style="text-align: center; margin: 32px 0;">
+        <a href="${escapeHtml(args.resetUrl)}" style="display: inline-block; background: #0f766e; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">Réinitialiser mon mot de passe</a>
+      </p>
+      <p style="color: #64748b; font-size: 13px;">Ce lien est valable pendant <strong>${args.expiresInMinutes} minutes</strong>. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message — votre mot de passe actuel reste inchangé.</p>
+      <p style="color: #64748b; font-size: 12px; margin-top: 12px; word-break: break-all;">Lien direct si le bouton ne fonctionne pas :<br/>${escapeHtml(args.resetUrl)}</p>
+      <p style="color: #64748b; font-size: 12px; margin-top: 24px;">— L'équipe AFRYNTIX</p>
+    </div>`;
+  return { subject, html };
+}
+
 export function emailPackingList(args: {
   recipientName: string;
   shippingMarkName: string;

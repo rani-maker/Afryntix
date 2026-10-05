@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,15 @@ export function LoginForm() {
         <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="password">Mot de passe</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Mot de passe</Label>
+          <Link
+            href="/forgot-password"
+            className="text-xs text-mint-3 font-semibold underline underline-offset-4 hover:text-mint-2"
+          >
+            Mot de passe oublié ?
+          </Link>
+        </div>
         <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}

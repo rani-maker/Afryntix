@@ -6,6 +6,10 @@ import { auth, requireRole, signOut } from "@/auth";
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getAppUrl } from "@/lib/utils";
+import { sendEmail, emailPasswordReset } from "@/lib/email";
+import { createAndSendOtp, verifyOtp } from "@/lib/otp";
+
+const PASSWORD_RESET_EXPIRY_MIN = 60;
 
 export async function serverSignOut() {
   const landingUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "/";
@@ -32,7 +36,9 @@ const RegisterSchema = z.object({
 
 type Result<T = void> = { success: true; data?: T } | { success: false; error: string };
 
-export async function registerClient(input: z.infer<typeof RegisterSchema>): Promise<Result> {
+export async function registerClient(
+  input: z.infer<typeof RegisterSchema>,
+): Promise<Result<{ otpId: string }>> {
   const parsed = RegisterSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Données invalides." };
 
@@ -52,12 +58,13 @@ export async function registerClient(input: z.infer<typeof RegisterSchema>): Pro
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  await prisma.user.create({
+  const whatsappNumber = parsed.data.whatsapp || parsed.data.phone;
+  const user = await prisma.user.create({
     data: {
       email,
       name: parsed.data.name,
       phone: parsed.data.phone,
-      whatsapp: parsed.data.whatsapp || parsed.data.phone,
+      whatsapp: whatsappNumber,
       passwordHash,
       role: "CLIENT",
       city: parsed.data.city,
@@ -65,7 +72,41 @@ export async function registerClient(input: z.infer<typeof RegisterSchema>): Pro
       referredByPartnerId,
     },
   });
+
+  const otp = await createAndSendOtp({
+    userId: user.id,
+    purpose: "SIGNUP",
+    recipientName: user.name,
+    phone: whatsappNumber,
+  });
+  return { success: true, data: { otpId: otp.otpId } };
+}
+
+export async function verifySignupOtp(input: { otpId: string; code: string }): Promise<Result> {
+  const result = await verifyOtp({ otpId: input.otpId, code: input.code, purpose: "SIGNUP" });
+  if (!result.ok) return { success: false, error: result.error };
+  await prisma.user.update({
+    where: { id: result.userId },
+    data: { whatsappVerifiedAt: new Date() },
+  });
   return { success: true };
+}
+
+export async function resendSignupOtp(input: { otpId: string }): Promise<Result<{ otpId: string }>> {
+  const row = await prisma.whatsAppOtp.findUnique({
+    where: { id: input.otpId },
+    include: { user: true },
+  });
+  if (!row || row.purpose !== "SIGNUP") return { success: false, error: "Session introuvable." };
+  if (row.user.whatsappVerifiedAt) return { success: false, error: "Ce compte est déjà vérifié." };
+
+  const otp = await createAndSendOtp({
+    userId: row.userId,
+    purpose: "SIGNUP",
+    recipientName: row.user.name,
+    phone: row.phoneSent,
+  });
+  return { success: true, data: { otpId: otp.otpId } };
 }
 
 // Admin invite a Staff (only ADMIN can do this)
@@ -174,6 +215,131 @@ export async function changePassword(input: { current: string; next: string }): 
 
   const passwordHash = await bcrypt.hash(input.next, 10);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  return { success: true };
+}
+
+// Demande de reset par OTP WhatsApp. Entrée = email OU téléphone.
+// Retourne un otpId opaque. Toujours success pour éviter l'énumération.
+export async function requestPasswordResetOtp(
+  identifier: string,
+): Promise<Result<{ otpId: string | null }>> {
+  const trimmed = identifier.trim();
+  if (!trimmed) return { success: false, error: "Identifiant requis." };
+
+  const isEmail = trimmed.includes("@");
+  const user = isEmail
+    ? await prisma.user.findUnique({ where: { email: trimmed.toLowerCase() } })
+    : await prisma.user.findFirst({
+        where: { OR: [{ phone: trimmed }, { whatsapp: trimmed }] },
+      });
+
+  if (!user || !user.passwordHash || !user.active) {
+    // Ne rien révéler
+    return { success: true, data: { otpId: null } };
+  }
+
+  const phone = user.whatsapp || user.phone;
+  if (!phone) return { success: true, data: { otpId: null } };
+
+  const otp = await createAndSendOtp({
+    userId: user.id,
+    purpose: "PASSWORD_RESET",
+    recipientName: user.name,
+    phone,
+  });
+  return { success: true, data: { otpId: otp.otpId } };
+}
+
+export async function confirmPasswordResetOtp(input: {
+  otpId: string;
+  code: string;
+  password: string;
+}): Promise<Result> {
+  if (input.password.length < 8) {
+    return { success: false, error: "Le mot de passe doit faire au moins 8 caractères." };
+  }
+  const result = await verifyOtp({
+    otpId: input.otpId,
+    code: input.code,
+    purpose: "PASSWORD_RESET",
+  });
+  if (!result.ok) return { success: false, error: result.error };
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  await prisma.user.update({
+    where: { id: result.userId },
+    data: { passwordHash },
+  });
+  return { success: true };
+}
+
+// Lance une demande de réinitialisation de mot de passe. Pour éviter l'énumération
+// de comptes, cette action répond toujours success, même si l'email est inconnu.
+export async function requestPasswordReset(email: string): Promise<Result> {
+  const parsed = z.string().email().safeParse(email);
+  if (!parsed.success) return { success: false, error: "Email invalide." };
+
+  const normalized = parsed.data.toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
+
+  // Si l'utilisateur existe ET a un mot de passe (pas un compte OAuth) ET est actif
+  if (user && user.passwordHash && user.active) {
+    // Invalide les anciens tokens non utilisés de ce user pour éviter l'accumulation
+    await prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+      data: { usedAt: new Date() },
+    });
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MIN * 60 * 1000);
+    await prisma.passwordResetToken.create({
+      data: { token, userId: user.id, expiresAt },
+    });
+
+    const resetUrl = `${getAppUrl()}/reset-password/${token}`;
+    const tpl = emailPasswordReset({
+      recipientName: user.name,
+      resetUrl,
+      expiresInMinutes: PASSWORD_RESET_EXPIRY_MIN,
+    });
+    await sendEmail({
+      to: user.email,
+      subject: tpl.subject,
+      html: tpl.html,
+      template: "password_reset",
+      userId: user.id,
+    });
+  }
+
+  return { success: true };
+}
+
+export async function confirmPasswordReset(input: {
+  token: string;
+  password: string;
+}): Promise<Result> {
+  if (!input.token || input.token.length !== 64) {
+    return { success: false, error: "Lien de réinitialisation invalide." };
+  }
+  if (input.password.length < 8) {
+    return { success: false, error: "Le mot de passe doit faire au moins 8 caractères." };
+  }
+
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { token: input.token },
+    include: { user: true },
+  });
+  if (!record) return { success: false, error: "Lien de réinitialisation invalide." };
+  if (record.usedAt) return { success: false, error: "Ce lien a déjà été utilisé." };
+  if (record.expiresAt < new Date()) return { success: false, error: "Ce lien a expiré. Demandez-en un nouveau." };
+  if (!record.user.active) return { success: false, error: "Ce compte est désactivé." };
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+  ]);
+
   return { success: true };
 }
 

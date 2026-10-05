@@ -28,12 +28,32 @@ services:
       - key: AUTH_URL
         value: https://www.afryntix.com
 
-      # --- UltraMsg WhatsApp ---
-      - key: ULTRAMSG_INSTANCE_ID
-        sync: false                        # ex: instance174294
+      # --- Twilio WhatsApp Business API ---
+      - key: TWILIO_ACCOUNT_SID
+        sync: false                        # ex: AC...
 
-      - key: ULTRAMSG_TOKEN
-        sync: false                        # token UltraMsg
+      - key: TWILIO_AUTH_TOKEN
+        sync: false                        # console Twilio → API keys & tokens
+
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false                        # ex: whatsapp:+2250502466412
+
+      # Templates WhatsApp approuvés par Meta (ContentSid Twilio HX...).
+      # SID vide → fallback automatique freeform (OK fenêtre 24h).
+      - key: TWILIO_TEMPLATE_RECEPTION_NOTICE_SID
+        sync: false
+
+      - key: TWILIO_TEMPLATE_SHIPMENT_AVAILABLE_SID
+        sync: false
+
+      - key: TWILIO_TEMPLATE_SHIPMENTS_AVAILABLE_MULTI_SID
+        sync: false
+
+      - key: TWILIO_TEMPLATE_PICKUP_CODE_SID
+        sync: false
+
+      - key: TWILIO_TEMPLATE_RESERVATION_VALIDATED_SID
+        sync: false
 
       # --- App publique ---
       - key: NEXT_PUBLIC_APP_NAME
