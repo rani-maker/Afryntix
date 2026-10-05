@@ -34,12 +34,19 @@ export default async function NewReservationPage({
   const raw = await prisma.shippingSchedule.findMany({
     where: { active: true, cutoffDate: { gte: new Date() } },
     orderBy: { departureDate: "asc" },
-    // Pour le formulaire on a besoin des dimensions des réservations actives
-    // afin de calculer la capacité restante (CBM ou kg selon le mode).
+    // Occupation = résa non converties + colis rattachés à l'envoi lié.
     include: {
       reservations: {
-        where: { status: { not: "REJECTED" } },
+        where: { status: { not: "REJECTED" }, shipment: null },
         select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+      },
+      envoi: {
+        select: {
+          shipments: {
+            where: { status: { not: "CANCELLED" } },
+            select: { weightKg: true, volumeCBM: true, pieces: true },
+          },
+        },
       },
     },
   });
@@ -47,7 +54,8 @@ export default async function NewReservationPage({
   // On précalcule l'occupation côté serveur et on n'expose au client que des
   // données agrégées (sans fuiter les dimensions individuelles des réservations).
   const schedules = raw.map((s) => {
-    const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode);
+    const shipments = s.envoi?.shipments ?? [];
+    const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode, shipments);
     return {
       id: s.id,
       mode: s.mode,

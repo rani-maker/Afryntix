@@ -434,6 +434,8 @@ model Envoi {
   history    EnvoiHistory[]
   factures   Facture[]
   documents  Document[]
+  // Calendrier d'envois qui a créé cet envoi (1:1).
+  schedule   ShippingSchedule? @relation("ScheduleEnvoi")
 
   createdById String?
   createdBy   User?    @relation("EnvoiCreator", fields: [createdById], references: [id])
@@ -647,6 +649,9 @@ model ShippingSchedule {
   notes         String?
   active        Boolean       @default(true)
   reservations  Reservation[]
+  // Envoi logistique créé automatiquement avec ce calendrier (1:1).
+  envoiId       String?       @unique
+  envoi         Envoi?        @relation("ScheduleEnvoi", fields: [envoiId], references: [id], onDelete: SetNull)
   createdAt     DateTime      @default(now())
 }
 

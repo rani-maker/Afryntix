@@ -11,11 +11,19 @@ export default async function ClientSchedulesPage() {
   const raw = await prisma.shippingSchedule.findMany({
     where: { active: true },
     orderBy: { departureDate: "asc" },
-    // On a besoin des dimensions réservées pour calculer l'occupation par mode.
+    // Occupation = résa non converties + colis rattachés à l'envoi.
     include: {
       reservations: {
-        where: { status: { not: "REJECTED" } },
+        where: { status: { not: "REJECTED" }, shipment: null },
         select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+      },
+      envoi: {
+        select: {
+          shipments: {
+            where: { status: { not: "CANCELLED" } },
+            select: { weightKg: true, volumeCBM: true, pieces: true },
+          },
+        },
       },
     },
   });
@@ -26,7 +34,8 @@ export default async function ClientSchedulesPage() {
   // On précalcule aussi, pour chaque calendrier plein, le prochain départ
   // disponible du même mode — affiché en CTA « Réserver sur le prochain ».
   const schedules = raw.map((s) => {
-    const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode);
+    const shipments = s.envoi?.shipments ?? [];
+    const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode, shipments);
     return {
       id: s.id,
       mode: s.mode,

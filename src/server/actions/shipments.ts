@@ -238,6 +238,14 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
   revalidatePath("/staff/shipments");
   revalidatePath("/admin/shipments");
   revalidatePath("/dashboard");
+  // Un colis rattaché à un envoi consomme la capacité du calendrier d'envoi lié.
+  // On rafraîchit les vues qui l'affichent.
+  if (data.envoiId) {
+    revalidatePath("/admin/schedules");
+    revalidatePath("/staff/schedules");
+    revalidatePath("/dashboard/schedules");
+    revalidatePath("/dashboard/reservations/new");
+  }
   return { success: true, data: { trackingNumber, id: shipment.id } };
 }
 

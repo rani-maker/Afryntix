@@ -14,12 +14,20 @@ import {
 export default async function StaffSchedulesPage() {
   const schedules = await prisma.shippingSchedule.findMany({
     orderBy: { departureDate: "asc" },
-    // Idem admin : on calcule l'occupation à partir des dimensions estimées
-    // des réservations non rejetées.
+    // Occupation = résa non rejetées non-converties + colis rattachés à l'envoi lié.
     include: {
       reservations: {
-        where: { status: { not: "REJECTED" } },
+        where: { status: { not: "REJECTED" }, shipment: null },
         select: { estimatedWeightKg: true, estimatedVolumeCBM: true },
+      },
+      envoi: {
+        select: {
+          reference: true,
+          shipments: {
+            where: { status: { not: "CANCELLED" } },
+            select: { weightKg: true, volumeCBM: true, pieces: true },
+          },
+        },
       },
     },
   });
@@ -52,13 +60,19 @@ export default async function StaffSchedulesPage() {
               </TableRow>
             ) : (
               schedules.map((s) => {
-                const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode);
+                const shipments = s.envoi?.shipments ?? [];
+                const occ = computeOccupancy(s.capacityValue, s.reservations, s.mode, shipments);
                 const unit = CAPACITY_UNIT_LABEL[getCapacityUnit(s.mode)];
                 return (
                 <TableRow key={s.id}>
                   <TableCell className="text-sm">{TRANSPORT_MODE_LABELS[s.mode]}</TableCell>
                   <TableCell className="text-sm">
                     {s.origin} → {s.destination}
+                    {s.envoi?.reference && (
+                      <div className="text-[11px] text-muted-foreground font-mono">
+                        Envoi : {s.envoi.reference}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>{formatDate(s.cutoffDate)}</TableCell>
                   <TableCell>{formatDate(s.departureDate)}</TableCell>
@@ -84,7 +98,7 @@ export default async function StaffSchedulesPage() {
                       >
                         {occ.used.toFixed(2)} / {occ.capacity.toFixed(2)} {unit}
                         <div className="text-[11px] font-normal">
-                          ({s.reservations.length} résa · {occ.percent}%)
+                          ({s.reservations.length} résa · {shipments.length} colis · {occ.percent}%)
                         </div>
                         {occ.isFull && (
                           <div className="text-[11px]">Complet</div>
