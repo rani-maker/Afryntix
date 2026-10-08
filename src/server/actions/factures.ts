@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { generateReference } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
+import { getInvoiceDoc } from "@/lib/facture-document";
+import { ensureFactureForMark } from "@/lib/facture-ensure";
+import { getInvoiceShare } from "@/lib/facture-link";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
@@ -69,7 +72,11 @@ export async function getOrCreateFactureForShipments(input: {
   if (existingFactureIds.length === 1) {
     const existing = await prisma.facture.findUnique({ where: { id: existingFactureIds[0] } });
     if (existing) {
-      // Recalculer les totaux (des colis peuvent avoir été ajoutés)
+      // Rattacher les colis ajoutés depuis, puis recalculer les totaux
+      await prisma.shipment.updateMany({
+        where: { id: { in: input.shipmentIds }, factureId: null },
+        data: { factureId: existing.id },
+      });
       const total = shipments.reduce((sum, s) => sum + s.totalAmount, 0);
       const deposit = total * 0.5;
       const remaining = Math.max(0, total - existing.amountPaid);
@@ -113,6 +120,28 @@ export async function getOrCreateFactureForShipments(input: {
   });
 
   return { id: facture.id, reference: facture.reference };
+}
+
+/**
+ * Facture d'un client (shipping mark) sur un voyage : la retrouve ou la crée, puis
+ * renvoie de quoi l'ouvrir et la partager (lien client signé, message WhatsApp prêt).
+ */
+export async function ensureFactureForEnvoiMark(input: {
+  envoiId: string;
+  markId: string;
+}): Promise<Result<{ factureId: string; reference: string; publicUrl: string | null; whatsappUrl: string | null }>> {
+  await requireRole("STAFF", "ADMIN");
+
+  const ensured = await prisma.$transaction((tx) => ensureFactureForMark(tx, input));
+  if (!ensured.ok) return { success: false, error: ensured.error };
+
+  const doc = await getInvoiceDoc(ensured.factureId);
+  const share = doc ? getInvoiceShare(doc) : { publicUrl: null, whatsappUrl: null };
+
+  revalidatePath(`/staff/envois/${input.envoiId}`);
+  revalidatePath("/staff/payments");
+
+  return { success: true, data: { factureId: ensured.factureId, reference: ensured.reference, ...share } };
 }
 
 /**
