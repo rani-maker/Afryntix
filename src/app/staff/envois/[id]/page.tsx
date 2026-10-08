@@ -24,6 +24,7 @@ import { Download, Printer } from "lucide-react";
 import { FclInvoiceForm } from "./fcl-invoice-form";
 import { DeleteEnvoiButton } from "./delete-envoi-button";
 import { PackingListsSection } from "./packing-lists-section";
+import { InvoicesSection, type InvoiceGroup } from "./invoices-section";
 
 export default async function EnvoiDetailPage({
   params,
@@ -44,9 +45,11 @@ export default async function EnvoiDetailPage({
               id: true,
               name: true,
               phone: true,
-              user: { select: { email: true } },
+              whatsapp: true,
+              user: { select: { email: true, name: true } },
             },
           },
+          facture: { select: { reference: true } },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -113,6 +116,41 @@ export default async function EnvoiDetailPage({
   );
   const packingListsUnlocked = ["DEPARTED", "IN_TRANSIT", "ARRIVED", "CLEARED", "DELIVERED"].includes(
     envoi.status,
+  );
+
+  // Facturation : un client = un shipping mark. Montants agrégés sur ses colis de ce voyage.
+  const invoiceGroupsMap = new Map<string, InvoiceGroup>();
+  let unmarkedCount = 0;
+  for (const s of envoi.shipments) {
+    if (s.status === "CANCELLED") continue;
+    if (!s.shippingMark) {
+      unmarkedCount += 1;
+      continue;
+    }
+    const mark = s.shippingMark;
+    const account = mark.user?.name ?? s.client?.name ?? null;
+    const g =
+      invoiceGroupsMap.get(mark.id) ??
+      ({
+        markId: mark.id,
+        clientName: mark.name,
+        clientPhone: mark.whatsapp || mark.phone,
+        accountLabel: account && account !== mark.name ? `Compte : ${account}` : null,
+        packagesCount: 0,
+        total: 0,
+        paid: 0,
+        factureReferences: [],
+      } satisfies InvoiceGroup);
+    g.packagesCount += 1;
+    g.total += s.totalAmount;
+    g.paid += s.amountPaid;
+    if (s.facture && !g.factureReferences.includes(s.facture.reference)) {
+      g.factureReferences.push(s.facture.reference);
+    }
+    invoiceGroupsMap.set(mark.id, g);
+  }
+  const invoiceGroups = Array.from(invoiceGroupsMap.values()).sort((a, b) =>
+    a.clientName.localeCompare(b.clientName),
   );
 
   // Facture forfaitaire éventuellement déjà liée à cet envoi (FCL uniquement)
@@ -328,6 +366,28 @@ export default async function EnvoiDetailPage({
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Factures par client (shipping mark) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Factures par client ({invoiceGroups.length})</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Un client = un shipping mark. « Facture PDF » ouvre la facture de ses colis sur ce voyage,
+            prête à imprimer ou à enregistrer en PDF. « WhatsApp » prépare le message avec le lien de la
+            facture, à envoyer au numéro du client.
+            {unmarkedCount > 0 && (
+              <span className="text-amber-700 font-medium">
+                {" "}
+                {unmarkedCount} colis sans shipping mark ne {unmarkedCount > 1 ? "sont" : "est"} pas
+                facturable{unmarkedCount > 1 ? "s" : ""} ici.
+              </span>
+            )}
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <InvoicesSection envoiId={envoi.id} groups={invoiceGroups} />
         </CardContent>
       </Card>
 
