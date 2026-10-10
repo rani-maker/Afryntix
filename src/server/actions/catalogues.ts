@@ -69,7 +69,7 @@ export async function requestCatalogUpload(
   const id = randomBytes(12).toString("hex");
   if (kind === "pdf") {
     if (mimeType !== "application/pdf") return { success: false, error: "Le catalogue doit être un fichier PDF." };
-    if (size > CATALOG_PDF_MAX_BYTES) return { success: false, error: "PDF trop volumineux (max 50 Mo)." };
+    if (size > CATALOG_PDF_MAX_BYTES) return { success: false, error: "PDF trop volumineux (max 300 Mo)." };
     path = `pdf/${id}.pdf`;
   } else {
     if (!CATALOG_COVER_MIME.includes(mimeType)) {

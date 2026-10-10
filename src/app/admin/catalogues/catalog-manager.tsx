@@ -53,10 +53,18 @@ async function uploadFile(
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
     };
-    xhr.onload = () =>
-      xhr.status >= 200 && xhr.status < 300
-        ? resolve()
-        : reject(new Error(`Envoi du fichier refusé (${xhr.status}).`));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      // Supabase répond 413 (ou 400 « exceeded the maximum allowed size ») au-delà de sa limite
+      const tooLarge = xhr.status === 413 || /maximum allowed size/i.test(xhr.responseText);
+      reject(
+        new Error(
+          tooLarge
+            ? "Fichier refusé par le stockage : il dépasse la taille maximale autorisée sur le projet Supabase (Storage → Settings)."
+            : `Envoi du fichier refusé (${xhr.status}).`,
+        ),
+      );
+    };
     xhr.onerror = () => reject(new Error("Envoi du fichier interrompu. Vérifiez votre connexion."));
     const body = new FormData();
     body.append("cacheControl", "3600");
@@ -271,7 +279,7 @@ function CatalogCreateForm({ onDone }: { onDone: () => void }) {
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="cpdf">Fichier PDF * (max 50 Mo)</Label>
+          <Label htmlFor="cpdf">Fichier PDF * (max 300 Mo)</Label>
           <Input
             id="cpdf"
             type="file"
