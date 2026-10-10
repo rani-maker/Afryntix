@@ -279,7 +279,7 @@ function CatalogCreateForm({ onDone }: { onDone: () => void }) {
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="cpdf">Fichier PDF * (max 300 Mo)</Label>
+          <Label htmlFor="cpdf">Fichier PDF * (max 320 Mo)</Label>
           <Input
             id="cpdf"
             type="file"
