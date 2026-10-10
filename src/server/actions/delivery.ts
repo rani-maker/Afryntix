@@ -7,6 +7,7 @@ import { sendWhatsApp } from "@/lib/whatsapp";
 import { pickupCodeTwilioTemplate } from "@/lib/whatsapp-templates";
 import { sendEmail, emailPickupCode } from "@/lib/email";
 import { notifyInApp } from "@/lib/notifications";
+import { syncCatalogOrderDelivered } from "@/lib/catalog-orders";
 import { revalidatePath } from "next/cache";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
@@ -218,6 +219,8 @@ export async function markDelivered(input: unknown): Promise<Result> {
       link: `/dashboard/shipments`,
     });
   }
+
+  await syncCatalogOrderDelivered(shipment.id);
 
   revalidatePath(`/staff/shipments/${shipment.id}`);
   revalidatePath(`/admin/shipments/${shipment.id}`);

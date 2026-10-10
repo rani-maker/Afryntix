@@ -24,6 +24,7 @@ import { upsertShippingMark } from "./shippingMarks";
 import { getOrCreateFactureForShipments } from "./factures";
 import { getClientContractPrice } from "./contractPricing";
 import { getActivePricingGrid } from "./pricing";
+import { syncCatalogOrderDelivered } from "@/lib/catalog-orders";
 import { revalidatePath } from "next/cache";
 import type { TransportMode, CargoCategory, ShipmentStatus } from "@prisma/client";
 
@@ -50,6 +51,7 @@ const CreateShipmentSchema = z
     recipientAddress: z.string().optional(),
     overrideUnitPrice: z.coerce.number().nonnegative().optional(),
     reservationId: z.string().optional(),
+    catalogOrderId: z.string().optional(),
     envoiId: z.string().optional(),
     containerId: z.string().optional(),
   })
@@ -64,6 +66,22 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
   if (!parsed.success) return { success: false, error: "Données invalides : " + parsed.error.issues.map((i) => i.message).join(", ") };
 
   const data = parsed.data;
+
+  // Expédition créée depuis une commande catalogue : le devis doit être accepté
+  // et le colis appartient forcément au client de la commande.
+  let catalogOrder: { id: string; reference: string; status: string; clientId: string } | null = null;
+  if (data.catalogOrderId) {
+    catalogOrder = await prisma.catalogOrder.findUnique({
+      where: { id: data.catalogOrderId },
+      select: { id: true, reference: true, status: true, clientId: true },
+    });
+    if (!catalogOrder) return { success: false, error: "Commande catalogue introuvable." };
+    if (!["CONFIRMED", "IN_PREPARATION", "SHIPPED"].includes(catalogOrder.status)) {
+      return { success: false, error: "Le devis de cette commande doit être accepté avant de créer l'expédition." };
+    }
+    data.clientId = catalogOrder.clientId;
+  }
+
   const client = data.clientId
     ? await prisma.user.findUnique({ where: { id: data.clientId } })
     : null;
@@ -208,6 +226,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
       depositAmount: pricing.depositAmount,
       remainingAmount: pricing.remainingAmount,
       reservationId: data.reservationId,
+      catalogOrderId: catalogOrder?.id ?? null,
       envoiId: data.envoiId || null,
       containerId: data.containerId || null,
       history: {
@@ -227,7 +246,23 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
   // Le staff envoie l'avis de réception manuellement depuis la page Shipping Mark
   // une fois tous les colis de la journée enregistrés (action sendReceptionNotice).
 
-  if (client?.id) {
+  if (catalogOrder) {
+    // La commande passe en « Expédiée » dès le premier colis créé
+    if (catalogOrder.status !== "SHIPPED") {
+      await prisma.catalogOrder.update({ where: { id: catalogOrder.id }, data: { status: "SHIPPED" } });
+    }
+    await notifyInApp({
+      userId: catalogOrder.clientId,
+      template: "catalog_order_shipped",
+      title: "Votre commande est expédiée",
+      body: `Commande ${catalogOrder.reference} : colis ${trackingNumber} enregistré. Suivez-le en temps réel.`,
+      link: `/tracking/${trackingNumber}`,
+    });
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/staff/orders");
+    revalidatePath("/admin/orders");
+    revalidatePath(`/staff/orders/${catalogOrder.id}`);
+  } else if (client?.id) {
     const tpl = inAppShipmentCreated({
       trackingNumber,
       mode: TRANSPORT_MODE_LABELS[data.mode as TransportMode],
@@ -307,6 +342,8 @@ export async function updateShipmentStatus(input: {
       ...tpl,
     });
   }
+
+  if (input.status === "DELIVERED") await syncCatalogOrderDelivered(shipment.id);
 
   revalidatePath(`/tracking/${shipment.trackingNumber}`);
   revalidatePath("/staff/shipments");

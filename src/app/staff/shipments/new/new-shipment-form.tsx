@@ -54,6 +54,9 @@ type ShippingMarkResult = {
 
 type Initial = {
   reservationId?: string;
+  catalogOrderId?: string;
+  orderReference?: string;
+  destinationCity?: string;
   clientId?: string;
   mode?: TransportMode;
   category?: CargoCategory;
@@ -71,8 +74,9 @@ const CATS = Object.keys(CARGO_CATEGORY_LABELS) as CargoCategory[];
 export function NewShipmentForm({ clients, initial }: { clients: Client[]; initial?: Initial }) {
   const router = useRouter();
   const reservationId = initial?.reservationId;
+  const catalogOrderId = initial?.catalogOrderId;
   const [hasAccount, setHasAccount] = useState<boolean>(
-    !!initial?.clientId || !!reservationId || clients.length > 0,
+    !!initial?.clientId || !!reservationId || !!catalogOrderId || clients.length > 0,
   );
   const [clientId, setClientId] = useState(initial?.clientId ?? "");
   // Recherche libre par nom / email / téléphone parmi les clients enregistrés.
@@ -90,7 +94,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const [widthCm, setWidthCm] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [volumeCBM, setVolumeCBM] = useState(initial?.volumeCBM ?? "");
-  const [destinationCity, setDestinationCity] = useState("Abidjan");
+  const [destinationCity, setDestinationCity] = useState(initial?.destinationCity || "Abidjan");
   const [destinationCountry, setDestinationCountry] = useState("Côte d'Ivoire");
   const [recipientName, setRecipientName] = useState(initial?.recipientName ?? "");
   const [recipientPhone, setRecipientPhone] = useState(initial?.recipientPhone ?? "");
@@ -262,6 +266,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
       recipientAddress,
       overrideUnitPrice: overrideUnitPrice ? Number(overrideUnitPrice) : undefined,
       reservationId,
+      catalogOrderId,
     });
     setLoading(false);
     if (!res.success) {
@@ -293,9 +298,15 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
           <Button variant="outline" onClick={() => router.push(`/tracking/${success.trackingNumber}`)}>
             Voir le suivi
           </Button>
-          <Button variant="ghost" onClick={() => { setSuccess(null); setSelectedMark(null); }}>
-            Nouvelle expédition
-          </Button>
+          {catalogOrderId ? (
+            <Button variant="ghost" onClick={() => router.push(`/staff/orders/${catalogOrderId}`)}>
+              Retour à la commande
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={() => { setSuccess(null); setSelectedMark(null); }}>
+              Nouvelle expédition
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -303,6 +314,13 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {catalogOrderId && (
+        <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+          Expédition de la commande catalogue{" "}
+          <span className="font-mono font-medium">{initial?.orderReference}</span>. Le client pourra suivre ce colis
+          depuis « Mes commandes ».
+        </div>
+      )}
       <div className="space-y-2">
         <div className="inline-flex rounded-md border bg-muted/30 p-0.5 text-sm">
           <button
@@ -315,7 +333,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
           <button
             type="button"
             onClick={() => setHasAccount(false)}
-            disabled={!!reservationId}
+            disabled={!!reservationId || !!catalogOrderId}
             className={`px-3 py-1.5 rounded ${!hasAccount ? "bg-background shadow-sm font-medium" : "text-muted-foreground"} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             Sans compte
