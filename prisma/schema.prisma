@@ -324,9 +324,13 @@ model Shipment {
   documents Document[]
 
   // Historique
-  history       ShipmentHistory[]
-  reservation   Reservation?      @relation("ReservationToShipment", fields: [reservationId], references: [id])
-  reservationId String?           @unique
+  history     ShipmentHistory[]
+  reservation Reservation?      @relation("ReservationToShipment", fields: [reservationId], references: [id])
+
+  // Commande catalogue à l'origine du colis (une commande peut partir en plusieurs colis)
+  catalogOrderId String?
+  catalogOrder   CatalogOrder? @relation(fields: [catalogOrderId], references: [id], onDelete: SetNull)
+  reservationId  String?       @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -340,6 +344,7 @@ model Shipment {
   @@index([factureId])
   @@index([referredByPartnerId])
   @@index([lastMilePartnerId])
+  @@index([catalogOrderId])
 }
 
 model ShipmentPhoto {
@@ -1075,7 +1080,8 @@ model CatalogOrder {
   handledById String?
   handledBy   User?   @relation("CatalogOrderHandler", fields: [handledById], references: [id])
 
-  items CatalogOrderItem[]
+  items     CatalogOrderItem[]
+  shipments Shipment[] // colis créés pour expédier la commande (suivi client)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

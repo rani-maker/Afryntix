@@ -69,17 +69,59 @@ export default async function NewShipmentPage({
     }
   }
 
+  // Création depuis une commande catalogue (devis accepté) : client, destinataire,
+  // ville et description sont repris de la commande.
+  const orderId = pick("orderId");
+  let orderPrefill: {
+    catalogOrderId?: string;
+    orderReference?: string;
+    clientId?: string;
+    description?: string;
+    recipientName?: string;
+    recipientPhone?: string;
+    destinationCity?: string;
+  } = {};
+  if (orderId) {
+    const order = await prisma.catalogOrder.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        reference: true,
+        clientId: true,
+        contactPhone: true,
+        deliveryCity: true,
+        client: { select: { name: true, phone: true, whatsapp: true } },
+        items: { select: { quantity: true, reference: true, designation: true } },
+      },
+    });
+    if (order) {
+      const lines = order.items.map((i) => `${i.quantity} × ${i.designation} (${i.reference})`).join(" ; ");
+      orderPrefill = {
+        catalogOrderId: order.id,
+        orderReference: order.reference,
+        clientId: order.clientId,
+        description: `Commande ${order.reference} — ${lines}`.slice(0, 480),
+        recipientName: order.client.name,
+        recipientPhone: order.contactPhone ?? order.client.whatsapp ?? order.client.phone ?? undefined,
+        destinationCity: order.deliveryCity ?? undefined,
+      };
+    }
+  }
+
   const initial = {
     reservationId,
-    clientId: pick("clientId") ?? reservationPrefill.clientId,
+    catalogOrderId: orderPrefill.catalogOrderId,
+    orderReference: orderPrefill.orderReference,
+    destinationCity: orderPrefill.destinationCity,
+    clientId: orderPrefill.clientId ?? pick("clientId") ?? reservationPrefill.clientId,
     mode: (pick("mode") as TransportMode | undefined) ?? reservationPrefill.mode,
     category:
       (pick("category") as CargoCategory | undefined) ?? reservationPrefill.category,
     weightKg: pick("weightKg") ?? reservationPrefill.weightKg,
     volumeCBM: pick("volumeCBM") ?? reservationPrefill.volumeCBM,
-    description: reservationPrefill.description,
-    recipientName: reservationPrefill.recipientName,
-    recipientPhone: reservationPrefill.recipientPhone,
+    description: orderPrefill.description ?? reservationPrefill.description,
+    recipientName: orderPrefill.recipientName ?? reservationPrefill.recipientName,
+    recipientPhone: orderPrefill.recipientPhone ?? reservationPrefill.recipientPhone,
     recipientAddress: reservationPrefill.recipientAddress,
   };
 

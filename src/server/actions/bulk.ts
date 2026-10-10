@@ -5,6 +5,7 @@ import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
 import type { ShipmentStatus } from "@prisma/client";
 import { updateShipmentStatus } from "./shipments";
+import { syncCatalogOrderDelivered } from "@/lib/catalog-orders";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
 
@@ -85,6 +86,10 @@ export async function bulkUpdateShipmentStatus(input: unknown): Promise<Result<{
       }),
     ),
   );
+
+  if (status === "DELIVERED") {
+    for (const s of toUpdate) await syncCatalogOrderDelivered(s.id);
+  }
 
   revalidatePath("/staff/shipments");
   revalidatePath("/admin/shipments");

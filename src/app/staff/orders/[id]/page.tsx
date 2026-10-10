@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
 import { formatDateTime } from "@/lib/utils";
 import { OrderEditor } from "./order-editor";
+import { Button } from "@/components/ui/button";
+import { ShipmentStatusBadge } from "@/components/dashboard/status-badge";
+import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 
 export default async function StaffCatalogOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,6 +18,10 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
       client: { select: { name: true, email: true, phone: true, whatsapp: true } },
       handledBy: { select: { name: true } },
       items: true,
+      shipments: {
+        select: { id: true, trackingNumber: true, status: true, mode: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
   if (!order) notFound();
@@ -79,6 +86,47 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
               })),
             }}
           />
+          <section className="rounded-md border p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold">Expédition</h3>
+                <p className="text-xs text-muted-foreground">
+                  Créez le colis une fois le devis accepté : le client reçoit son numéro de suivi et la commande passe
+                  en « Expédiée ».
+                </p>
+              </div>
+              {["CONFIRMED", "IN_PREPARATION", "SHIPPED"].includes(order.status) ? (
+                <Button asChild size="sm">
+                  <Link href={`/staff/shipments/new?orderId=${order.id}`}>
+                    {order.shipments.length > 0 ? "+ Ajouter un colis" : "Créer l'expédition"}
+                  </Link>
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {order.status === "PENDING" || order.status === "QUOTED"
+                    ? "Disponible après acceptation du devis"
+                    : null}
+                </span>
+              )}
+            </div>
+            {order.shipments.length > 0 && (
+              <ul className="divide-y rounded-md border">
+                {order.shipments.map((s) => (
+                  <li key={s.id} className="p-2.5 flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div>
+                      <Link href={`/staff/shipments/${s.id}`} className="font-mono text-primary hover:underline">
+                        {s.trackingNumber}
+                      </Link>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {TRANSPORT_MODE_LABELS[s.mode]} · {formatDateTime(s.createdAt)}
+                      </span>
+                    </div>
+                    <ShipmentStatusBadge status={s.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </CardContent>
       </Card>
     </div>

@@ -9,6 +9,7 @@ import { OrderLinesTable } from "@/components/catalogues/order-lines-table";
 import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import { OrderClientActions } from "./order-client-actions";
+import { ShipmentStatusBadge } from "@/components/dashboard/status-badge";
 
 export default async function ClientOrdersPage() {
   const session = await auth();
@@ -17,7 +18,10 @@ export default async function ClientOrdersPage() {
   const orders = await prisma.catalogOrder.findMany({
     where: { clientId: session.user.id },
     orderBy: { createdAt: "desc" },
-    include: { items: true },
+    include: {
+      items: true,
+      shipments: { select: { id: true, trackingNumber: true, status: true }, orderBy: { createdAt: "asc" } },
+    },
     take: 100,
   });
 
@@ -76,6 +80,24 @@ export default async function ClientOrdersPage() {
                   <p className="text-sm text-muted-foreground">
                     Bon de commande reçu. Notre équipe prépare votre devis : vous serez notifié dès qu&apos;il est prêt.
                   </p>
+                )}
+                {o.shipments.length > 0 && (
+                  <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 space-y-1.5">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-primary">Suivi de l&apos;expédition</div>
+                    {o.shipments.map((s) => (
+                      <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <Link href={`/tracking/${s.trackingNumber}`} className="font-mono text-primary hover:underline">
+                          {s.trackingNumber}
+                        </Link>
+                        <span className="flex items-center gap-2">
+                          <ShipmentStatusBadge status={s.status} />
+                          <Link href={`/tracking/${s.trackingNumber}`} className="text-xs underline">
+                            Suivre le colis
+                          </Link>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 {o.notes && (
                   <p className="text-sm text-muted-foreground">
