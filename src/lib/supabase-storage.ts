@@ -110,7 +110,7 @@ export function buildPartnerDocPath(
 // =============================================================
 
 export const CATALOG_BUCKET = "catalogues";
-export const CATALOG_PDF_MAX_BYTES = 300 * 1024 * 1024; // 300 Mo
+export const CATALOG_PDF_MAX_BYTES = 320 * 1024 * 1024; // 320 Mo
 export const CATALOG_COVER_MAX_BYTES = 5 * 1024 * 1024; // 5 Mo
 export const CATALOG_COVER_MIME = ["image/jpeg", "image/png", "image/webp"];
 
