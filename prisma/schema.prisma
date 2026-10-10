@@ -46,30 +46,33 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  shipmentsAsClient     Shipment[]          @relation("ShipmentClient")
+  shipmentsAsClient     Shipment[]           @relation("ShipmentClient")
   reservations          Reservation[]
-  reservationsHandled   Reservation[]       @relation("ReservationHandler")
-  billPaymentsClient    BillPayment[]       @relation("BillPaymentClient")
-  billPaymentsStaff     BillPayment[]       @relation("BillPaymentStaff")
-  billPaymentsCompleted BillPayment[]       @relation("BillPaymentCompletedBy")
+  reservationsHandled   Reservation[]        @relation("ReservationHandler")
+  billPaymentsClient    BillPayment[]        @relation("BillPaymentClient")
+  billPaymentsStaff     BillPayment[]        @relation("BillPaymentStaff")
+  billPaymentsCompleted BillPayment[]        @relation("BillPaymentCompletedBy")
   exchangeRatesSet      ExchangeRate[]
-  staffInvitesSent      StaffInvite[]       @relation("StaffInviteAdmin")
-  staffInviteUsed       StaffInvite?        @relation("StaffInviteUser")
+  staffInvitesSent      StaffInvite[]        @relation("StaffInviteAdmin")
+  staffInviteUsed       StaffInvite?         @relation("StaffInviteUser")
   passwordResetTokens   PasswordResetToken[] @relation("UserPasswordResets")
-  whatsappOtps          WhatsAppOtp[]       @relation("UserWhatsAppOtps")
-  envoisCreated         Envoi[]             @relation("EnvoiCreator")
+  whatsappOtps          WhatsAppOtp[]        @relation("UserWhatsAppOtps")
+  envoisCreated         Envoi[]              @relation("EnvoiCreator")
   auditLogs             AuditLog[]
   notifications         Notification[]
   sessions              Session[]
   accounts              Account[]
   shippingMark          ShippingMark?
-  factures              Facture[]           @relation("FactureClient")
-  documentsUploaded     Document[]          @relation("DocumentUploader")
-  claimsOpened          Claim[]             @relation("ClaimOpenedBy")
-  claimsResolved        Claim[]             @relation("ClaimResolvedBy")
-  contractPricing       ClientPricingRule[] @relation("ClientPricingRules")
+  factures              Facture[]            @relation("FactureClient")
+  documentsUploaded     Document[]           @relation("DocumentUploader")
+  claimsOpened          Claim[]              @relation("ClaimOpenedBy")
+  claimsResolved        Claim[]              @relation("ClaimResolvedBy")
+  contractPricing       ClientPricingRule[]  @relation("ClientPricingRules")
   suppliers             Supplier[]
   recipients            Recipient[]
+  catalogsUploaded      Catalog[]            @relation("CatalogUploader")
+  catalogOrders         CatalogOrder[]       @relation("CatalogOrderClient")
+  catalogOrdersHandled  CatalogOrder[]       @relation("CatalogOrderHandler")
 
   // === Partenariats ===
   partner             Partner? @relation("PartnerUser")
@@ -119,16 +122,16 @@ enum OtpPurpose {
 }
 
 model WhatsAppOtp {
-  id         String     @id @default(cuid())
-  userId     String
-  user       User       @relation("UserWhatsAppOtps", fields: [userId], references: [id], onDelete: Cascade)
-  codeHash   String     // bcrypt hash du code 6 chiffres
-  purpose    OtpPurpose
-  attempts   Int        @default(0)
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime   @default(now())
-  phoneSent  String     // numéro WhatsApp où l'OTP a été envoyé
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation("UserWhatsAppOtps", fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String // bcrypt hash du code 6 chiffres
+  purpose   OtpPurpose
+  attempts  Int        @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime   @default(now())
+  phoneSent String // numéro WhatsApp où l'OTP a été envoyé
 
   @@index([userId, purpose])
   @@index([expiresAt])
@@ -1004,6 +1007,101 @@ model Supplier {
   updatedAt     DateTime @updatedAt
 
   @@index([clientId])
+}
+
+// -----------------------------------------------------------------
+// Catalogues (Sanitaire, Déco & Luminaire, Meuble) + commandes clients
+// Les catalogues sont des PDF stockés dans le bucket Supabase `catalogues`.
+// Le client commande en saisissant référence / quantité / prix catalogue.
+// -----------------------------------------------------------------
+
+enum CatalogCategory {
+  SANITAIRE
+  DECO_LUMINAIRE
+  MEUBLE
+}
+
+model Catalog {
+  id          String          @id @default(cuid())
+  category    CatalogCategory
+  title       String
+  description String?
+  filePath    String // chemin de l'objet dans le bucket (ex: pdf/xxx.pdf)
+  fileName    String // nom du fichier original
+  fileSize    Int? // octets
+  coverPath   String? // image de couverture (optionnelle)
+  active      Boolean         @default(true)
+  sortOrder   Int             @default(0)
+
+  uploadedById String?
+  uploadedBy   User?   @relation("CatalogUploader", fields: [uploadedById], references: [id])
+
+  orderItems CatalogOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, active])
+}
+
+enum CatalogOrderStatus {
+  PENDING // bon de commande reçu, devis à établir
+  QUOTED // devis envoyé au client, en attente de sa réponse
+  CONFIRMED // devis accepté par le client
+  IN_PREPARATION // commande passée auprès du fournisseur
+  SHIPPED // expédiée vers l'Afrique de l'Ouest
+  DELIVERED
+  CANCELLED
+}
+
+model CatalogOrder {
+  id        String             @id @default(cuid())
+  reference String             @unique // AFR-CMD-2026-000123
+  clientId  String
+  client    User               @relation("CatalogOrderClient", fields: [clientId], references: [id], onDelete: Cascade)
+  status    CatalogOrderStatus @default(PENDING)
+
+  // Devis établi par AFRYNTIX (vide tant que la commande n'est pas chiffrée)
+  feesAmount  Float? // FCFA, frais annexes (transport, emballage…)
+  totalAmount Float? // FCFA, somme des lignes + frais
+  quotedAt    DateTime?
+  acceptedAt  DateTime?
+
+  contactPhone String?
+  deliveryCity String?
+  notes        String? @db.Text // message du client
+  staffNotes   String? @db.Text // remarque AFRYNTIX jointe au devis (visible client)
+
+  handledById String?
+  handledBy   User?   @relation("CatalogOrderHandler", fields: [handledById], references: [id])
+
+  items CatalogOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model CatalogOrderItem {
+  id      String       @id @default(cuid())
+  orderId String
+  order   CatalogOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  catalogId    String?
+  catalog      Catalog?        @relation(fields: [catalogId], references: [id], onDelete: SetNull)
+  category     CatalogCategory
+  catalogTitle String // copie du titre (le catalogue peut être supprimé)
+
+  reference   String // référence article dans le catalogue
+  designation String
+  page        String? // page du catalogue
+  quantity    Int
+  unitPrice   Float? // FCFA, renseigné par AFRYNTIX dans le devis
+  lineTotal   Float? // FCFA
+
+  @@index([orderId])
 }
 
 // -----------------------------------------------------------------

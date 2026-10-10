@@ -8,7 +8,7 @@ export default auth((req) => {
   const path = nextUrl.pathname;
 
   // Routes publiques
-  const publicPaths = ["/", "/login", "/register", "/register/verify", "/forgot-password", "/reset-password", "/tracking", "/services", "/addresses", "/staff-invite", "/privacy", "/facture", "/api/auth"];
+  const publicPaths = ["/", "/login", "/register", "/register/verify", "/forgot-password", "/reset-password", "/tracking", "/services", "/addresses", "/staff-invite", "/privacy", "/facture", "/catalogue", "/api/catalogue", "/api/auth"];
   const isPublic = publicPaths.some((p) => path === p || path.startsWith(`${p}/`)) || path.startsWith("/api/auth");
 
   if (isPublic) return NextResponse.next();

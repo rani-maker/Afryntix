@@ -15,6 +15,15 @@ import type { NextConfig } from "next";
  *  - `X-Frame-Options: DENY` : pas d'embed tiers.
  *  - `X-Content-Type-Options: nosniff` : empêche le sniffing MIME.
  */
+function parseSupabaseOrigin(): string | null {
+  try {
+    return new URL((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/^["']|["']$/g, "")).origin;
+  } catch {
+    return null;
+  }
+}
+const supabaseOrigin = parseSupabaseOrigin();
+
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -37,9 +46,10 @@ const securityHeaders = [
       // la carte de suivi ne charge aucune tuile (conteneur vide).
       "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
       "font-src 'self' data:",
-      // Connexions XHR/fetch/WebSocket : self uniquement (Twilio/Resend
-      // tournent côté serveur, jamais via le navigateur).
-      "connect-src 'self'",
+      // Connexions XHR/fetch/WebSocket : self (Twilio/Resend tournent côté
+      // serveur) + Supabase Storage pour l'upload direct des catalogues PDF
+      // par l'admin (lien signé, voir requestCatalogUpload).
+      `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ""}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

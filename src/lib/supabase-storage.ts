@@ -102,3 +102,70 @@ export function buildPartnerDocPath(
   const safeExt = /^[a-z0-9]{1,8}$/.test(ext) ? ext : "bin";
   return `partners/${partnerId}/${kind}-${Date.now()}.${safeExt}`;
 }
+
+// =============================================================
+// Catalogues (PDF + images de couverture)
+// Bucket privé : les fichiers sont servis via /api/catalogue/[id]/...
+// (lien signé temporaire pour le PDF, proxy pour la couverture).
+// =============================================================
+
+export const CATALOG_BUCKET = "catalogues";
+export const CATALOG_PDF_MAX_BYTES = 50 * 1024 * 1024; // 50 Mo
+export const CATALOG_COVER_MAX_BYTES = 5 * 1024 * 1024; // 5 Mo
+export const CATALOG_COVER_MIME = ["image/jpeg", "image/png", "image/webp"];
+
+let _catalogBucketReady = false;
+
+async function ensureCatalogBucket(client: SupabaseClient): Promise<void> {
+  if (_catalogBucketReady) return;
+  const { error } = await client.storage.createBucket(CATALOG_BUCKET, {
+    public: false,
+    fileSizeLimit: CATALOG_PDF_MAX_BYTES,
+    allowedMimeTypes: ["application/pdf", ...CATALOG_COVER_MIME],
+  });
+  if (error && !/already exists|duplicate/i.test(error.message)) {
+    throw new Error(`Création du bucket catalogues échouée : ${error.message}`);
+  }
+  _catalogBucketReady = true;
+}
+
+/**
+ * Lien d'upload signé : le navigateur de l'admin envoie le fichier directement
+ * à Supabase (les PDF dépassent la limite de taille des Server Actions).
+ */
+export async function createCatalogUploadUrl(path: string): Promise<string> {
+  const client = getSupabaseAdmin();
+  await ensureCatalogBucket(client);
+  const { data, error } = await client.storage.from(CATALOG_BUCKET).createSignedUploadUrl(path);
+  if (error || !data) {
+    throw new Error(`Préparation de l'upload échouée : ${error?.message ?? "inconnu"}`);
+  }
+  return data.signedUrl;
+}
+
+export async function getCatalogSignedUrl(path: string, expiresInSeconds = 600): Promise<string> {
+  const client = getSupabaseAdmin();
+  const { data, error } = await client.storage.from(CATALOG_BUCKET).createSignedUrl(path, expiresInSeconds);
+  if (error || !data) {
+    throw new Error(`Génération du lien signé échouée : ${error?.message ?? "inconnu"}`);
+  }
+  return data.signedUrl;
+}
+
+export async function downloadCatalogObject(path: string): Promise<Blob> {
+  const client = getSupabaseAdmin();
+  const { data, error } = await client.storage.from(CATALOG_BUCKET).download(path);
+  if (error || !data) {
+    throw new Error(`Téléchargement échoué : ${error?.message ?? "inconnu"}`);
+  }
+  return data;
+}
+
+export async function deleteCatalogObjects(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  const client = getSupabaseAdmin();
+  const { error } = await client.storage.from(CATALOG_BUCKET).remove(paths);
+  if (error) {
+    throw new Error(`Suppression échouée : ${error.message}`);
+  }
+}

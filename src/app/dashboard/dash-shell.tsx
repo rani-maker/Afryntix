@@ -11,6 +11,8 @@ import {
   Wallet,
   Store,
   Users,
+  BookOpen,
+  ShoppingBag,
 } from "lucide-react";
 import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
 import { DashTopbar } from "@/components/dashboard/dash-topbar";
@@ -59,6 +61,18 @@ export function ClientDashShell({
       href: "/dashboard/services",
       label: t("dash.nav.services"),
       icon: <Briefcase />,
+      section: sectionServices,
+    },
+    {
+      href: "/dashboard/catalogue",
+      label: t("dash.nav.catalogue"),
+      icon: <BookOpen />,
+      section: sectionServices,
+    },
+    {
+      href: "/dashboard/orders",
+      label: t("dash.nav.orders"),
+      icon: <ShoppingBag />,
       section: sectionServices,
     },
     {

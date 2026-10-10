@@ -9,7 +9,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: free
+    plan: pro
     region: frankfurt
     healthCheckPath: /api/health
 
@@ -80,6 +80,31 @@ services:
         sync: false
 
       - key: DEFAULT_ADMIN_PHONE
+        sync: false
+
+      # --- Emails : SMTP de la boîte Namecheap Private Email ---
+      # (les ports SMTP ne sont ouverts que sur les offres payantes de Render)
+      - key: SMTP_HOST
+        value: mail.privateemail.com
+
+      - key: SMTP_PORT
+        value: "465"
+
+      - key: SMTP_USER
+        value: infos@afryntix.com
+
+      - key: SMTP_PASSWORD
+        sync: false
+
+      - key: EMAIL_FROM
+        value: "AFRYNTIX <infos@afryntix.com>"
+
+      # Boîte qui reçoit les bons de commande catalogue et la copie des devis
+      - key: ORDERS_NOTIFY_EMAIL
+        value: infos@afryntix.com
+
+      # Alternative sans SMTP (API Resend) — laisser vide si SMTP est utilisé
+      - key: RESEND_API_KEY
         sync: false
 
       # --- Runtime ---

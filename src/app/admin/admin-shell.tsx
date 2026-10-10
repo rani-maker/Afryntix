@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   Umbrella,
   Handshake,
+  BookOpen,
+  ShoppingBag,
 } from "lucide-react";
 import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
 import { DashTopbar } from "@/components/dashboard/dash-topbar";
@@ -51,6 +53,8 @@ export function AdminDashShell({
     { href: "/admin/reservations", label: t("admin.nav.reservations"), icon: <ClipboardList />, section: SEC.operations },
     { href: "/admin/services", label: t("admin.nav.services"), icon: <Briefcase />, section: SEC.operations },
     { href: "/admin/claims", label: t("admin.nav.claims"), icon: <AlertTriangle />, section: SEC.operations },
+    { href: "/admin/orders", label: t("admin.nav.orders"), icon: <ShoppingBag />, section: SEC.operations },
+    { href: "/admin/catalogues", label: t("admin.nav.catalogues"), icon: <BookOpen />, section: SEC.operations },
     { href: "/admin/schedules", label: t("admin.nav.schedules"), icon: <CalendarRange />, section: SEC.operations },
     { href: "/admin/payments", label: t("admin.nav.payments"), icon: <CreditCard />, section: SEC.finance },
     { href: "/admin/pricing", label: t("admin.nav.pricing"), icon: <Tags />, section: SEC.finance },

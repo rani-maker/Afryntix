@@ -21,6 +21,7 @@ function dashboardHref(role?: string) {
 const NAV_LINKS: Array<{ href: string; key: TKey }> = [
   { href: "/", key: "nav.home" },
   { href: "/services", key: "nav.services" },
+  { href: "/catalogue", key: "nav.catalogue" },
   { href: "/tracking", key: "nav.tracking" },
   { href: "/addresses", key: "nav.addresses" },
   { href: "/withdraw", key: "nav.withdraw" },
@@ -37,12 +38,12 @@ export function PublicHeader({ active }: { active?: string }) {
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between gap-4 px-6 md:px-12">
+        <div className="container flex h-16 items-center justify-between gap-4 px-6 xl:px-12">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0" aria-label="AFRYNTIX"
             onClick={() => setOpen(false)}>
             <Logo variant="sm" tone="auto" priority className="h-9 w-auto" />
-            <div className="hidden sm:block">
+            <div className="hidden sm:block lg:hidden xl:block">
               <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-mint-3 leading-none">
                 {t("header.subtitle")}
               </div>
@@ -50,7 +51,7 @@ export function PublicHeader({ active }: { active?: string }) {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-7 text-sm">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-7 text-sm">
             {NAV_LINKS.map((l) => (
               <Link key={l.href} href={l.href}
                 className={`transition-colors hover:text-ink ${
@@ -62,7 +63,7 @@ export function PublicHeader({ active }: { active?: string }) {
           </nav>
 
           {/* Desktop actions */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2">
             <PublicThemeToggle />
             <PublicLanguageToggle />
             {isAuth ? (
@@ -88,7 +89,7 @@ export function PublicHeader({ active }: { active?: string }) {
           </div>
 
           {/* Mobile right: toggles + hamburger */}
-          <div className="md:hidden flex items-center gap-2">
+          <div className="lg:hidden flex items-center gap-2">
             <PublicThemeToggle />
             <PublicLanguageToggle />
             <button
@@ -104,7 +105,7 @@ export function PublicHeader({ active }: { active?: string }) {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden fixed inset-0 top-16 z-30 bg-surface/95 backdrop-blur-md border-t border-line overflow-y-auto">
+        <div className="lg:hidden fixed inset-0 top-16 z-30 bg-surface/95 backdrop-blur-md border-t border-line overflow-y-auto">
           <nav className="container px-6 py-6 flex flex-col gap-1">
             {NAV_LINKS.map((l) => (
               <Link key={l.href} href={l.href}
