@@ -12,6 +12,7 @@ import {
   Tag,
   AlertTriangle,
   Smartphone,
+  ShoppingBag,
 } from "lucide-react";
 import { DashSidebar, type DashNavItem } from "@/components/dashboard/dash-sidebar";
 import { DashTopbar } from "@/components/dashboard/dash-topbar";
@@ -41,6 +42,7 @@ export function StaffDashShell({
     { href: "/staff/reservations", label: t("staff.nav.reservations"), icon: <ClipboardList />, section: SEC.operations },
     { href: "/staff/services", label: t("staff.nav.services"), icon: <Briefcase />, section: SEC.operations },
     { href: "/staff/claims", label: t("staff.nav.claims"), icon: <AlertTriangle />, section: SEC.operations },
+    { href: "/staff/orders", label: t("staff.nav.orders"), icon: <ShoppingBag />, section: SEC.operations },
     { href: "/staff/warehouse", label: t("staff.nav.warehouse"), icon: <Smartphone />, section: SEC.operations },
     { href: "/staff/schedules", label: t("staff.nav.schedules"), icon: <CalendarRange />, section: SEC.operations },
     { href: "/staff/payments", label: t("staff.nav.payments"), icon: <CreditCard />, section: SEC.finance },
