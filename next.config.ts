@@ -15,14 +15,24 @@ import type { NextConfig } from "next";
  *  - `X-Frame-Options: DENY` : pas d'embed tiers.
  *  - `X-Content-Type-Options: nosniff` : empêche le sniffing MIME.
  */
-function parseSupabaseOrigin(): string | null {
+/**
+ * Origines Supabase autorisées en `connect-src` (upload direct des catalogues).
+ *
+ * Ces en-têtes sont figés AU BUILD : sur Render (build Docker), les variables
+ * d'environnement du service ne sont pas disponibles à ce moment-là. On autorise
+ * donc toujours `*.supabase.co`, et on ajoute l'origine exacte si elle est connue
+ * (utile pour un domaine Supabase personnalisé).
+ */
+function supabaseConnectSources(): string {
+  const sources = ["https://*.supabase.co"];
   try {
-    return new URL((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/^["']|["']$/g, "")).origin;
+    const origin = new URL((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/^["']|["']$/g, "")).origin;
+    if (!origin.endsWith(".supabase.co")) sources.push(origin);
   } catch {
-    return null;
+    // variable absente au build : le joker suffit
   }
+  return sources.join(" ");
 }
-const supabaseOrigin = parseSupabaseOrigin();
 
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
@@ -49,7 +59,7 @@ const securityHeaders = [
       // Connexions XHR/fetch/WebSocket : self (Twilio/Resend tournent côté
       // serveur) + Supabase Storage pour l'upload direct des catalogues PDF
       // par l'admin (lien signé, voir requestCatalogUpload).
-      `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin}` : ""}`,
+      `connect-src 'self' ${supabaseConnectSources()}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

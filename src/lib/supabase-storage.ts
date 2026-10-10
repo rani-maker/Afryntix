@@ -110,7 +110,7 @@ export function buildPartnerDocPath(
 // =============================================================
 
 export const CATALOG_BUCKET = "catalogues";
-export const CATALOG_PDF_MAX_BYTES = 50 * 1024 * 1024; // 50 Mo
+export const CATALOG_PDF_MAX_BYTES = 300 * 1024 * 1024; // 300 Mo
 export const CATALOG_COVER_MAX_BYTES = 5 * 1024 * 1024; // 5 Mo
 export const CATALOG_COVER_MIME = ["image/jpeg", "image/png", "image/webp"];
 
@@ -118,13 +118,24 @@ let _catalogBucketReady = false;
 
 async function ensureCatalogBucket(client: SupabaseClient): Promise<void> {
   if (_catalogBucketReady) return;
-  const { error } = await client.storage.createBucket(CATALOG_BUCKET, {
+  // Pas de limite de taille propre au bucket : c'est la limite globale du projet
+  // Supabase (Storage → Settings) qui s'applique. Elle doit être ≥ CATALOG_PDF_MAX_BYTES,
+  // sinon Supabase refuse les gros PDF (413) quoi qu'autorise l'application.
+  const options = {
     public: false,
-    fileSizeLimit: CATALOG_PDF_MAX_BYTES,
+    fileSizeLimit: null,
     allowedMimeTypes: ["application/pdf", ...CATALOG_COVER_MIME],
-  });
-  if (error && !/already exists|duplicate/i.test(error.message)) {
-    throw new Error(`Création du bucket catalogues échouée : ${error.message}`);
+  };
+  const { error } = await client.storage.createBucket(CATALOG_BUCKET, options);
+  if (error) {
+    if (!/already exists|duplicate/i.test(error.message)) {
+      throw new Error(`Création du bucket catalogues échouée : ${error.message}`);
+    }
+    // Bucket existant : on réaligne sa configuration (retire l'ancienne limite de 50 Mo)
+    const { error: updateError } = await client.storage.updateBucket(CATALOG_BUCKET, options);
+    if (updateError) {
+      throw new Error(`Mise à jour du bucket catalogues échouée : ${updateError.message}`);
+    }
   }
   _catalogBucketReady = true;
 }
