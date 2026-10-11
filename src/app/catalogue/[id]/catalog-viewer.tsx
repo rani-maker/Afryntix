@@ -7,6 +7,32 @@ import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask
 import { Logo } from "@/components/brand/logo";
 import { useLang } from "@/components/public/public-language-provider";
 import { useCatalogCart } from "@/lib/catalog-cart";
+import {
+  CATALOG_CHUNK,
+  CATALOG_READ_AHEAD,
+  catalogBootRanges,
+  catalogPartFeed,
+  catalogPartTotal,
+  createChunkLoader,
+  openCatalogPart,
+  type CatalogBoot,
+} from "@/lib/catalog-pdf";
+
+declare global {
+  interface Window {
+    __afxCatalogBoot?: CatalogBoot;
+  }
+}
+
+// PDF.js est demandé dès que ce module s'exécute dans le navigateur, sans attendre l'hydratation
+type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+let pdfjsModule: Promise<PdfJs> | null = null;
+const loadPdfjs = () => (pdfjsModule ??= import("pdfjs-dist/legacy/build/pdf.mjs"));
+if (typeof window !== "undefined") {
+  loadPdfjs().catch(() => {
+    pdfjsModule = null;
+  });
+}
 
 const ZOOM_LEVELS = [1, 1.5, 2, 3];
 // Largeur d'affichage maximale à 100 % (pages portrait / pages paysage)
@@ -15,7 +41,7 @@ const MAX_FIT_LANDSCAPE = 1280;
 // Plafond de pixels par page : au-delà, les mobiles (iOS surtout) saturent en mémoire
 const MAX_CANVAS_PIXELS = 8_000_000;
 // Taille des blocs téléchargés à la demande
-const RANGE_CHUNK_SIZE = 128 * 1024;
+const RANGE_CHUNK_SIZE = CATALOG_CHUNK;
 const RANGE_MAX_RETRIES = 5;
 // Photo de la zone touchée, jointe à la demande de devis
 const THUMB_SIZE = 360;
@@ -106,11 +132,17 @@ async function fetchRange(
 export function CatalogViewer({
   catalogId,
   title,
+  fileSize,
+  pdfAssets,
   canOrder,
   focus,
 }: {
   catalogId: string;
   title: string;
+  /** Taille du PDF connue de la base : permet de lancer d'emblée la fin du fichier. */
+  fileSize: number | null;
+  /** Dossier des fichiers statiques de PDF.js (worker, cMaps, polices), versionné. */
+  pdfAssets: string;
   canOrder: boolean;
   focus?: { page: number; x: number | null; y: number | null };
 }) {
@@ -158,31 +190,63 @@ export function CatalogViewer({
     };
     (async () => {
       try {
-        // Le premier bloc donne aussi la taille totale du fichier
-        const [pdfjs, head] = await Promise.all([
-          import("pdfjs-dist/legacy/build/pdf.mjs"),
-          fetchRange(fileUrl, 0, RANGE_CHUNK_SIZE, controller.signal),
-        ]);
-        if (controller.signal.aborted) return;
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
-
-        // Lecture à la demande : PDF.js réclame les blocs dont il a besoin, on les
-        // télécharge un par un (avec reprise automatique si le réseau décroche).
-        const transport = new pdfjs.PDFDataRangeTransport(head.total, head.data, head.data.length >= head.total);
-        transport.requestDataRange = (begin, end) => {
-          fetchRange(fileUrl, begin, end, controller.signal).then(
-            ({ data }) => transport.onDataRange(begin, data),
-            fail,
+        // Début (objets d'ouverture + première page) et fin du fichier partent ensemble,
+        // en même temps que PDF.js. Arrivée directe sur la page : le script en ligne
+        // les a déjà lancés avant même le chargement de ce code.
+        const signal = controller.signal;
+        const lean = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
+        const boot = window.__afxCatalogBoot?.id === catalogId ? window.__afxCatalogBoot : null;
+        delete window.__afxCatalogBoot;
+        const parts =
+          boot?.parts ??
+          catalogBootRanges(fileSize, lean).map(([begin, end]) => openCatalogPart(fileUrl, begin, end, signal));
+        const exact = (begin: number, end: number) => fetchRange(fileUrl, begin, end, signal).then((r) => r.data);
+        const makeLoader = (total: number) =>
+          createChunkLoader(
+            (begin, end) => catalogPartFeed(openCatalogPart(fileUrl, begin, end, signal)),
+            exact,
+            total,
+            lean ? 0 : CATALOG_READ_AHEAD,
+            () => signal.aborted,
           );
+
+        const opening = (async () => {
+          try {
+            // Les en-têtes de la première réponse donnent la taille réelle du fichier
+            const total = await catalogPartTotal(parts[0]);
+            const loader = makeLoader(total);
+            for (const part of parts) loader.adopt(part.begin, part.end, catalogPartFeed(part));
+            return { total, loader, head: await loader.take(0) };
+          } catch (e) {
+            if (signal.aborted) throw e;
+            // Premier flux en échec : premier bloc redemandé seul, avec nouvelles tentatives
+            const first = await fetchRange(fileUrl, 0, RANGE_CHUNK_SIZE, signal);
+            const loader = makeLoader(first.total);
+            loader.prefetch(catalogBootRanges(first.total, lean));
+            return { total: first.total, loader, head: first.data };
+          }
+        })();
+        const [pdfjs, { total, loader, head }] = await Promise.all([loadPdfjs(), opening]);
+        if (signal.aborted) return;
+        pdfjs.GlobalWorkerOptions.workerSrc = `${pdfAssets}/pdf.worker.min.mjs`;
+
+        // Lecture à la demande : PDF.js réclame les blocs dont il a besoin ; ils sont
+        // le plus souvent déjà là (avec reprise automatique si le réseau décroche).
+        const transport = new pdfjs.PDFDataRangeTransport(total, head, head.length >= total);
+        transport.requestDataRange = (begin, end) => {
+          loader.read(begin, end).then((data) => {
+            // Catalogue refermé entre-temps : PDF.js n'attend plus cette plage
+            if (!signal.aborted) transport.onDataRange(begin, data);
+          }, fail);
         };
         task = pdfjs.getDocument({
           range: transport,
           disableAutoFetch: true,
           disableStream: true,
           rangeChunkSize: RANGE_CHUNK_SIZE,
-          cMapUrl: "/pdfjs/cmaps/",
+          cMapUrl: `${pdfAssets}/cmaps/`,
           cMapPacked: true,
-          standardFontDataUrl: "/pdfjs/standard_fonts/",
+          standardFontDataUrl: `${pdfAssets}/standard_fonts/`,
         });
         const loaded = await task.promise;
         const first = await loaded.getPage(1);
@@ -198,7 +262,7 @@ export function CatalogViewer({
       controller.abort();
       void task?.destroy();
     };
-  }, [fileUrl]);
+  }, [fileUrl, catalogId, fileSize, pdfAssets]);
 
   // Largeur disponible dans la zone de lecture
   useEffect(() => {
