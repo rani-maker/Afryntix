@@ -11,7 +11,7 @@ const bar: React.CSSProperties = {
   gap: 8,
   padding: "10px 12px",
   borderRadius: 12,
-  background: "#051915",
+  background: "#000000",
   color: "#fff",
 };
 const btn: React.CSSProperties = {
@@ -29,7 +29,7 @@ const btn: React.CSSProperties = {
   cursor: "pointer",
   textDecoration: "none",
 };
-const primary: React.CSSProperties = { ...btn, background: "#00e2b1", borderColor: "#00e2b1", color: "#051915" };
+const primary: React.CSSProperties = { ...btn, background: "#00e2b1", borderColor: "#00e2b1", color: "#000000" };
 
 export function InvoiceToolbar({
   staff,

@@ -32,7 +32,7 @@ export default async function PrintFacturePage({ params }: Props) {
 
   const { publicUrl, whatsappUrl } = getInvoiceShare(doc);
   const qrDataUrl = publicUrl
-    ? await QRCode.toDataURL(publicUrl, { margin: 0, width: 240, color: { dark: "#051915", light: "#ffffff" } })
+    ? await QRCode.toDataURL(publicUrl, { margin: 0, width: 240, color: { dark: "#000000", light: "#ffffff" } })
     : null;
 
   return (
