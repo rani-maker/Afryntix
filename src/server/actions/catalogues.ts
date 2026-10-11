@@ -4,9 +4,11 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { notifyInApp } from "@/lib/notifications";
-import { sendEmail, emailCatalogQuote, emailCatalogOrderTeam, TEAM_EMAIL } from "@/lib/email";
+import { sendEmail, emailCatalogQuote, TEAM_EMAIL } from "@/lib/email";
 import { revalidatePath } from "next/cache";
-import { generateReference, formatXOF, getAppUrl } from "@/lib/utils";
+import { formatXOF, getAppUrl } from "@/lib/utils";
+import { emailOrderTeam, notifyOrderTeam, orderParty, uniqueOrderReference } from "@/lib/catalog-orders";
+import { getCatalogOrderPublicUrl } from "@/lib/catalog-order-link";
 import {
   CATALOG_CATEGORIES,
   CATALOG_ORDER_STATUS_LABELS,
@@ -206,49 +208,6 @@ const CreateOrderSchema = z.object({
   notes: z.string().trim().max(2000).optional(),
 });
 
-async function uniqueOrderReference(): Promise<string> {
-  let reference = generateReference("CMD");
-  for (let i = 0; i < 5; i++) {
-    const exists = await prisma.catalogOrder.findUnique({ where: { reference }, select: { id: true } });
-    if (!exists) break;
-    reference = generateReference("CMD");
-  }
-  return reference;
-}
-
-/** Prévient toute l'équipe (staff + admin) dans la cloche de notifications. */
-async function notifyTeam(args: { template: string; title: string; body: string; orderId: string }) {
-  const team = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "STAFF"] }, active: true },
-    select: { id: true },
-  });
-  await Promise.all(
-    team.map((u) =>
-      notifyInApp({
-        userId: u.id,
-        template: args.template,
-        title: args.title,
-        body: args.body,
-        link: `/staff/orders/${args.orderId}`,
-      }),
-    ),
-  );
-}
-
-/** Email à la boîte de l'équipe (TEAM_EMAIL). Ne bloque jamais l'action en cas d'échec. */
-async function emailTeam(
-  orderId: string,
-  template: string,
-  args: Omit<Parameters<typeof emailCatalogOrderTeam>[0], "link">,
-) {
-  try {
-    const mail = emailCatalogOrderTeam({ ...args, link: `${getAppUrl()}/staff/orders/${orderId}` });
-    await sendEmail({ to: TEAM_EMAIL, subject: mail.subject, html: mail.html, template });
-  } catch (e) {
-    console.error("[catalogues] email équipe non envoyé:", e);
-  }
-}
-
 export async function createCatalogOrder(input: unknown): Promise<Result<{ id: string; reference: string }>> {
   const session = await requireRole("CLIENT");
   const parsed = CreateOrderSchema.safeParse(input);
@@ -295,13 +254,13 @@ export async function createCatalogOrder(input: unknown): Promise<Result<{ id: s
     body: `Votre commande ${order.reference} a bien été reçue. Nous préparons votre devis.`,
     link: "/dashboard/orders",
   });
-  await notifyTeam({
+  await notifyOrderTeam({
     template: "catalog_order_received",
     title: "Nouveau bon de commande",
     body: `${order.reference} — ${session.user.name} (${d.items.length} article${d.items.length > 1 ? "s" : ""}). Devis à établir.`,
     orderId: order.id,
   });
-  await emailTeam(order.id, "catalog_order_received", {
+  await emailOrderTeam(order.id, "catalog_order_received", {
     heading: "Nouveau bon de commande",
     reference: order.reference,
     clientName: session.user.name,
@@ -329,13 +288,13 @@ export async function acceptCatalogQuote(id: string): Promise<Result> {
   }
 
   await prisma.catalogOrder.update({ where: { id }, data: { status: "CONFIRMED", acceptedAt: new Date() } });
-  await notifyTeam({
+  await notifyOrderTeam({
     template: "catalog_quote_accepted",
     title: "Devis accepté",
     body: `${order.reference} — ${session.user.name} a accepté le devis (${formatXOF(order.totalAmount)}).`,
     orderId: id,
   });
-  await emailTeam(id, "catalog_quote_accepted", {
+  await emailOrderTeam(id, "catalog_quote_accepted", {
     heading: "Devis accepté",
     reference: order.reference,
     clientName: session.user.name,
@@ -360,13 +319,13 @@ export async function cancelCatalogOrder(id: string): Promise<Result> {
   }
 
   await prisma.catalogOrder.update({ where: { id }, data: { status: "CANCELLED" } });
-  await notifyTeam({
+  await notifyOrderTeam({
     template: "catalog_order_cancelled",
     title: order.status === "QUOTED" ? "Devis refusé" : "Commande annulée",
     body: `${order.reference} — annulée par ${session.user.name}.`,
     orderId: id,
   });
-  await emailTeam(id, "catalog_order_cancelled", {
+  await emailOrderTeam(id, "catalog_order_cancelled", {
     heading: order.status === "QUOTED" ? "Devis refusé par le client" : "Commande annulée par le client",
     reference: order.reference,
     clientName: session.user.name,
@@ -394,6 +353,9 @@ const QuoteSchema = z.object({
         id: z.string().min(1),
         quantity: z.coerce.number().int().min(1).max(100000),
         unitPrice: optionalAmount,
+        // Articles choisis en touchant la page : l'équipe précise la référence exacte
+        reference: z.string().trim().max(80).optional(),
+        designation: z.string().trim().min(2, "Désignation trop courte").max(200).optional(),
       }),
     )
     .min(1)
@@ -418,7 +380,7 @@ export async function saveCatalogQuote(input: unknown): Promise<Result> {
     where: { id: d.id },
     include: {
       items: { select: { id: true, catalogTitle: true, reference: true, designation: true, page: true } },
-      client: { select: { id: true, name: true, email: true, phone: true } },
+      client: { select: { id: true, name: true, email: true, phone: true, whatsapp: true } },
     },
   });
   if (!order) return { success: false, error: "Commande introuvable." };
@@ -433,7 +395,14 @@ export async function saveCatalogQuote(input: unknown): Promise<Result> {
 
   const lines = d.items.map((i) => {
     const unitPrice = i.unitPrice == null ? null : Math.round(i.unitPrice);
-    return { id: i.id, quantity: i.quantity, unitPrice, lineTotal: unitPrice == null ? null : unitPrice * i.quantity };
+    return {
+      id: i.id,
+      quantity: i.quantity,
+      unitPrice,
+      lineTotal: unitPrice == null ? null : unitPrice * i.quantity,
+      reference: i.reference,
+      designation: i.designation,
+    };
   });
   const complete = lines.every((l) => l.lineTotal != null);
   if (d.send && !complete) {
@@ -446,7 +415,13 @@ export async function saveCatalogQuote(input: unknown): Promise<Result> {
     ...lines.map((l) =>
       prisma.catalogOrderItem.update({
         where: { id: l.id },
-        data: { quantity: l.quantity, unitPrice: l.unitPrice, lineTotal: l.lineTotal },
+        data: {
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          lineTotal: l.lineTotal,
+          ...(l.reference !== undefined ? { reference: l.reference } : {}),
+          ...(l.designation !== undefined ? { designation: l.designation } : {}),
+        },
       }),
     ),
     prisma.catalogOrder.update({
@@ -464,41 +439,61 @@ export async function saveCatalogQuote(input: unknown): Promise<Result> {
   ]);
 
   if (d.send && totalAmount != null) {
-    await notifyInApp({
-      userId: order.client.id,
-      template: "catalog_quote_sent",
-      title: "Votre devis est prêt",
-      body: `Commande ${order.reference} : devis de ${formatXOF(totalAmount)}. Consultez-le et validez-le.`,
-      link: "/dashboard/orders",
-    });
-    try {
-      const mail = emailCatalogQuote({
-        recipientName: order.client.name,
-        reference: order.reference,
-        totalAmount,
-        link: `${getAppUrl()}/dashboard/orders`,
-      });
-      await sendEmail({
-        to: order.client.email,
-        subject: mail.subject,
-        html: mail.html,
-        template: "catalog_quote_sent",
+    const party = orderParty(order);
+    // Avec un compte : cloche + « Mes commandes ». Sans compte : lien signé vers /commande/[id].
+    const link = order.client ? `${getAppUrl()}/dashboard/orders` : getCatalogOrderPublicUrl(order.id);
+    if (order.client) {
+      await notifyInApp({
         userId: order.client.id,
-        replyTo: TEAM_EMAIL,
+        template: "catalog_quote_sent",
+        title: "Votre devis est prêt",
+        body: `Commande ${order.reference} : devis de ${formatXOF(totalAmount)}. Consultez-le et validez-le.`,
+        link: "/dashboard/orders",
       });
-    } catch (e) {
-      console.error("[saveCatalogQuote] email non envoyé:", e);
+    }
+    if (party.email && link) {
+      try {
+        const mail = emailCatalogQuote({
+          recipientName: party.name,
+          reference: order.reference,
+          totalAmount,
+          link,
+          hasAccount: !!order.client,
+        });
+        await sendEmail({
+          to: party.email,
+          subject: mail.subject,
+          html: mail.html,
+          template: "catalog_quote_sent",
+          userId: order.client?.id,
+          replyTo: TEAM_EMAIL,
+        });
+      } catch (e) {
+        console.error("[saveCatalogQuote] email non envoyé:", e);
+      }
     }
     // Copie du devis dans la boîte de l'équipe
-    await emailTeam(order.id, "catalog_quote_copy", {
+    const saved = new Map(lines.map((l) => [l.id, l]));
+    await emailOrderTeam(order.id, "catalog_quote_copy", {
       heading: "Devis envoyé au client",
       reference: order.reference,
-      clientName: order.client.name,
-      clientEmail: order.client.email,
-      clientPhone: order.contactPhone ?? order.client.phone,
+      clientName: party.name,
+      clientEmail: party.email,
+      clientPhone: party.phone,
       deliveryCity: order.deliveryCity,
       notes: d.staffNotes,
-      items: order.items.map((i) => ({ ...i, ...lines.find((l) => l.id === i.id)! })),
+      items: order.items.map((i) => {
+        const l = saved.get(i.id)!;
+        return {
+          catalogTitle: i.catalogTitle,
+          page: i.page,
+          reference: l.reference ?? i.reference,
+          designation: l.designation ?? i.designation,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          lineTotal: l.lineTotal,
+        };
+      }),
       feesAmount,
       totalAmount,
     });
@@ -538,13 +533,15 @@ export async function updateCatalogOrderStatus(input: unknown): Promise<Result> 
       ...(status === "CONFIRMED" && order.status === "QUOTED" ? { acceptedAt: new Date() } : {}),
     },
   });
-  await notifyInApp({
-    userId: order.clientId,
-    template: "catalog_order_updated",
-    title: "Mise à jour de votre commande",
-    body: `${order.reference} : ${CATALOG_ORDER_STATUS_LABELS[status]}.`,
-    link: "/dashboard/orders",
-  });
+  if (order.clientId) {
+    await notifyInApp({
+      userId: order.clientId,
+      template: "catalog_order_updated",
+      title: "Mise à jour de votre commande",
+      body: `${order.reference} : ${CATALOG_ORDER_STATUS_LABELS[status]}.`,
+      link: "/dashboard/orders",
+    });
+  }
 
   revalidateOrders(id);
   return { success: true };

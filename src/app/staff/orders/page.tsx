@@ -10,6 +10,7 @@ import {
   type CatalogOrderStatusKey,
 } from "@/lib/catalog-labels";
 import { formatDateTime, formatXOF } from "@/lib/utils";
+import { orderParty } from "@/lib/catalog-orders";
 
 export default async function StaffCatalogOrdersPage({
   searchParams,
@@ -25,7 +26,7 @@ export default async function StaffCatalogOrdersPage({
     prisma.catalogOrder.findMany({
       where: status ? { status } : undefined,
       include: {
-        client: { select: { name: true, phone: true } },
+        client: { select: { name: true, phone: true, whatsapp: true } },
         _count: { select: { items: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -90,8 +91,11 @@ export default async function StaffCatalogOrdersPage({
                       </Link>
                     </TableCell>
                     <TableCell className="text-sm">
-                      <div>{o.client.name}</div>
-                      <div className="text-xs text-muted-foreground">{o.contactPhone ?? o.client.phone ?? "—"}</div>
+                      <div>
+                        {orderParty(o).name}
+                        {!o.client && <span className="ml-1.5 text-xs text-muted-foreground">(sans compte)</span>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{orderParty(o).phone ?? "—"}</div>
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">{o._count.items}</TableCell>
                     <TableCell className="text-sm">{o.deliveryCity ?? "—"}</TableCell>

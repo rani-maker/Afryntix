@@ -162,7 +162,7 @@ function CatalogItem({ catalog, onEdit }: { catalog: CatalogRow; onEdit: () => v
         </div>
         {catalog.description && <p className="text-xs text-muted-foreground mt-1">{catalog.description}</p>}
         <a
-          href={`/api/catalogue/${catalog.id}/file`}
+          href={`/catalogue/${catalog.id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-primary inline-flex items-center gap-1 mt-1 hover:underline"

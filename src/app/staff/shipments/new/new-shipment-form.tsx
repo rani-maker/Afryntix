@@ -56,6 +56,10 @@ type Initial = {
   reservationId?: string;
   catalogOrderId?: string;
   orderReference?: string;
+  // Commande catalogue passée sans compte : colis « Sans compte » par défaut
+  guestOrder?: boolean;
+  clientName?: string;
+  clientPhone?: string;
   destinationCity?: string;
   clientId?: string;
   mode?: TransportMode;
@@ -75,8 +79,9 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   const router = useRouter();
   const reservationId = initial?.reservationId;
   const catalogOrderId = initial?.catalogOrderId;
+  const guestOrder = !!initial?.guestOrder;
   const [hasAccount, setHasAccount] = useState<boolean>(
-    !!initial?.clientId || !!reservationId || !!catalogOrderId || clients.length > 0,
+    !guestOrder && (!!initial?.clientId || !!reservationId || !!catalogOrderId || clients.length > 0),
   );
   const [clientId, setClientId] = useState(initial?.clientId ?? "");
   // Recherche libre par nom / email / téléphone parmi les clients enregistrés.
@@ -84,8 +89,8 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
   // ingérable au-delà de quelques dizaines de clients.
   const [clientSearch, setClientSearch] = useState("");
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
-  const [clientName, setClientName] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
+  const [clientName, setClientName] = useState(initial?.clientName ?? "");
+  const [clientPhone, setClientPhone] = useState(initial?.clientPhone ?? "");
   const [mode, setMode] = useState<TransportMode>(initial?.mode ?? "AIR_NORMAL");
   const [category, setCategory] = useState<CargoCategory>(initial?.category ?? "ORDINARY");
   const [pieces, setPieces] = useState("1");
@@ -317,8 +322,10 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
       {catalogOrderId && (
         <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
           Expédition de la commande catalogue{" "}
-          <span className="font-mono font-medium">{initial?.orderReference}</span>. Le client pourra suivre ce colis
-          depuis « Mes commandes ».
+          <span className="font-mono font-medium">{initial?.orderReference}</span>.{" "}
+          {guestOrder
+            ? "Demande passée sans compte : choisissez un client enregistré pour la rattacher à son espace, ou laissez « Sans compte »."
+            : "Le client pourra suivre ce colis depuis « Mes commandes »."}
         </div>
       )}
       <div className="space-y-2">
@@ -333,7 +340,7 @@ export function NewShipmentForm({ clients, initial }: { clients: Client[]; initi
           <button
             type="button"
             onClick={() => setHasAccount(false)}
-            disabled={!!reservationId || !!catalogOrderId}
+            disabled={!!reservationId || (!!catalogOrderId && !guestOrder)}
             className={`px-3 py-1.5 rounded ${!hasAccount ? "bg-background shadow-sm font-medium" : "text-muted-foreground"} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             Sans compte

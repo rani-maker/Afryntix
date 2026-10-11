@@ -12,6 +12,7 @@ tsconfig.tsbuildinfo
 public/uploads/*
 !public/uploads/.gitkeep
 private-uploads/
+public/pdfjs/
 prisma/*.db
 prisma/*.db-journal
 .turbo

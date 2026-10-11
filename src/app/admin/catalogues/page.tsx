@@ -14,7 +14,7 @@ export default async function AdminCataloguesPage() {
         <CardHeader>
           <CardTitle>Catalogues</CardTitle>
           <CardDescription>
-            Déposez les catalogues PDF Sanitaire, Déco &amp; Luminaire et Meuble. Ils apparaissent sur la page publique
+            Déposez les catalogues PDF Sanitaire, Carreaux, Déco &amp; Luminaire et Meuble. Ils apparaissent sur la page publique
             /catalogue et dans l&apos;espace client, où les clients passent commande.
           </CardDescription>
         </CardHeader>

@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Bath, FileText, Lamp, ShoppingBag, Sofa } from "lucide-react";
+import { Bath, FileText, Lamp, LayoutGrid, ShoppingBag, Sofa } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicHeader } from "@/components/public-header";
 import { useLang } from "@/components/public/public-language-provider";
@@ -12,6 +12,7 @@ import {
   type CatalogCategoryKey,
 } from "@/lib/catalog-labels";
 import type { TKey } from "@/lib/i18n";
+import { useCatalogCart } from "@/lib/catalog-cart";
 
 export type PublicCatalog = {
   id: string;
@@ -24,6 +25,7 @@ export type PublicCatalog = {
 
 const CATEGORY_STYLE: Record<CatalogCategoryKey, { icon: typeof Bath; motif: string; anchor: string }> = {
   SANITAIRE: { icon: Bath, motif: "afx-motif-stripe bg-mint-pale", anchor: "sanitaire" },
+  CARREAUX: { icon: LayoutGrid, motif: "afx-motif-bg bg-mint-pale", anchor: "carreaux" },
   DECO_LUMINAIRE: { icon: Lamp, motif: "afx-motif-diamond bg-surface-3", anchor: "deco-luminaire" },
   MEUBLE: { icon: Sofa, motif: "afx-motif-bg bg-surface-2", anchor: "meuble" },
 };
@@ -32,6 +34,7 @@ const HOW_KEYS: TKey[] = ["pcat.how.1", "pcat.how.2", "pcat.how.3"];
 
 export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] }) {
   const { t } = useLang();
+  const cartCount = useCatalogCart().items.length;
 
   return (
     <main className="min-h-screen bg-[var(--afx-bg)]">
@@ -54,8 +57,14 @@ export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] 
             size="lg"
             className="rounded-full bg-mint text-ink hover:bg-mint-2 h-12 px-6 text-[15px] font-semibold"
           >
-            <Link href="/dashboard/catalogue/order">
-              {t("pcat.cta")} <ArrowRight className="h-4 w-4 ml-1" />
+            <Link href="/catalogue/panier">
+              <ShoppingBag className="h-4 w-4 mr-1" />
+              {t("pcat.cta")}
+              {cartCount > 0 && (
+                <span className="afx-num ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-night px-1.5 text-xs text-white">
+                  {cartCount}
+                </span>
+              )}
             </Link>
           </Button>
         </div>
@@ -105,9 +114,7 @@ export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] 
                     className="group flex flex-col rounded-2xl border border-line bg-surface overflow-hidden transition-shadow hover:shadow-brand-md"
                   >
                     <a
-                      href={`/api/catalogue/${c.id}/file`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={`/catalogue/${c.id}`}
                       aria-label={`${t("pcat.view")} — ${c.title}`}
                       className={`block h-[200px] relative overflow-hidden ${style.motif}`}
                     >
@@ -136,18 +143,13 @@ export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] 
                         {c.fileSize ? ` · ${formatFileSize(c.fileSize)}` : ""}
                       </div>
                       <div className="flex gap-2 mt-auto pt-1">
-                        <Button asChild variant="outline" size="sm" className="rounded-full border-line-2 flex-1">
-                          <a href={`/api/catalogue/${c.id}/file`} target="_blank" rel="noopener noreferrer">
-                            {t("pcat.view")}
-                          </a>
-                        </Button>
                         <Button
                           asChild
                           size="sm"
-                          className="rounded-full bg-night text-white hover:bg-night-2 flex-1"
+                          className="rounded-full bg-mint text-[#0a0e0d] hover:bg-mint-2 flex-1 h-11 font-semibold"
                         >
-                          <Link href={`/dashboard/catalogue/order?catalog=${c.id}`}>
-                            <ShoppingBag className="h-4 w-4" /> {t("pcat.order")}
+                          <Link href={`/catalogue/${c.id}`}>
+                            <ShoppingBag className="h-4 w-4" /> {t("pcat.viewOrder")}
                           </Link>
                         </Button>
                       </div>

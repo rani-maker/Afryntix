@@ -25,7 +25,7 @@ export function getFacturePublicUrl(factureId: string): string | null {
 
 // wa.me attend le numéro international sans « + ». Un numéro ivoirien saisi en local
 // (10 chiffres commençant par 0) reçoit l'indicatif 225.
-function toWhatsAppNumber(phone: string): string | null {
+export function toWhatsAppNumber(phone: string): string | null {
   let digits = phone.replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length === 10 && digits.startsWith("0")) digits = `225${digits}`;

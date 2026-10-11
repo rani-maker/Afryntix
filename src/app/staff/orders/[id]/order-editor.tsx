@@ -31,7 +31,21 @@ type Item = {
   quantity: number;
   unitPrice: number | null;
   lineTotal: number | null;
+  // Article choisi en touchant la page du catalogue (panier) : pas de référence saisie par le client
+  note: string | null;
+  posX: number | null;
+  posY: number | null;
 };
+
+const itemImageUrl = (i: Item) => (i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : null);
+
+/** Ouvre le catalogue à la page de l'article, avec un repère à l'endroit touché par le client. */
+function itemCatalogHref(i: Item): string | null {
+  if (!i.catalogId) return null;
+  const page = i.page && /^\d+$/.test(i.page) ? i.page : null;
+  if (!page || i.posX == null || i.posY == null) return `/catalogue/${i.catalogId}${page ? `?page=${page}` : ""}`;
+  return `/catalogue/${i.catalogId}?page=${page}&x=${i.posX.toFixed(4)}&y=${i.posY.toFixed(4)}`;
+}
 
 type Order = {
   id: string;
@@ -52,7 +66,7 @@ export function OrderEditor({ order }: { order: Order }) {
       ) : (
         <div className="space-y-3">
           <OrderLinesTable
-            items={order.items}
+            items={order.items.map((i) => ({ ...i, imageUrl: itemImageUrl(i) }))}
             showPrices={order.totalAmount != null}
             feesAmount={order.feesAmount}
             totalAmount={order.totalAmount}
@@ -78,6 +92,9 @@ function QuoteForm({ order }: { order: Order }) {
       id: i.id,
       quantity: String(i.quantity),
       unitPrice: i.unitPrice != null ? String(i.unitPrice) : "",
+      // Renseignés par l'équipe pour les articles choisis en touchant la page
+      reference: i.posX != null ? i.reference : undefined,
+      designation: i.posX != null ? i.designation : undefined,
     })),
   );
   const [feesAmount, setFeesAmount] = useState(order.feesAmount != null ? String(order.feesAmount) : "");
@@ -91,7 +108,10 @@ function QuoteForm({ order }: { order: Order }) {
   const complete = lines.every((l) => l.unitPrice !== "");
   const total = order.items.reduce((s, i) => s + lineTotal(i.id), 0) + (Number(feesAmount) || 0);
 
-  function update(id: string, patch: { quantity?: string; unitPrice?: string }) {
+  function update(
+    id: string,
+    patch: { quantity?: string; unitPrice?: string; reference?: string; designation?: string },
+  ) {
     setMessage(null);
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   }
@@ -143,16 +163,57 @@ function QuoteForm({ order }: { order: Order }) {
             {order.items.map((i) => (
               <TableRow key={i.id}>
                 <TableCell className="text-sm">
-                  <div className="font-medium">{i.designation}</div>
-                  <div className="font-mono text-xs text-muted-foreground">
-                    {i.reference}
-                    {i.page ? ` · p. ${i.page}` : ""}
-                  </div>
+                  {i.posX != null ? (
+                    <div className="flex items-start gap-3 min-w-[260px]">
+                      <a
+                        href={itemCatalogHref(i) ?? undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Voir l'article dans le catalogue"
+                        className="shrink-0"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={itemImageUrl(i) ?? undefined}
+                          alt="Zone du catalogue touchée par le client"
+                          className="h-24 w-24 rounded-md border object-cover"
+                        />
+                      </a>
+                      <div className="flex-1 space-y-1.5">
+                        <Input
+                          required
+                          minLength={2}
+                          maxLength={200}
+                          aria-label={`Désignation — article page ${i.page ?? "?"}`}
+                          placeholder="Désignation"
+                          value={lineOf(i.id).designation ?? ""}
+                          onChange={(e) => update(i.id, { designation: e.target.value })}
+                        />
+                        <Input
+                          maxLength={80}
+                          aria-label={`Référence — article page ${i.page ?? "?"}`}
+                          placeholder="Référence (à préciser)"
+                          className="font-mono text-xs"
+                          value={lineOf(i.id).reference ?? ""}
+                          onChange={(e) => update(i.id, { reference: e.target.value })}
+                        />
+                        {i.note && <div className="text-xs text-muted-foreground">Client : « {i.note} »</div>}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="font-medium">{i.designation}</div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {i.reference}
+                        {i.page ? ` · p. ${i.page}` : ""}
+                      </div>
+                    </>
+                  )}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {i.catalogId ? (
+                  {itemCatalogHref(i) ? (
                     <a
-                      href={`/api/catalogue/${i.catalogId}/file`}
+                      href={itemCatalogHref(i) ?? undefined}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline"
@@ -162,7 +223,10 @@ function QuoteForm({ order }: { order: Order }) {
                   ) : (
                     <span>{i.catalogTitle} (supprimé)</span>
                   )}
-                  <div className="text-xs text-muted-foreground">{CATALOG_CATEGORY_LABELS[i.category]}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {CATALOG_CATEGORY_LABELS[i.category]}
+                    {i.posX != null && i.page ? ` · p. ${i.page}` : ""}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Input
@@ -172,6 +236,7 @@ function QuoteForm({ order }: { order: Order }) {
                     min={1}
                     step={1}
                     aria-label={`Quantité — ${i.designation}`}
+                    className="min-w-[4.5rem]"
                     value={lineOf(i.id).quantity}
                     onChange={(e) => update(i.id, { quantity: e.target.value })}
                   />
@@ -184,6 +249,7 @@ function QuoteForm({ order }: { order: Order }) {
                     step={1}
                     placeholder="À chiffrer"
                     aria-label={`Prix unitaire — ${i.designation}`}
+                    className="min-w-[7rem]"
                     value={lineOf(i.id).unitPrice}
                     onChange={(e) => update(i.id, { unitPrice: e.target.value })}
                   />
