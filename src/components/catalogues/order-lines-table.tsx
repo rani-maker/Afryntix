@@ -12,6 +12,9 @@ export type OrderLine = {
   quantity: number;
   unitPrice: number | null;
   lineTotal: number | null;
+  // Article choisi en touchant la page : précision du client et photo de la zone touchée
+  note?: string | null;
+  imageUrl?: string | null;
 };
 
 /**
@@ -45,10 +48,19 @@ export function OrderLinesTable({
           {items.map((i) => (
             <TableRow key={i.id}>
               <TableCell className="text-sm">
-                <div className="font-medium">{i.designation}</div>
-                <div className="font-mono text-xs text-muted-foreground">
-                  {i.reference}
-                  {i.page ? ` · p. ${i.page}` : ""}
+                <div className="flex items-center gap-3">
+                  {i.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={i.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-md border object-cover" />
+                  )}
+                  <div className="min-w-0">
+                    <div className="font-medium">{i.designation}</div>
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {i.reference || "Réf. à préciser"}
+                      {i.page ? ` · p. ${i.page}` : ""}
+                    </div>
+                    {i.note && <div className="text-xs text-muted-foreground">« {i.note} »</div>}
+                  </div>
                 </div>
               </TableCell>
               <TableCell className="text-sm">

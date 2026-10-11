@@ -106,7 +106,7 @@ export function buildPartnerDocPath(
 // =============================================================
 // Catalogues (PDF + images de couverture)
 // Bucket privé : les fichiers sont servis via /api/catalogue/[id]/...
-// (lien signé temporaire pour le PDF, proxy pour la couverture).
+// (proxy same-origin : l'adresse Supabase n'est jamais exposée au visiteur).
 // =============================================================
 
 export const CATALOG_BUCKET = "catalogues";
@@ -161,6 +161,61 @@ export async function getCatalogSignedUrl(path: string, expiresInSeconds = 600):
     throw new Error(`Génération du lien signé échouée : ${error?.message ?? "inconnu"}`);
   }
   return data.signedUrl;
+}
+
+// Liens signés réutilisés par le proxy PDF : la visionneuse envoie de nombreuses
+// requêtes partielles (Range) par catalogue, on évite un aller-retour de
+// signature à chacune.
+const STREAM_URL_TTL_SECONDS = 3600;
+const STREAM_URL_REUSE_MS = 50 * 60 * 1000;
+const _streamUrls = new Map<string, { url: string; reuseUntil: number }>();
+
+async function getCatalogStreamUrl(path: string, forceNew = false): Promise<string> {
+  const cached = _streamUrls.get(path);
+  if (!forceNew && cached && cached.reuseUntil > Date.now()) return cached.url;
+  const url = await getCatalogSignedUrl(path, STREAM_URL_TTL_SECONDS);
+  _streamUrls.set(path, { url, reuseUntil: Date.now() + STREAM_URL_REUSE_MS });
+  return url;
+}
+
+/**
+ * Ouvre un flux de lecture sur un objet du bucket catalogues, en entier ou sur
+ * une plage d'octets (`range` = valeur d'un en-tête HTTP Range). La réponse
+ * Supabase (200 / 206 / 416) est renvoyée telle quelle, sans être mise en mémoire.
+ */
+export async function fetchCatalogObject(
+  path: string,
+  opts: { range?: string | null; signal?: AbortSignal } = {},
+): Promise<Response> {
+  const open = async (forceNew: boolean) =>
+    fetch(await getCatalogStreamUrl(path, forceNew), {
+      headers: {
+        // Pas de compression : Content-Length doit refléter la taille réelle du PDF
+        "Accept-Encoding": "identity",
+        ...(opts.range ? { Range: opts.range } : {}),
+      },
+      cache: "no-store",
+      signal: opts.signal,
+    });
+
+  // Coupure réseau ponctuelle vers le stockage (connexion réinitialisée…) : on réessaie
+  const attempt = async (triesLeft: number, pauseMs: number): Promise<Response> => {
+    try {
+      return await open(false);
+    } catch (e) {
+      if (triesLeft <= 0 || opts.signal?.aborted) throw e;
+      await new Promise((resolve) => setTimeout(resolve, pauseMs));
+      return attempt(triesLeft - 1, pauseMs * 3);
+    }
+  };
+
+  let res = await attempt(3, 100);
+  if (res.status === 400 || res.status === 401 || res.status === 403) {
+    // Lien signé périmé ou révoqué : on en génère un neuf et on réessaie une fois
+    await res.body?.cancel().catch(() => {});
+    res = await open(true);
+  }
+  return res;
 }
 
 export async function downloadCatalogObject(path: string): Promise<Blob> {

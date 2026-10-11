@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { orderParty } from "@/lib/catalog-orders";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { NewShipmentForm } from "./new-shipment-form";
 import type { TransportMode, CargoCategory } from "@prisma/client";
@@ -75,6 +76,9 @@ export default async function NewShipmentPage({
   let orderPrefill: {
     catalogOrderId?: string;
     orderReference?: string;
+    guestOrder?: boolean;
+    clientName?: string;
+    clientPhone?: string;
     clientId?: string;
     description?: string;
     recipientName?: string;
@@ -90,19 +94,26 @@ export default async function NewShipmentPage({
         clientId: true,
         contactPhone: true,
         deliveryCity: true,
+        guestName: true,
         client: { select: { name: true, phone: true, whatsapp: true } },
         items: { select: { quantity: true, reference: true, designation: true } },
       },
     });
     if (order) {
-      const lines = order.items.map((i) => `${i.quantity} × ${i.designation} (${i.reference})`).join(" ; ");
+      const lines = order.items
+        .map((i) => `${i.quantity} × ${i.designation}${i.reference ? ` (${i.reference})` : ""}`)
+        .join(" ; ");
+      const party = orderParty(order);
       orderPrefill = {
         catalogOrderId: order.id,
         orderReference: order.reference,
-        clientId: order.clientId,
+        guestOrder: party.guest,
+        clientName: party.guest ? party.name : undefined,
+        clientPhone: party.guest ? (party.phone ?? undefined) : undefined,
+        clientId: order.clientId ?? undefined,
         description: `Commande ${order.reference} — ${lines}`.slice(0, 480),
-        recipientName: order.client.name,
-        recipientPhone: order.contactPhone ?? order.client.whatsapp ?? order.client.phone ?? undefined,
+        recipientName: party.name,
+        recipientPhone: party.phone ?? undefined,
         destinationCity: order.deliveryCity ?? undefined,
       };
     }
@@ -112,6 +123,9 @@ export default async function NewShipmentPage({
     reservationId,
     catalogOrderId: orderPrefill.catalogOrderId,
     orderReference: orderPrefill.orderReference,
+    guestOrder: orderPrefill.guestOrder,
+    clientName: orderPrefill.clientName,
+    clientPhone: orderPrefill.clientPhone,
     destinationCity: orderPrefill.destinationCity,
     clientId: orderPrefill.clientId ?? pick("clientId") ?? reservationPrefill.clientId,
     mode: (pick("mode") as TransportMode | undefined) ?? reservationPrefill.mode,

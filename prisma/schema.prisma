@@ -1024,6 +1024,7 @@ enum CatalogCategory {
   SANITAIRE
   DECO_LUMINAIRE
   MEUBLE
+  CARREAUX
 }
 
 model Catalog {
@@ -1062,9 +1063,14 @@ enum CatalogOrderStatus {
 model CatalogOrder {
   id        String             @id @default(cuid())
   reference String             @unique // AFR-CMD-2026-000123
-  clientId  String
-  client    User               @relation("CatalogOrderClient", fields: [clientId], references: [id], onDelete: Cascade)
+  // null = demande envoyée sans compte depuis le panier public (voir guestName)
+  clientId  String?
+  client    User?              @relation("CatalogOrderClient", fields: [clientId], references: [id], onDelete: Cascade)
   status    CatalogOrderStatus @default(PENDING)
+
+  // Demandeur sans compte : il suit sa demande par lien signé (/commande/[id]?k=…)
+  guestName  String?
+  guestEmail String?
 
   // Devis établi par AFRYNTIX (vide tant que la commande n'est pas chiffrée)
   feesAmount  Float? // FCFA, frais annexes (transport, emballage…)
@@ -1100,14 +1106,31 @@ model CatalogOrderItem {
   category     CatalogCategory
   catalogTitle String // copie du titre (le catalogue peut être supprimé)
 
-  reference   String // référence article dans le catalogue
+  reference   String // référence article dans le catalogue (vide tant qu'AFRYNTIX ne l'a pas précisée)
   designation String
   page        String? // page du catalogue
   quantity    Int
   unitPrice   Float? // FCFA, renseigné par AFRYNTIX dans le devis
   lineTotal   Float? // FCFA
 
+  // Article choisi en touchant la page dans la visionneuse (panier) :
+  // position du toucher sur la page (0 → 1) et précision libre du client.
+  posX  Float?
+  posY  Float?
+  note  String?
+  image CatalogOrderItemImage?
+
   @@index([orderId])
+}
+
+// Photo de la zone touchée par le client (petit JPEG). Table à part pour ne
+// jamais la charger avec les lignes ; servie par /api/catalogue/order-item/[id]/image.
+model CatalogOrderItemImage {
+  itemId String           @id
+  item   CatalogOrderItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  data   Bytes
+
+  createdAt DateTime @default(now())
 }
 
 // -----------------------------------------------------------------

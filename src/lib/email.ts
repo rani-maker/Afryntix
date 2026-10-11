@@ -206,6 +206,8 @@ export function emailCatalogQuote(args: {
   reference: string;
   totalAmount: number;
   link: string;
+  /** false : demande envoyée sans compte, le lien mène à la page publique signée */
+  hasAccount?: boolean;
 }): { subject: string; html: string } {
   const subject = `[AFRYNTIX] Votre devis — commande ${args.reference}`;
   const html = `
@@ -215,7 +217,7 @@ export function emailCatalogQuote(args: {
       <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
         <tr><td style="padding: 6px 0; color: #64748b;">Montant du devis</td><td style="text-align: right;"><strong>${args.totalAmount.toLocaleString("fr-FR")} FCFA</strong></td></tr>
       </table>
-      <p>Consultez le détail et validez-le depuis votre espace client :</p>
+      <p>${args.hasAccount === false ? "Consultez le détail et validez-le en ligne :" : "Consultez le détail et validez-le depuis votre espace client :"}</p>
       <p><a href="${escapeHtml(args.link)}" style="display: inline-block; padding: 10px 18px; background: #0f172a; color: #ffffff; border-radius: 999px; text-decoration: none;">Voir mon devis</a></p>
       <p style="color: #64748b; font-size: 12px; margin-top: 24px;">— L'équipe AFRYNTIX</p>
     </div>`;
@@ -255,7 +257,7 @@ export function emailCatalogOrderTeam(args: {
     .map(
       (i) => `
         <tr>
-          <td style="${cell}"><strong>${escapeHtml(i.designation)}</strong><br><span style="color: #64748b;">Réf. ${escapeHtml(i.reference)}${i.page ? ` · p. ${escapeHtml(i.page)}` : ""} — ${escapeHtml(i.catalogTitle)}</span></td>
+          <td style="${cell}"><strong>${escapeHtml(i.designation)}</strong><br><span style="color: #64748b;">${i.reference ? `Réf. ${escapeHtml(i.reference)}` : "Réf. à préciser"}${i.page ? ` · p. ${escapeHtml(i.page)}` : ""} — ${escapeHtml(i.catalogTitle)}</span></td>
           <td style="${cell} text-align: right;">${i.quantity}</td>
           ${priced ? `<td style="${cell} text-align: right;">${i.unitPrice != null ? fcfa(i.unitPrice) : "—"}</td><td style="${cell} text-align: right;">${i.lineTotal != null ? fcfa(i.lineTotal) : "—"}</td>` : ""}
         </tr>`,

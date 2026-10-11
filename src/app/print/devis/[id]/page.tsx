@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { COMPANY } from "@/lib/company";
 import { CATALOG_CATEGORY_LABELS } from "@/lib/catalog-labels";
 import { formatDate, formatXOF } from "@/lib/utils";
+import { orderParty } from "@/lib/catalog-orders";
 import { PrintActions } from "@/app/print/manifest/envoi/[id]/print-actions";
 
 /**
@@ -29,6 +30,7 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
   if (!isTeam && order.clientId !== session.user.id) notFound();
 
   const quoted = order.quotedAt != null && order.totalAmount != null && order.status !== "PENDING";
+  const party = orderParty(order);
   const subtotal = order.items.reduce((s, i) => s + (i.lineTotal ?? 0), 0);
 
   return (
@@ -74,12 +76,10 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
         <section className="grid grid-cols-2 gap-4 mb-6 text-sm">
           <div className="border rounded p-3">
             <div className="text-xs uppercase text-gray-500">Client</div>
-            <div className="font-medium">{order.client.name}</div>
-            <div className="text-xs">{order.client.email}</div>
-            <div className="text-xs">
-              Tél : {order.contactPhone ?? order.client.whatsapp ?? order.client.phone ?? "—"}
-            </div>
-            {(order.client.address || order.client.city) && (
+            <div className="font-medium">{party.name}</div>
+            {party.email && <div className="text-xs">{party.email}</div>}
+            <div className="text-xs">Tél : {party.phone ?? "—"}</div>
+            {(order.client?.address || order.client?.city) && (
               <div className="text-xs mt-1">
                 {[order.client.address, order.client.city, order.client.country].filter(Boolean).join(", ")}
               </div>
@@ -109,10 +109,25 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
               <tr key={i.id}>
                 <td>{idx + 1}</td>
                 <td className="font-mono">
-                  {i.reference}
+                  {i.reference || "À préciser"}
                   {i.page ? ` (p. ${i.page})` : ""}
                 </td>
-                <td>{i.designation}</td>
+                <td>
+                  <div className="flex items-center gap-2">
+                    {i.posX != null && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/catalogue/order-item/${i.id}/image`}
+                        alt=""
+                        style={{ width: 44, height: 44, objectFit: "cover", border: "1px solid #d1d5db" }}
+                      />
+                    )}
+                    <div>
+                      {i.designation}
+                      {i.note && <div className="text-gray-500">« {i.note} »</div>}
+                    </div>
+                  </div>
+                </td>
                 <td>
                   {i.catalogTitle}
                   <div className="text-gray-500">{CATALOG_CATEGORY_LABELS[i.category]}</div>

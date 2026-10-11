@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Bath, FileText, Lamp, ShoppingBag, Sofa } from "lucide-react";
+import { Bath, FileText, Lamp, LayoutGrid, ShoppingBag, Sofa } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATALOG_CATEGORY_LABELS, formatFileSize, type CatalogCategoryKey } from "@/lib/catalog-labels";
 
 export const CATALOG_CATEGORY_ICONS: Record<CatalogCategoryKey, typeof Bath> = {
   SANITAIRE: Bath,
+  CARREAUX: LayoutGrid,
   DECO_LUMINAIRE: Lamp,
   MEUBLE: Sofa,
 };
@@ -19,16 +20,14 @@ export type CatalogCardData = {
   hasCover: boolean;
 };
 
-/** Carte catalogue de l'espace client (consulter le PDF / commander). */
+/** Carte catalogue de l'espace client : ouvre la visionneuse, où l'on commande en touchant les articles. */
 export function CatalogCard({ catalog }: { catalog: CatalogCardData }) {
   const Icon = CATALOG_CATEGORY_ICONS[catalog.category];
-  const fileHref = `/api/catalogue/${catalog.id}/file`;
+  const fileHref = `/catalogue/${catalog.id}`;
   return (
     <article className="group flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden">
       <a
         href={fileHref}
-        target="_blank"
-        rel="noopener noreferrer"
         aria-label={`Consulter ${catalog.title}`}
         className="block h-40 relative overflow-hidden bg-primary/5"
       >
@@ -56,14 +55,9 @@ export function CatalogCard({ catalog }: { catalog: CatalogCardData }) {
           {catalog.fileSize ? ` · ${formatFileSize(catalog.fileSize)}` : ""}
         </div>
         <div className="flex gap-2 mt-auto pt-2">
-          <Button asChild variant="outline" size="sm" className="flex-1">
-            <a href={fileHref} target="_blank" rel="noopener noreferrer">
-              Consulter
-            </a>
-          </Button>
           <Button asChild size="sm" className="flex-1">
-            <Link href={`/dashboard/catalogue/order?catalog=${catalog.id}`}>
-              <ShoppingBag className="h-4 w-4" /> Commander
+            <Link href={fileHref}>
+              <ShoppingBag className="h-4 w-4" /> Consulter et commander
             </Link>
           </Button>
         </div>

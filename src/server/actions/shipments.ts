@@ -68,8 +68,8 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
   const data = parsed.data;
 
   // Expédition créée depuis une commande catalogue : le devis doit être accepté
-  // et le colis appartient forcément au client de la commande.
-  let catalogOrder: { id: string; reference: string; status: string; clientId: string } | null = null;
+  // et le colis appartient forcément au client de la commande (s'il a un compte).
+  let catalogOrder: { id: string; reference: string; status: string; clientId: string | null } | null = null;
   if (data.catalogOrderId) {
     catalogOrder = await prisma.catalogOrder.findUnique({
       where: { id: data.catalogOrderId },
@@ -79,7 +79,7 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     if (!["CONFIRMED", "IN_PREPARATION", "SHIPPED"].includes(catalogOrder.status)) {
       return { success: false, error: "Le devis de cette commande doit être accepté avant de créer l'expédition." };
     }
-    data.clientId = catalogOrder.clientId;
+    if (catalogOrder.clientId) data.clientId = catalogOrder.clientId;
   }
 
   const client = data.clientId
@@ -251,13 +251,21 @@ export async function createShipment(input: unknown): Promise<Result<{ trackingN
     if (catalogOrder.status !== "SHIPPED") {
       await prisma.catalogOrder.update({ where: { id: catalogOrder.id }, data: { status: "SHIPPED" } });
     }
-    await notifyInApp({
-      userId: catalogOrder.clientId,
-      template: "catalog_order_shipped",
-      title: "Votre commande est expédiée",
-      body: `Commande ${catalogOrder.reference} : colis ${trackingNumber} enregistré. Suivez-le en temps réel.`,
-      link: `/tracking/${trackingNumber}`,
-    });
+    // Demande passée sans compte puis expédiée à un client enregistré : on la
+    // rattache à son espace (« Mes commandes »).
+    const orderClientId = catalogOrder.clientId ?? client?.id ?? null;
+    if (!catalogOrder.clientId && orderClientId) {
+      await prisma.catalogOrder.update({ where: { id: catalogOrder.id }, data: { clientId: orderClientId } });
+    }
+    if (orderClientId) {
+      await notifyInApp({
+        userId: orderClientId,
+        template: "catalog_order_shipped",
+        title: "Votre commande est expédiée",
+        body: `Commande ${catalogOrder.reference} : colis ${trackingNumber} enregistré. Suivez-le en temps réel.`,
+        link: `/tracking/${trackingNumber}`,
+      });
+    }
     revalidatePath("/dashboard/orders");
     revalidatePath("/staff/orders");
     revalidatePath("/admin/orders");

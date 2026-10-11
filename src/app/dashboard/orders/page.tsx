@@ -31,7 +31,7 @@ export default async function ClientOrdersPage() {
         <div>
           <h2 className="text-lg font-semibold">Mes commandes</h2>
           <p className="text-sm text-muted-foreground">
-            Vos bons de commande Sanitaire, Déco &amp; Luminaire et Meuble, et les devis envoyés par AFRYNTIX.
+            Vos bons de commande Sanitaire, Carreaux, Déco &amp; Luminaire et Meuble, et les devis envoyés par AFRYNTIX.
           </p>
         </div>
         <div className="flex gap-2 self-start sm:self-auto">
@@ -46,7 +46,7 @@ export default async function ClientOrdersPage() {
 
       {orders.length === 0 ? (
         <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-          Aucune commande. Consultez un catalogue puis cliquez sur « Commander ».
+          Aucune commande. Ouvrez un catalogue et touchez les articles qui vous intéressent.
         </div>
       ) : (
         orders.map((o) => {
@@ -71,7 +71,10 @@ export default async function ClientOrdersPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <OrderLinesTable
-                  items={o.items}
+                  items={o.items.map((i) => ({
+                    ...i,
+                    imageUrl: i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : null,
+                  }))}
                   showPrices={quoted}
                   feesAmount={o.feesAmount}
                   totalAmount={o.totalAmount}

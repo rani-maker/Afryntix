@@ -37,15 +37,18 @@ export default async function ClientCataloguePage({
           <p className="text-sm text-muted-foreground max-w-2xl">
             {category
               ? CATALOG_CATEGORY_DESCRIPTIONS[category]
-              : "Sanitaire, Déco & Luminaire, Meuble : consultez un catalogue, notez les références qui vous intéressent, puis validez votre bon de commande. AFRYNTIX vous envoie un devis."}
+              : "Sanitaire, Carreaux, Déco & Luminaire, Meuble : ouvrez un catalogue, touchez les articles qui vous intéressent, puis envoyez votre panier. AFRYNTIX vous envoie un devis."}
           </p>
         </div>
-        <div className="flex gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
           <Button asChild variant="outline">
             <Link href="/dashboard/orders">Mes commandes</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/catalogue/order">Commander par références</Link>
+          </Button>
           <Button asChild>
-            <Link href="/dashboard/catalogue/order">+ Nouvelle commande</Link>
+            <Link href="/catalogue/panier">Mon panier</Link>
           </Button>
         </div>
       </div>

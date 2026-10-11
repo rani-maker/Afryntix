@@ -95,7 +95,7 @@ export function CatalogOrderForm({
               </span>
               <div className="flex items-center gap-1">
                 <Button asChild type="button" size="sm" variant="ghost">
-                  <a href={`/api/catalogue/${l.catalogId}/file`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/catalogue/${l.catalogId}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" /> Ouvrir le catalogue
                   </a>
                 </Button>
