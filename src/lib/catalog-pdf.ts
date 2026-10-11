@@ -4,14 +4,36 @@
 //
 // Constat mesuré sur le site : un aller-retour vers le serveur coûte environ une
 // demi-seconde, pour 128 Ko comme pour 1 Mo. On fait donc peu de requêtes, lancées
-// tôt, et on les lit au fil de l'eau : chaque bloc sert dès qu'il est arrivé, ce
-// qui ne pénalise pas non plus les connexions à faible débit.
+// tôt, et on les lit au fil de l'eau : chaque bloc sert dès qu'il est arrivé. Ce
+// qu'on précharge au-delà suit le débit mesuré, pour ne pas pénaliser les connexions
+// à faible débit.
 
 /** Taille des blocs lus par PDF.js — celle pour laquelle `web_layout.py` range les fichiers. */
 export const CATALOG_CHUNK = 128 * 1024;
 
-/** Avance de lecture, en blocs (≈ 1 Mo) : la suite du fichier, donc les pages suivantes. */
+/** Avance de lecture maximale, en blocs (≈ 1 Mo) : la suite du fichier, donc les pages suivantes. */
 export const CATALOG_READ_AHEAD = 8;
+
+const RATE_SAMPLE = 256 * 1024; // une mesure de débit porte sur 256 Ko reçus…
+const RATE_SPAN = 500; // … ou sur une demi-seconde, quand la liaison est lente
+const RATE_SETTLE = 50; // ms écartées au début de chaque mesure
+
+/**
+ * Avance de lecture (en blocs) selon le débit mesuré de la liaison, en octets par
+ * seconde — NaN tant qu'il n'est pas connu : on garde alors l'avance complète.
+ *
+ * Paliers relevés sur réseau simulé, de 60 Ko/s à 2 Mo/s (pages à la suite, sauts de
+ * page, arrivée directe sur une page) : à partir de 700 Ko/s environ, 1 Mo d'avance
+ * ne coûte guère plus qu'un aller-retour et supprime l'attente entre les pages. En
+ * dessous, il prend la place de ce que PDF.js attend et allonge l'attente après un
+ * saut : 4 blocs entre 450 et 700 Ko/s, un seul en dessous — le bloc qui suit celui
+ * qu'on lit est presque toujours le prochain demandé, même sur une liaison très lente.
+ */
+export function catalogReadAhead(rate: number): number {
+  if (rate < 450 * 1024) return 1;
+  if (rate < 700 * 1024) return 4;
+  return CATALOG_READ_AHEAD;
+}
 
 /**
  * Plages `[début, fin[` à lancer en parallèle à l'ouverture d'un fichier de `size`
@@ -105,6 +127,10 @@ export const catalogPartFeed =
  * premier, la suite du fichier (les pages suivantes) continue derrière, et le
  * lecteur la trouve déjà là en faisant défiler.
  *
+ * `readAhead` donne l'avance (en blocs) permise par le débit mesuré sur les octets
+ * reçus : sur une liaison lente, ce qu'on précharge prend la place de ce que PDF.js
+ * attend.
+ *
  * `open` lance un téléchargement en flux ; `fetchRange` est le repli (plage exacte,
  * avec nouvelles tentatives) quand un flux a échoué.
  */
@@ -112,12 +138,34 @@ export function createChunkLoader(
   open: (begin: number, end: number) => ByteFeed,
   fetchRange: (begin: number, end: number) => Promise<Uint8Array>,
   total: number,
-  readAhead: number,
+  readAhead: (rate: number) => number,
   isAborted: () => boolean = () => false,
+  now: () => number = () => performance.now(),
 ) {
   const lastChunk = Math.floor((total - 1) / CATALOG_CHUNK);
   const ready = new Map<number, Promise<Uint8Array>>(); // en cours ou reçus, pas encore remis à PDF.js
   const given = new Set<number>(); // déjà remis : inutile de les précharger
+  const flying = new Set<number>(); // en cours de téléchargement
+  const awaited = new Map<number, number>(); // attendus par PDF.js → nombre de demandes en cours
+
+  let received = 0; // octets reçus en direct, tous flux confondus
+  let rate = NaN; // débit de la liaison, en octets par seconde (NaN : pas encore mesuré)
+  const ahead = () => Math.max(0, Math.min(CATALOG_READ_AHEAD, Math.floor(readAhead(rate))));
+
+  const want = (indices: number[], by: 1 | -1) => {
+    for (const i of indices) {
+      const n = (awaited.get(i) ?? 0) + by;
+      if (n > 0) awaited.set(i, n);
+      else awaited.delete(i);
+    }
+  };
+
+  /** Avance qu'on peut encore lancer : jamais plus de `ahead()` blocs en vol que PDF.js n'attend pas. */
+  const room = () => {
+    let spare = 0;
+    for (const i of flying) if (!awaited.has(i)) spare++;
+    return Math.max(0, ahead() - spare);
+  };
 
   /** Répartit un flux `[begin, end[` (aligné sur les blocs) : chaque bloc est prêt dès qu'il est complet. */
   const adopt = (begin: number, end: number, feed: ByteFeed) => {
@@ -134,13 +182,35 @@ export function createChunkLoader(
         if (ready.get(first + k) === promise) ready.delete(first + k);
       });
       ready.set(first + k, promise);
+      flying.add(first + k);
       return { size: Math.min(CATALOG_CHUNK, end - begin - k * CATALOG_CHUNK), buf: null as Uint8Array | null, filled: 0, resolve, reject };
     });
     let k = 0;
     const fail = (e: unknown) => {
-      for (; k < slots.length; k++) slots[k].reject(e);
+      for (; k < slots.length; k++) {
+        flying.delete(first + k);
+        slots[k].reject(e);
+      }
     };
-    feed((bytes) => {
+    // Débit : tout ce qui arrive (tous flux confondus) pendant que ce flux reçoit,
+    // par tranches de RATE_SAMPLE octets ou de RATE_SPAN ms. Les octets arrivés avant
+    // l'adoption (script en ligne) et ceux des premiers instants ne comptent pas :
+    // ils ont pu attendre dans le navigateur, on ne sait pas depuis quand.
+    let live = false;
+    let since = NaN;
+    let mark = 0;
+    const done = feed((bytes) => {
+      if (live) {
+        const at = now();
+        received += bytes.length;
+        if (Number.isNaN(since)) since = at + RATE_SETTLE;
+        if (at <= since) mark = received;
+        else if (received - mark >= RATE_SAMPLE || at - since >= RATE_SPAN) {
+          rate = ((received - mark) * 1000) / (at - since);
+          since = at + RATE_SETTLE;
+          mark = received;
+        }
+      }
       let offset = 0;
       while (offset < bytes.length && k < slots.length) {
         const slot = slots[k];
@@ -150,11 +220,14 @@ export function createChunkLoader(
         slot.filled += n;
         offset += n;
         if (slot.filled === slot.size) {
+          flying.delete(first + k);
           slot.resolve(slot.buf);
           k++;
         }
       }
-    }).then(() => fail(new Error("flux incomplet")), fail);
+    });
+    live = true;
+    done.then(() => fail(new Error("flux incomplet")), fail);
   };
 
   /** Ouvre un flux par suite contiguë de blocs manquants dans [first, last]. */
@@ -183,6 +256,8 @@ export function createChunkLoader(
   };
 
   return {
+    /** Débit mesuré de la liaison, en octets par seconde (NaN tant qu'il n'y a pas de mesure). */
+    rate: () => rate,
     /** Flux déjà lancé (ignoré s'il ne correspond pas au fichier réel). */
     adopt(begin: number, end: number, feed: ByteFeed) {
       if (aligned(begin, end)) adopt(begin, end, feed);
@@ -197,46 +272,54 @@ export function createChunkLoader(
     async take(index: number): Promise<Uint8Array> {
       const piece = ready.get(index);
       if (!piece) throw new Error("bloc absent");
-      const data = await piece;
-      release([index]);
-      return data;
+      want([index], 1);
+      try {
+        const data = await piece;
+        release([index]);
+        return data;
+      } finally {
+        want([index], -1);
+      }
     },
     /** Octets [begin, end[ réclamés par PDF.js (toujours alignés sur les blocs). */
     async read(begin: number, end: number): Promise<Uint8Array> {
       const first = Math.floor(begin / CATALOG_CHUNK);
       const last = Math.floor((end - 1) / CATALOG_CHUNK);
       const indices = Array.from({ length: last - first + 1 }, (_, k) => first + k);
-      // Avance de lecture : jamais plus de `readAhead` blocs d'avance en attente, tous
-      // flux confondus (PDF.js demande souvent plusieurs zones du fichier à la fois).
-      const room = () => {
-        let waiting = 0;
-        for (const i of ready.keys()) if (i < first || i > last) waiting++;
-        return Math.max(0, readAhead - waiting);
-      };
-      // Blocs demandés manquants : un seul flux, prolongé par l'avance de lecture
-      if (indices.some((i) => !ready.has(i))) load(first, Math.min(lastChunk, last + room()), last);
+      want(indices, 1);
       let out: Uint8Array = new Uint8Array(end - begin);
       try {
-        const pieces = await Promise.all(indices.map((i) => ready.get(i) ?? Promise.reject(new Error("bloc absent"))));
-        let filled = 0;
-        for (const piece of pieces) {
-          out.set(piece.subarray(0, Math.min(piece.length, out.length - filled)), filled);
-          filled += piece.length;
+        // Blocs demandés manquants : un seul flux, prolongé par l'avance de lecture
+        if (indices.some((i) => !ready.has(i))) load(first, Math.min(lastChunk, last + room()), last);
+        try {
+          const pieces = await Promise.all(indices.map((i) => ready.get(i) ?? Promise.reject(new Error("bloc absent"))));
+          let filled = 0;
+          for (const piece of pieces) {
+            out.set(piece.subarray(0, Math.min(piece.length, out.length - filled)), filled);
+            filled += piece.length;
+          }
+          if (filled !== out.length) throw new Error("plage incomplète");
+        } catch (e) {
+          if (isAborted()) throw e;
+          // Un flux a échoué : on redemande exactement la plage voulue
+          out = await fetchRange(begin, end);
         }
-        if (filled !== out.length) throw new Error("plage incomplète");
-      } catch (e) {
-        if (isAborted()) throw e;
-        // Un flux a échoué : on redemande exactement la plage voulue
-        out = await fetchRange(begin, end);
+      } finally {
+        want(indices, -1);
       }
       release(indices);
-      // Les blocs attendus sont arrivés : on refait de l'avance dès qu'elle est à moitié consommée
-      const free = room();
-      if (free > 0 && free >= readAhead / 2) {
-        let covered = last;
-        while (covered < lastChunk && (ready.has(covered + 1) || given.has(covered + 1))) covered++;
-        if (covered < lastChunk) load(covered + 1, Math.min(lastChunk, covered + free), -1);
+      // Les blocs attendus sont arrivés : on refait de l'avance dès que celle qui suit
+      // cette lecture est à moitié consommée — sauf si la liaison est déjà occupée
+      // (autant de blocs en vol que d'avance permise) : un flux de plus ralentirait
+      // ceux que PDF.js attend
+      let covered = last;
+      let held = 0;
+      while (covered < lastChunk && (ready.has(covered + 1) || given.has(covered + 1))) {
+        covered++;
+        if (ready.has(covered)) held++;
       }
+      const more = Math.min(ahead() - held, ahead() - flying.size);
+      if (more > 0 && held <= ahead() / 2 && covered < lastChunk) load(covered + 1, Math.min(lastChunk, covered + more), -1);
       return out;
     },
   };

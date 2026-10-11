@@ -9,10 +9,10 @@ import { useLang } from "@/components/public/public-language-provider";
 import { useCatalogCart } from "@/lib/catalog-cart";
 import {
   CATALOG_CHUNK,
-  CATALOG_READ_AHEAD,
   catalogBootRanges,
   catalogPartFeed,
   catalogPartTotal,
+  catalogReadAhead,
   createChunkLoader,
   openCatalogPart,
   type CatalogBoot,
@@ -206,7 +206,7 @@ export function CatalogViewer({
             (begin, end) => catalogPartFeed(openCatalogPart(fileUrl, begin, end, signal)),
             exact,
             total,
-            lean ? 0 : CATALOG_READ_AHEAD,
+            lean ? () => 0 : catalogReadAhead,
             () => signal.aborted,
           );
 
