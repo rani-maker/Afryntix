@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ArrowUpRight,
   Plus,
+  ShoppingBag,
 } from "lucide-react";
 import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import {
@@ -15,10 +16,12 @@ import {
   DashCardHeader,
 } from "@/components/dashboard/ui/dash-card";
 import { DashShipmentStatusBadge } from "@/components/dashboard/ui/dash-status-badge";
-import { StatusPill } from "@/components/dashboard/ui/status-pill";
+import { StatusPill, type StatusTone } from "@/components/dashboard/ui/status-pill";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { formatXOF, formatDate } from "@/lib/utils";
 import { useLang } from "@/components/public/public-language-provider";
+import type { CATALOG_ORDER_ACTIVE_STATUSES } from "@/lib/catalog-labels";
+import type { TKey } from "@/lib/i18n";
 
 type ShipmentSummary = {
   id: string;
@@ -37,6 +40,30 @@ type ReservationSummary = {
   createdAt: Date;
 };
 
+type OrderStatus = (typeof CATALOG_ORDER_ACTIVE_STATUSES)[number];
+
+type OrderSummary = {
+  id: string;
+  reference: string;
+  status: OrderStatus | "DELIVERED" | "CANCELLED";
+  createdAt: Date;
+  itemCount: number;
+  quotedAmount: number | null;
+  trackingNumbers: string[];
+};
+
+// QUOTED attend une réponse du client : c'est le seul statut mis en avant
+const ORDER_STATUS: Record<OrderStatus, { label: TKey; tone: StatusTone }> = {
+  PENDING: { label: "dash.home.orders.status.pending", tone: "warning" },
+  QUOTED: { label: "dash.home.orders.status.quoted", tone: "accent" },
+  CONFIRMED: { label: "dash.home.orders.status.confirmed", tone: "success" },
+  IN_PREPARATION: { label: "dash.home.orders.status.in_preparation", tone: "info" },
+  SHIPPED: { label: "dash.home.orders.status.shipped", tone: "info" },
+};
+
+const pillLink =
+  "inline-flex items-center gap-1 rounded-full border border-[var(--dash-border)] bg-[var(--dash-surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--dash-text)] hover:border-[var(--dash-border-strong)] transition-colors";
+
 export function DashboardHomeClient({
   totalShipments,
   inTransit,
@@ -44,6 +71,8 @@ export function DashboardHomeClient({
   due,
   shipments,
   reservations,
+  orders,
+  ordersInProgress,
 }: {
   totalShipments: number;
   inTransit: number;
@@ -51,6 +80,8 @@ export function DashboardHomeClient({
   due: number;
   shipments: ShipmentSummary[];
   reservations: ReservationSummary[];
+  orders: OrderSummary[];
+  ordersInProgress: number;
 }) {
   const { t } = useLang();
 
@@ -86,6 +117,93 @@ export function DashboardHomeClient({
           tone={due > 0 ? "warning" : "neutral"}
         />
       </div>
+
+      <DashCard>
+        <DashCardHeader
+          icon={<ShoppingBag />}
+          title={t("dash.home.orders.title")}
+          subtitle={`${ordersInProgress} ${t("dash.home.orders.in_progress")}`}
+          action={
+            <Link href="/dashboard/orders" className={pillLink}>
+              {t("dash.home.see_all")} <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          }
+        />
+        <DashCardBody>
+          {orders.length === 0 ? (
+            <div className="py-2">
+              <p className="text-sm text-[var(--dash-text-muted)]">{t("dash.home.orders.empty")}</p>
+              <Link
+                href="/dashboard/catalogue"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--dash-accent))] px-4 py-2 text-xs font-semibold text-black hover:opacity-90 transition-opacity"
+              >
+                {t("dash.home.orders.browse")}
+              </Link>
+            </div>
+          ) : (
+            <ul className="divide-y divide-[var(--dash-border)] -mx-1">
+              {orders.map((o) => {
+                const st = o.status in ORDER_STATUS ? ORDER_STATUS[o.status as OrderStatus] : null;
+                return (
+                  <li
+                    key={o.id}
+                    className="flex flex-wrap justify-between items-center gap-x-4 gap-y-2 px-1 py-3 first:pt-1 last:pb-1"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        href="/dashboard/orders"
+                        className="font-mono text-[13px] font-semibold text-[var(--dash-text)] hover:text-[hsl(var(--dash-accent))] transition-colors"
+                      >
+                        {o.reference}
+                      </Link>
+                      <div className="text-xs text-[var(--dash-text-muted)] mt-0.5">
+                        {o.itemCount}{" "}
+                        {o.itemCount > 1 ? t("dash.home.orders.items_many") : t("dash.home.orders.items_one")} •{" "}
+                        {formatDate(o.createdAt)}
+                      </div>
+                      {o.trackingNumbers.length > 0 && (
+                        <div className="text-xs mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                          {o.trackingNumbers.map((n) => (
+                            <Link
+                              key={n}
+                              href={`/tracking/${n}`}
+                              className="font-mono text-[hsl(var(--dash-accent))] hover:underline"
+                            >
+                              {t("dash.home.orders.track")} {n}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right space-y-1.5 shrink-0 ml-auto">
+                      {st && (
+                        <StatusPill tone={st.tone} pulse={o.status === "QUOTED"}>
+                          {t(st.label)}
+                        </StatusPill>
+                      )}
+                      {o.quotedAmount != null && (
+                        <div className="text-xs text-[var(--dash-text-dim)] tabular-nums">
+                          {t("dash.home.orders.quote")} {formatXOF(o.quotedAmount)}
+                        </div>
+                      )}
+                      {o.status === "QUOTED" && (
+                        <div>
+                          <Link
+                            href="/dashboard/orders"
+                            className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--dash-accent))] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 transition-opacity"
+                          >
+                            {t("dash.home.orders.answer")} <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DashCardBody>
+      </DashCard>
 
       <div className="grid lg:grid-cols-2 gap-5">
         <DashCard>

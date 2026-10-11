@@ -2,8 +2,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { sendWhatsApp, receptionNoticeTemplate } from "@/lib/whatsapp";
-import { receptionNoticeTwilioTemplate } from "@/lib/whatsapp-templates";
+import { sendWhatsApp, receptionNoticeTemplate, whatsAppErrorSummary } from "@/lib/whatsapp";
+import { receptionNoticeDetails, receptionNoticeTwilioTemplate } from "@/lib/whatsapp-templates";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 
 type Result<T = unknown> = { success: true; data?: T } | { success: false; error: string };
@@ -105,11 +105,9 @@ export async function sendReceptionNotice(shippingMarkId: string): Promise<Resul
     destinationCity: s.destinationCity,
   }));
 
-  const details = colisForBody
-    .map((c) => `${c.trackingNumber} (${c.mode}${c.description ? ` — ${c.description}` : ""})`)
-    .join(" / ");
+  const details = receptionNoticeDetails(colisForBody);
 
-  await sendWhatsApp({
+  const sent = await sendWhatsApp({
     to: phone,
     body: receptionNoticeTemplate({
       recipientName: mark.name,
@@ -129,6 +127,11 @@ export async function sendReceptionNotice(shippingMarkId: string): Promise<Resul
       firstTrackingNumber: mark.shipments[0]!.trackingNumber,
     }),
   });
+
+  // Envoi refusé : les colis restent « en attente de notification » pour pouvoir réessayer
+  if (sent.status === "FAILED") {
+    return { success: false, error: `Avis non envoyé (${whatsAppErrorSummary(sent.error)}). Vous pouvez réessayer.` };
+  }
 
   // Marquer tous ces colis comme notifiés
   await prisma.shipment.updateMany({

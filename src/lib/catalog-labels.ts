@@ -40,6 +40,11 @@ export const CATALOG_ORDER_STATUSES = [
 ] as const;
 export type CatalogOrderStatusKey = (typeof CATALOG_ORDER_STATUSES)[number];
 
+// Commande « en cours » : ni livrée ni annulée (tableau de bord client, statistiques)
+export const CATALOG_ORDER_ACTIVE_STATUSES = ["PENDING", "QUOTED", "CONFIRMED", "IN_PREPARATION", "SHIPPED"] as const;
+// Devis accepté et commande lancée (les annulations sont exclues)
+export const CATALOG_ORDER_VALIDATED_STATUSES = ["CONFIRMED", "IN_PREPARATION", "SHIPPED", "DELIVERED"] as const;
+
 // Statuts que le staff pose à la main (PENDING / QUOTED découlent du devis)
 export const CATALOG_STAFF_STATUSES = ["CONFIRMED", "IN_PREPARATION", "SHIPPED", "DELIVERED", "CANCELLED"] as const;
 
