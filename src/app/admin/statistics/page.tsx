@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { StatisticsCharts } from "./charts";
+import { OrderStatistics } from "./order-stats";
 import { TRANSPORT_MODE_LABELS, SHIPMENT_STATUS_LABELS } from "@/lib/pricing";
 import { formatXOF } from "@/lib/utils";
 import { Banknote, Package, ClipboardList, CreditCard } from "lucide-react";
@@ -169,6 +170,8 @@ export default async function AdminStatisticsPage() {
         byStatus={statusData}
         monthlyPayments={monthlyPaymentsData}
       />
+
+      <OrderStatistics />
     </div>
   );
 }

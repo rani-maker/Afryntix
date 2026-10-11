@@ -33,7 +33,7 @@ function formatCompact(v: number) {
   return String(v);
 }
 
-function ChartTooltip({
+export function ChartTooltip({
   active,
   payload,
   label,
