@@ -109,6 +109,12 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      {
+        // Fichiers de PDF.js (worker de 1,4 Mo, cMaps, polices) : l'adresse contient
+        // la version, le navigateur n'a jamais besoin de les redemander.
+        source: "/pdfjs/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

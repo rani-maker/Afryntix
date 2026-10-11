@@ -3,8 +3,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import pdfjsPackage from "pdfjs-dist/package.json";
 import { CATALOG_CATEGORY_LABELS } from "@/lib/catalog-labels";
+import { catalogBootScript } from "@/lib/catalog-pdf";
 import { CatalogViewer } from "./catalog-viewer";
+
+// Fichiers statiques de PDF.js copiés par scripts/copy-pdfjs-assets.mjs : le dossier
+// porte la version, il est donc mis en cache longue durée par le navigateur.
+const PDFJS_ASSETS = `/pdfjs/v${pdfjsPackage.version}`;
 
 // Consultation d'un catalogue dans le site (visionneuse page par page).
 // Public pour les catalogues actifs ; les catalogues masqués restent
@@ -20,7 +26,7 @@ const getCatalog = cache(async (id: string) => {
   const [catalog, session] = await Promise.all([
     prisma.catalog.findUnique({
       where: { id },
-      select: { id: true, title: true, description: true, category: true, active: true },
+      select: { id: true, title: true, description: true, category: true, active: true, fileSize: true },
     }),
     auth(),
   ]);
@@ -58,12 +64,19 @@ export default async function CatalogViewerPage({ params, searchParams }: Props)
   const focus =
     Number.isInteger(page) && page >= 1 ? { page, x: unit(query.x), y: unit(query.y) } : undefined;
 
+  const { catalog } = found;
   return (
-    <CatalogViewer
-      catalogId={found.catalog.id}
-      title={found.catalog.title}
-      canOrder={found.canOrder}
-      focus={focus}
-    />
+    <>
+      {/* Premiers téléchargements lancés dès l'arrivée du HTML, avant le code de la visionneuse */}
+      <script dangerouslySetInnerHTML={{ __html: catalogBootScript(catalog.id, catalog.fileSize, PDFJS_ASSETS) }} />
+      <CatalogViewer
+        catalogId={catalog.id}
+        title={catalog.title}
+        fileSize={catalog.fileSize}
+        pdfAssets={PDFJS_ASSETS}
+        canOrder={found.canOrder}
+        focus={focus}
+      />
+    </>
   );
 }
