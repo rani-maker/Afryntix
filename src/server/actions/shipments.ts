@@ -12,6 +12,7 @@ import {
 import {
   shipmentAvailableTwilioTemplate,
   shipmentsAvailableMultiTwilioTemplate,
+  trackingListVariable,
 } from "@/lib/whatsapp-templates";
 import { sendEmail, emailShipmentAvailable } from "@/lib/email";
 import {
@@ -479,7 +480,7 @@ async function handleAvailableForDelivery(
         recipientName,
         count: allAvailableForThisMark.length,
         factureReference: facture.reference,
-        trackingList: allAvailableForThisMark.map((s) => s.trackingNumber).join(", "),
+        trackingList: trackingListVariable(allAvailableForThisMark.map((s) => s.trackingNumber)),
         totalAmount,
         remainingAmount: totalRemaining,
       }),

@@ -16,10 +16,61 @@ function readSid(envKey: string): string | undefined {
   return v && v.length > 0 ? v : undefined;
 }
 
-// Meta rejette les variables vides — on force un espace insécable pour les champs optionnels.
-function nonEmpty(s: string | null | undefined, fallback = " "): string {
-  const v = (s ?? "").toString().trim();
-  return v.length > 0 ? v : fallback;
+// Twilio refuse l'envoi (erreur 21656) dès qu'une variable est vide ou contient un retour à
+// la ligne, une tabulation ou plus de 4 espaces de suite. Chaque valeur est donc ramenée sur
+// une seule ligne, et raccourcie : Twilio recommande moins de 250 caractères par variable.
+const VAR_MAX = 240;
+
+function oneLine(s: string | null | undefined): string {
+  return (s ?? "").toString().replace(/\s+/g, " ").trim();
+}
+
+function cut(s: string, max: number): string {
+  const chars = Array.from(s);
+  return chars.length > max ? chars.slice(0, Math.max(1, max - 1)).join("").trimEnd() + "…" : s;
+}
+
+function nonEmpty(s: string | null | undefined, fallback = "-"): string {
+  const v = oneLine(s);
+  return v.length > 0 ? cut(v, VAR_MAX) : fallback;
+}
+
+// Liste qui tient dans une variable : au besoin, la fin devient « + N autres colis ».
+function shortList(items: string[], sep: string): string {
+  const full = items.join(sep);
+  if (full.length <= VAR_MAX) return full;
+  for (let n = items.length - 1; n >= 1; n--) {
+    const rest = items.length - n;
+    const s = `${items.slice(0, n).join(sep)}${sep}+ ${rest} autre${rest > 1 ? "s" : ""} colis`;
+    if (s.length <= VAR_MAX) return s;
+  }
+  return cut(full, VAR_MAX);
+}
+
+/**
+ * Variable {{3}} de l'avis de réception : « AFR-…001 (Air Express — vêtements) / AFR-…002 (…) ».
+ * La description d'un colis peut être longue ou sur plusieurs lignes (texte repris d'une
+ * commande catalogue, note ajoutée par l'équipe) : elle est mise sur une ligne, puis
+ * raccourcie, puis retirée si la liste ne tient toujours pas.
+ */
+export function receptionNoticeDetails(
+  colis: { trackingNumber: string; mode: string; description?: string | null }[],
+): string {
+  for (const budget of [VAR_MAX, 120, 60, 30, 0]) {
+    const s = colis
+      .map((c) => {
+        const d = budget > 0 ? oneLine(c.description) : "";
+        return `${c.trackingNumber} (${c.mode}${d ? ` — ${cut(d, budget)}` : ""})`;
+      })
+      .join(" / ");
+    if (s.length <= VAR_MAX) return s;
+  }
+  return shortList(colis.map((c) => c.trackingNumber), " / ");
+}
+
+/** Variable « liste des numéros de suivi » du modèle multi-colis. */
+export function trackingListVariable(trackingNumbers: string[]): string {
+  return shortList(trackingNumbers, ", ");
 }
 
 // Format "570 000" (XOF sans décimales, séparateur de milliers français).

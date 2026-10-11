@@ -102,23 +102,33 @@ export async function sendWhatsApp({ to, body, template, userId, twilioTemplate 
     return notification;
   }
 
+  // La notification renvoyée porte son statut final (SENT / FAILED) : l'appelant peut
+  // ainsi savoir si le message est réellement parti.
   try {
     const providerId = await sendViaTwilio(to, body, twilioTemplate);
-    await prisma.notification.update({
+    const sent = await prisma.notification.update({
       where: { id: notification.id },
       data: { status: "SENT", providerId, sentAt: new Date() },
     });
     console.log(`[WhatsApp] ✅ Envoyé via Twilio — id: ${providerId}`);
-    return notification;
+    return sent;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[WhatsApp] ❌ Erreur Twilio:", errorMessage);
-    await prisma.notification.update({
+    return prisma.notification.update({
       where: { id: notification.id },
       data: { status: "FAILED", error: errorMessage },
     });
-    return notification;
   }
+}
+
+/** Résumé court d'une erreur d'envoi, à afficher à l'équipe (ex. « Twilio 21656 : … »). */
+export function whatsAppErrorSummary(error: string | null | undefined): string {
+  if (!error) return "erreur inconnue";
+  const code = error.match(/"code":\s*(\d+)/)?.[1] ?? error.match(/\[(\d+)\]/)?.[1];
+  const message = error.match(/"message":\s*"([^"]+)"/)?.[1];
+  if (code) return `Twilio ${code}${message ? ` : ${message}` : ""}`;
+  return error.replace(/\s+/g, " ").slice(0, 140);
 }
 
 // =============================================================
