@@ -58,6 +58,36 @@ export const CATALOG_ORDER_STATUS_LABELS: Record<CatalogOrderStatusKey, string> 
   CANCELLED: "Annulée",
 };
 
+type OrderQuoteState = {
+  status: CatalogOrderStatusKey;
+  totalAmount: number | null;
+  quotedAt: Date | null;
+  acceptedAt: Date | null;
+};
+
+/**
+ * Commande passée aux prix affichés (/catalogue/produits) : confirmée par le client dès le
+ * panier, sans devis. Si l'équipe la corrige ensuite, elle repasse par un devis (`quotedAt`)
+ * et n'est plus « directe ».
+ */
+export function isDirectOrder(o: Pick<OrderQuoteState, "quotedAt" | "acceptedAt">): boolean {
+  return o.quotedAt == null && o.acceptedAt != null;
+}
+
+/** Le client voit les montants : devis envoyé par AFRYNTIX, ou commande passée aux prix affichés. */
+export function orderAmountsVisible(o: OrderQuoteState): boolean {
+  return o.totalAmount != null && o.status !== "PENDING" && (o.quotedAt != null || o.acceptedAt != null);
+}
+
+/** Libellé du statut : une commande directe confirmée n'a pas de « devis accepté ». */
+export function catalogOrderStatusLabel(o: Pick<OrderQuoteState, "status" | "quotedAt" | "acceptedAt">): string {
+  return o.status === "CONFIRMED" && isDirectOrder(o) ? "Commande confirmée" : CATALOG_ORDER_STATUS_LABELS[o.status];
+}
+
+// Libellés des montants : « fret + dédouanement » pour une commande aux prix affichés
+export const ORDER_FEES_LABEL = "Frais annexes (transport, emballage…)";
+export const DIRECT_ORDER_FEES_LABEL = "Fret + dédouanement";
+
 export const CATALOG_ORDER_STATUS_TONE: Record<
   CatalogOrderStatusKey,
   "warning" | "info" | "success" | "destructive" | "secondary" | "default"

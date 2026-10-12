@@ -1,5 +1,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CATALOG_CATEGORY_LABELS, type CatalogCategoryKey } from "@/lib/catalog-labels";
+import {
+  CATALOG_CATEGORY_LABELS,
+  DIRECT_ORDER_FEES_LABEL,
+  ORDER_FEES_LABEL,
+  type CatalogCategoryKey,
+} from "@/lib/catalog-labels";
 import { formatXOF } from "@/lib/utils";
 
 export type OrderLine = {
@@ -19,18 +24,21 @@ export type OrderLine = {
 
 /**
  * Lignes d'une commande catalogue (lecture seule). Les colonnes de prix
- * n'apparaissent qu'une fois le devis établi (`showPrices`).
+ * n'apparaissent qu'une fois le devis établi (`showPrices`). `direct` : commande
+ * passée aux prix affichés, sans devis.
  */
 export function OrderLinesTable({
   items,
   showPrices,
   feesAmount,
   totalAmount,
+  direct = false,
 }: {
   items: OrderLine[];
   showPrices: boolean;
   feesAmount?: number | null;
   totalAmount?: number | null;
+  direct?: boolean;
 }) {
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -83,7 +91,7 @@ export function OrderLinesTable({
           {showPrices && !!feesAmount && (
             <TableRow>
               <TableCell colSpan={4} className="text-right text-sm">
-                Frais annexes (transport, emballage…)
+                {direct ? DIRECT_ORDER_FEES_LABEL : ORDER_FEES_LABEL}
               </TableCell>
               <TableCell className="text-right tabular-nums font-medium">{formatXOF(feesAmount)}</TableCell>
             </TableRow>
@@ -91,7 +99,7 @@ export function OrderLinesTable({
           {showPrices && totalAmount != null && (
             <TableRow>
               <TableCell colSpan={4} className="text-right text-sm font-medium">
-                Total du devis
+                {direct ? "Total de la commande" : "Total du devis"}
               </TableCell>
               <TableCell className="text-right tabular-nums font-semibold">{formatXOF(totalAmount)}</TableCell>
             </TableRow>

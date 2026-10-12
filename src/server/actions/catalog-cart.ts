@@ -7,13 +7,15 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyInApp } from "@/lib/notifications";
 import { ipFromHeaders, rateLimit } from "@/lib/rate-limit";
-import { formatXOF } from "@/lib/utils";
+import { formatXOF, getAppUrl } from "@/lib/utils";
 import { CART_MAX_ITEMS } from "@/lib/catalog-labels";
 import { SHOP_CATALOG_TITLE, getShopProduct, shopProductName, shopTotals, type ShopProduct } from "@/lib/shop-products";
 import { emailOrderTeam, notifyOrderTeam, orderParty, uniqueOrderReference } from "@/lib/catalog-orders";
+import { TEAM_EMAIL, emailCatalogOrderConfirmed, sendEmail } from "@/lib/email";
 import {
   buildCompanyWhatsAppUrl,
   getCatalogOrderPublicPath,
+  getCatalogOrderPublicUrl,
   verifyCatalogOrderSignature,
 } from "@/lib/catalog-order-link";
 
@@ -72,14 +74,24 @@ function revalidateOrders(id: string) {
   revalidatePath(`/commande/${id}`);
 }
 
+export type PlacedCartOrder = {
+  reference: string;
+  trackPath: string | null;
+  /** Commande aux prix affichés, confirmée sans devis (sinon : demande de devis) */
+  direct: boolean;
+  totalAmount: number | null;
+};
+
 /**
- * Envoie le panier comme demande de devis. Ouvert à tous : un client connecté
- * retrouve sa demande dans « Mes commandes » ; sans compte, on demande un nom
- * et un numéro WhatsApp et la demande se suit par lien signé.
+ * Valide le panier. Les articles à prix affichés deviennent une commande ferme, confirmée
+ * tout de suite aux prix du catalogue (pas de devis) ; les articles touchés dans un
+ * catalogue PDF partent en demande de devis. Un panier mixte donne donc deux commandes.
+ * Ouvert à tous : un client connecté les retrouve dans « Mes commandes » ; sans compte, on
+ * demande un nom et un numéro WhatsApp et chaque commande se suit par lien signé.
  */
 export async function createCartOrder(
   input: unknown,
-): Promise<Result<{ reference: string; trackPath: string | null; whatsappUrl: string | null; hasAccount: boolean }>> {
+): Promise<Result<{ orders: PlacedCartOrder[]; whatsappUrl: string | null; hasAccount: boolean }>> {
   const session = await auth();
   const user = session?.user;
   if (user && user.role !== "CLIENT") {
@@ -116,8 +128,11 @@ export async function createCartOrder(
     return { success: false, error: "Un des catalogues de votre panier n'est plus disponible." };
   }
 
-  // Une ligne par article, dans l'ordre du panier
-  const lines: { data: Prisma.CatalogOrderItemCreateWithoutOrderInput; emailDesignation: string }[] = [];
+  // Une ligne par article, dans l'ordre du panier. Les articles à prix affichés forment une
+  // commande ferme ; ceux touchés dans un catalogue PDF (sans prix) une demande de devis.
+  type Line = { data: Prisma.CatalogOrderItemCreateWithoutOrderInput; emailDesignation: string };
+  const directLines: Line[] = [];
+  const quoteLines: Line[] = [];
   const priced: { product: ShopProduct; quantity: number }[] = [];
   for (const item of d.items) {
     if (item.kind === "product") {
@@ -125,14 +140,14 @@ export async function createCartOrder(
       if (!product) return { success: false, error: "Un des articles de votre panier n'est plus disponible." };
       const designation = shopProductName(product);
       priced.push({ product, quantity: item.quantity });
-      lines.push({
+      directLines.push({
         data: {
           category: product.family,
           catalogTitle: SHOP_CATALOG_TITLE,
           reference: product.ref,
           designation,
           quantity: item.quantity,
-          // Prix affiché au moment de la demande : il pré-remplit le devis, que l'équipe vérifie avant envoi
+          // Prix affiché au moment de la commande : c'est celui que le client a validé
           unitPrice: product.price,
           lineTotal: product.price * item.quantity,
           note: item.note || null,
@@ -145,7 +160,7 @@ export async function createCartOrder(
     const isJpeg = data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
     if (!isJpeg || data.length > THUMB_MAX_BYTES) return { success: false, error: "Photo d'article invalide." };
     const cat = byId.get(item.catalogId)!;
-    lines.push({
+    quoteLines.push({
       data: {
         catalog: { connect: { id: cat.id } },
         category: cat.category,
@@ -163,67 +178,166 @@ export async function createCartOrder(
       emailDesignation: item.note ? `Article page ${item.page} — ${item.note}` : `Article page ${item.page}`,
     });
   }
-  // Fret + dédouanement des articles à prix affichés : pré-remplit les frais du devis
-  const freight = shopTotals(priced).freight;
+  const totals = shopTotals(priced);
 
-  const order = await prisma.catalogOrder.create({
-    data: {
-      reference: await uniqueOrderReference(),
-      clientId: user?.id ?? null,
-      guestName: user ? null : guestName,
-      guestEmail: user ? null : d.email || null,
-      contactPhone: phone || null,
-      deliveryCity: d.deliveryCity || null,
-      notes: d.notes || null,
-      feesAmount: freight || null,
-      items: { create: lines.map((l) => l.data) },
-    },
-  });
+  const party = {
+    clientId: user?.id ?? null,
+    guestName: user ? null : guestName,
+    guestEmail: user ? null : d.email || null,
+    contactPhone: phone || null,
+    deliveryCity: d.deliveryCity || null,
+    notes: d.notes || null,
+  };
+  const directReference = directLines.length ? await uniqueOrderReference() : null;
+  let quoteReference = quoteLines.length ? await uniqueOrderReference() : null;
+  while (quoteReference && quoteReference === directReference) quoteReference = await uniqueOrderReference();
+
+  // Un panier mixte donne deux commandes, créées ensemble ou pas du tout
+  const now = new Date();
+  const created = await prisma.$transaction([
+    ...(directReference
+      ? [
+          prisma.catalogOrder.create({
+            data: {
+              ...party,
+              reference: directReference,
+              // Confirmée sans devis : `acceptedAt` sans `quotedAt` (voir isDirectOrder)
+              status: "CONFIRMED",
+              acceptedAt: now,
+              feesAmount: totals.freight || null,
+              totalAmount: totals.total,
+              items: { create: directLines.map((l) => l.data) },
+            },
+          }),
+        ]
+      : []),
+    ...(quoteReference
+      ? [
+          prisma.catalogOrder.create({
+            data: { ...party, reference: quoteReference, items: { create: quoteLines.map((l) => l.data) } },
+          }),
+        ]
+      : []),
+  ]);
+  const direct = directReference ? created[0] : null;
+  const quote = quoteReference ? created[created.length - 1] : null;
 
   const name = user?.name ?? guestName;
-  if (user) {
-    await notifyInApp({
-      userId: user.id,
-      template: "catalog_order_created",
-      title: "Demande de devis reçue",
-      body: `Votre demande ${order.reference} a bien été reçue. Nous préparons votre devis.`,
-      link: "/dashboard/orders",
-    });
-  }
-  await notifyOrderTeam({
-    template: "catalog_order_received",
-    title: "Nouvelle demande de devis",
-    body: `${order.reference} — ${name}${user ? "" : " (sans compte)"} : ${d.items.length} article${d.items.length > 1 ? "s" : ""} choisi${d.items.length > 1 ? "s" : ""} dans le catalogue. ${
-      priced.length === d.items.length
-        ? "Devis pré-rempli aux prix affichés : à vérifier et envoyer."
-        : "Devis à établir."
-    }`,
-    orderId: order.id,
-  });
-  await emailOrderTeam(order.id, "catalog_order_received", {
-    heading: user ? "Nouvelle demande de devis" : "Nouvelle demande de devis (sans compte)",
-    reference: order.reference,
-    clientName: name,
-    clientEmail: user?.email ?? d.email,
-    clientPhone: phone,
-    deliveryCity: d.deliveryCity,
-    notes: d.notes,
-    items: lines.map((l) => ({
-      catalogTitle: l.data.catalogTitle,
-      reference: l.data.reference,
-      designation: l.emailDesignation,
-      page: l.data.page ?? null,
-      quantity: l.data.quantity,
-    })),
-  });
+  const email = user?.email ?? (d.email || null);
+  const guestTag = user ? "" : " (sans compte)";
+  const plural = (n: number) => (n > 1 ? "s" : "");
 
-  revalidateOrders(order.id);
+  if (direct) {
+    const n = directLines.length;
+    if (user) {
+      await notifyInApp({
+        userId: user.id,
+        template: "catalog_order_confirmed",
+        title: "Commande confirmée",
+        body: `Votre commande ${direct.reference} est confirmée : ${formatXOF(totals.total)} (articles, fret et dédouanement). AFRYNTIX vous contacte pour le règlement et la livraison.`,
+        link: "/dashboard/orders",
+      });
+    }
+    await notifyOrderTeam({
+      template: "catalog_order_confirmed",
+      title: "Nouvelle commande confirmée",
+      body: `${direct.reference} — ${name}${guestTag} : ${n} article${plural(n)} à prix affichés, ${formatXOF(totals.total)}. Commande ferme, sans devis : contactez le client pour le règlement.`,
+      orderId: direct.id,
+    });
+    await emailOrderTeam(direct.id, "catalog_order_confirmed", {
+      heading: user ? "Nouvelle commande confirmée" : "Nouvelle commande confirmée (sans compte)",
+      reference: direct.reference,
+      clientName: name,
+      clientEmail: email,
+      clientPhone: phone,
+      deliveryCity: d.deliveryCity,
+      notes: d.notes,
+      items: directLines.map((l) => ({
+        catalogTitle: l.data.catalogTitle,
+        reference: l.data.reference,
+        designation: l.emailDesignation,
+        quantity: l.data.quantity,
+        unitPrice: l.data.unitPrice,
+        lineTotal: l.data.lineTotal,
+      })),
+      feesAmount: totals.freight || null,
+      totalAmount: totals.total,
+      direct: true,
+    });
+    const link = user ? `${getAppUrl()}/dashboard/orders` : getCatalogOrderPublicUrl(direct.id);
+    if (email && link) {
+      try {
+        const mail = emailCatalogOrderConfirmed({
+          recipientName: name,
+          reference: direct.reference,
+          totalAmount: totals.total,
+          link,
+          hasAccount: !!user,
+        });
+        await sendEmail({
+          to: email,
+          subject: mail.subject,
+          html: mail.html,
+          template: "catalog_order_confirmed",
+          userId: user?.id,
+          replyTo: TEAM_EMAIL,
+        });
+      } catch (e) {
+        console.error("[createCartOrder] email de confirmation non envoyé:", e);
+      }
+    }
+    revalidateOrders(direct.id);
+  }
+
+  if (quote) {
+    const n = quoteLines.length;
+    if (user) {
+      await notifyInApp({
+        userId: user.id,
+        template: "catalog_order_created",
+        title: "Demande de devis reçue",
+        body: `Votre demande ${quote.reference} a bien été reçue. Nous préparons votre devis.`,
+        link: "/dashboard/orders",
+      });
+    }
+    await notifyOrderTeam({
+      template: "catalog_order_received",
+      title: "Nouvelle demande de devis",
+      body: `${quote.reference} — ${name}${guestTag} : ${n} article${plural(n)} choisi${plural(n)} dans le catalogue. Devis à établir.`,
+      orderId: quote.id,
+    });
+    await emailOrderTeam(quote.id, "catalog_order_received", {
+      heading: user ? "Nouvelle demande de devis" : "Nouvelle demande de devis (sans compte)",
+      reference: quote.reference,
+      clientName: name,
+      clientEmail: email,
+      clientPhone: phone,
+      deliveryCity: d.deliveryCity,
+      notes: d.notes,
+      items: quoteLines.map((l) => ({
+        catalogTitle: l.data.catalogTitle,
+        reference: l.data.reference,
+        designation: l.emailDesignation,
+        page: l.data.page ?? null,
+        quantity: l.data.quantity,
+      })),
+    });
+    revalidateOrders(quote.id);
+  }
+
+  const trackPath = (id: string) => (user ? "/dashboard/orders" : getCatalogOrderPublicPath(id));
   return {
     success: true,
     data: {
-      reference: order.reference,
-      trackPath: user ? "/dashboard/orders" : getCatalogOrderPublicPath(order.id),
-      whatsappUrl: buildCompanyWhatsAppUrl(order.reference),
+      orders: [
+        ...(direct
+          ? [{ reference: direct.reference, trackPath: trackPath(direct.id), direct: true, totalAmount: totals.total }]
+          : []),
+        ...(quote
+          ? [{ reference: quote.reference, trackPath: trackPath(quote.id), direct: false, totalAmount: null }]
+          : []),
+      ],
+      whatsappUrl: buildCompanyWhatsAppUrl({ order: direct?.reference, quote: quote?.reference }),
       hasAccount: !!user,
     },
   };

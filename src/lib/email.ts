@@ -224,9 +224,34 @@ export function emailCatalogQuote(args: {
   return { subject, html };
 }
 
+/** Email au client : commande passée aux prix affichés, confirmée sans devis. */
+export function emailCatalogOrderConfirmed(args: {
+  recipientName: string;
+  reference: string;
+  totalAmount: number;
+  link: string;
+  /** false : commande passée sans compte, le lien mène à la page publique signée */
+  hasAccount?: boolean;
+}): { subject: string; html: string } {
+  const subject = `[AFRYNTIX] Commande confirmée — ${args.reference}`;
+  const html = `
+    <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #0f172a;">Bonjour ${escapeHtml(args.recipientName)},</h2>
+      <p>Votre commande <strong>${escapeHtml(args.reference)}</strong> est confirmée aux prix affichés.</p>
+      <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+        <tr><td style="padding: 6px 0; color: #64748b;">Total (articles, fret et dédouanement)</td><td style="text-align: right;"><strong>${args.totalAmount.toLocaleString("fr-FR")} FCFA</strong></td></tr>
+      </table>
+      <p>Notre équipe vous contacte pour le règlement et la livraison. ${args.hasAccount === false ? "Suivez votre commande en ligne :" : "Suivez votre commande depuis votre espace client :"}</p>
+      <p><a href="${escapeHtml(args.link)}" style="display: inline-block; padding: 10px 18px; background: #0f172a; color: #ffffff; border-radius: 999px; text-decoration: none;">Voir ma commande</a></p>
+      <p style="color: #64748b; font-size: 12px; margin-top: 24px;">— L'équipe AFRYNTIX</p>
+    </div>`;
+  return { subject, html };
+}
+
 /**
  * Email interne (équipe AFRYNTIX) sur une commande catalogue : bon de commande
- * reçu, copie du devis envoyé, devis accepté ou commande annulée.
+ * reçu, copie du devis envoyé, devis accepté, commande confirmée aux prix
+ * affichés ou commande annulée.
  */
 export function emailCatalogOrderTeam(args: {
   heading: string; // ex: "Nouveau bon de commande"
@@ -247,9 +272,13 @@ export function emailCatalogOrderTeam(args: {
   }>;
   feesAmount?: number | null;
   totalAmount?: number | null;
+  /** Commande aux prix affichés, confirmée sans devis : les frais sont le fret + dédouanement */
+  direct?: boolean;
   link: string;
 }): { subject: string; html: string } {
   const subject = `[AFRYNTIX] ${args.heading} — ${args.reference} (${args.clientName})`;
+  const feesLabel = args.direct ? "Fret + dédouanement" : "Frais annexes";
+  const totalLabel = args.direct ? "Total de la commande" : "Total du devis";
   const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
   const cell = "padding: 6px 8px; border: 1px solid #e2e8f0;";
   const priced = args.totalAmount != null;
@@ -277,11 +306,11 @@ export function emailCatalogOrderTeam(args: {
           <th style="${cell} text-align: right;">Qté</th>
           ${priced ? `<th style="${cell} text-align: right;">Prix unitaire</th><th style="${cell} text-align: right;">Total</th>` : ""}
         </tr>${rows}
-        ${priced && args.feesAmount ? `<tr><td colspan="3" style="${cell} text-align: right;">Frais annexes</td><td style="${cell} text-align: right;">${fcfa(args.feesAmount)}</td></tr>` : ""}
-        ${priced ? `<tr><td colspan="3" style="${cell} text-align: right;"><strong>Total du devis</strong></td><td style="${cell} text-align: right;"><strong>${fcfa(args.totalAmount ?? 0)}</strong></td></tr>` : ""}
+        ${priced && args.feesAmount ? `<tr><td colspan="3" style="${cell} text-align: right;">${feesLabel}</td><td style="${cell} text-align: right;">${fcfa(args.feesAmount)}</td></tr>` : ""}
+        ${priced ? `<tr><td colspan="3" style="${cell} text-align: right;"><strong>${totalLabel}</strong></td><td style="${cell} text-align: right;"><strong>${fcfa(args.totalAmount ?? 0)}</strong></td></tr>` : ""}
       </table>`
           : priced
-            ? `<p>Montant du devis : <strong>${fcfa(args.totalAmount ?? 0)}</strong></p>`
+            ? `<p>${totalLabel} : <strong>${fcfa(args.totalAmount ?? 0)}</strong></p>`
             : ""
       }
       ${args.notes ? `<p style="margin-top: 12px;"><strong>Message :</strong> ${escapeHtml(args.notes)}</p>` : ""}

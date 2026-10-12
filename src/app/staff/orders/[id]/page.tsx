@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
+import {
+  CATALOG_ORDER_STATUS_TONE,
+  catalogOrderStatusLabel,
+  isDirectOrder,
+  orderAmountsVisible,
+} from "@/lib/catalog-labels";
 import { formatDateTime } from "@/lib/utils";
 import { OrderEditor } from "./order-editor";
 import { Button } from "@/components/ui/button";
@@ -31,7 +36,9 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
   if (!order) notFound();
 
   const party = orderParty(order);
-  const quoted = order.quotedAt != null && order.totalAmount != null && order.status !== "PENDING";
+  const quoted = orderAmountsVisible(order);
+  // Commande passée aux prix affichés : confirmée par le client dès le panier, sans devis
+  const direct = isDirectOrder(order);
   // Lien signé : le client y suit sa demande et y valide son devis, même sans compte
   const publicUrl = getCatalogOrderPublicUrl(order.id);
   const whatsappUrl = publicUrl
@@ -41,6 +48,7 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
         reference: order.reference,
         totalAmount: quoted ? order.totalAmount : null,
         publicUrl,
+        direct,
       })
     : null;
 
@@ -58,7 +66,7 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
               {order.handledBy ? ` · Suivie par ${order.handledBy.name}` : ""}
             </p>
           </div>
-          <Badge variant={CATALOG_ORDER_STATUS_TONE[order.status]}>{CATALOG_ORDER_STATUS_LABELS[order.status]}</Badge>
+          <Badge variant={CATALOG_ORDER_STATUS_TONE[order.status]}>{catalogOrderStatusLabel(order)}</Badge>
         </CardHeader>
         <CardContent className="space-y-5">
           <dl className="grid sm:grid-cols-3 gap-3 text-sm">
@@ -94,9 +102,13 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
               <div className="min-w-0 flex-1 basis-64">
                 <h3 className="text-sm font-semibold">Lien du client</h3>
                 <p className="text-xs text-muted-foreground">
-                  {party.guest
-                    ? "Demande sans compte : le client suit sa demande et valide son devis uniquement par ce lien. Envoyez-le-lui par WhatsApp après avoir envoyé le devis."
-                    : "Le client retrouve sa commande dans son espace. Ce lien lui permet aussi de la consulter et de valider son devis sans se connecter."}
+                  {direct
+                    ? party.guest
+                      ? "Commande sans compte : le client la suit uniquement par ce lien, affiché à la fin de sa commande. Renvoyez-le-lui par WhatsApp si besoin."
+                      : "Le client retrouve sa commande dans son espace. Ce lien lui permet aussi de la consulter sans se connecter."
+                    : party.guest
+                      ? "Demande sans compte : le client suit sa demande et valide son devis uniquement par ce lien. Envoyez-le-lui par WhatsApp après avoir envoyé le devis."
+                      : "Le client retrouve sa commande dans son espace. Ce lien lui permet aussi de la consulter et de valider son devis sans se connecter."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -119,6 +131,9 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
               feesAmount: order.feesAmount,
               totalAmount: order.totalAmount,
               quotedAt: order.quotedAt ? formatDateTime(order.quotedAt) : null,
+              acceptedAt: order.acceptedAt ? formatDateTime(order.acceptedAt) : null,
+              direct,
+              hasShipments: order.shipments.length > 0,
               items: order.items.map((i) => ({
                 id: i.id,
                 catalogId: i.catalogId,
@@ -142,8 +157,8 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
               <div>
                 <h3 className="text-sm font-semibold">Expédition</h3>
                 <p className="text-xs text-muted-foreground">
-                  Créez le colis une fois le devis accepté : le client reçoit son numéro de suivi et la commande passe
-                  en « Expédiée ».
+                  Créez le colis une fois la commande confirmée : le client reçoit son numéro de suivi et la commande
+                  passe en « Expédiée ».
                 </p>
               </div>
               {["CONFIRMED", "IN_PREPARATION", "SHIPPED"].includes(order.status) ? (

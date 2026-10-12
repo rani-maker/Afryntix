@@ -7,6 +7,7 @@ import {
   CATALOG_ORDER_STATUSES,
   CATALOG_ORDER_STATUS_LABELS,
   CATALOG_ORDER_STATUS_TONE,
+  catalogOrderStatusLabel,
   type CatalogOrderStatusKey,
 } from "@/lib/catalog-labels";
 import { formatDateTime, formatXOF } from "@/lib/utils";
@@ -56,7 +57,7 @@ export default async function StaffCatalogOrdersPage({
                   href={`/staff/orders?status=${s}`}
                   className={`px-3 py-1 rounded-full border ${status === s ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                 >
-                  {CATALOG_ORDER_STATUS_LABELS[s]} ({n})
+                  {s === "CONFIRMED" ? "Confirmée" : CATALOG_ORDER_STATUS_LABELS[s]} ({n})
                 </Link>
               );
             })}
@@ -70,7 +71,7 @@ export default async function StaffCatalogOrdersPage({
                 <TableHead>Client</TableHead>
                 <TableHead>Articles</TableHead>
                 <TableHead>Livraison</TableHead>
-                <TableHead className="text-right">Devis</TableHead>
+                <TableHead className="text-right">Montant</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Reçue</TableHead>
               </TableRow>
@@ -103,9 +104,7 @@ export default async function StaffCatalogOrdersPage({
                       {o.totalAmount != null ? formatXOF(o.totalAmount) : "À chiffrer"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={CATALOG_ORDER_STATUS_TONE[o.status]}>
-                        {CATALOG_ORDER_STATUS_LABELS[o.status]}
-                      </Badge>
+                      <Badge variant={CATALOG_ORDER_STATUS_TONE[o.status]}>{catalogOrderStatusLabel(o)}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</TableCell>
                   </TableRow>
