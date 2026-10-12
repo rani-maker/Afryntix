@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ShipmentStatusBadge } from "@/components/dashboard/status-badge";
 import { TRANSPORT_MODE_LABELS } from "@/lib/pricing";
 import { orderParty } from "@/lib/catalog-orders";
+import { shopOrderItemImage } from "@/lib/shop-products";
 import { buildCatalogOrderWhatsAppUrl, getCatalogOrderPublicUrl } from "@/lib/catalog-order-link";
 import { CopyLinkButton } from "@/components/catalogues/copy-link-button";
 
@@ -132,6 +133,7 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
                 note: i.note,
                 posX: i.posX,
                 posY: i.posY,
+                productImage: shopOrderItemImage(i),
               })),
             }}
           />

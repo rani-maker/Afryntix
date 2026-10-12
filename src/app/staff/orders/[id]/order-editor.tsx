@@ -35,12 +35,15 @@ type Item = {
   note: string | null;
   posX: number | null;
   posY: number | null;
+  // Article à prix affichés (/catalogue/produits) : sa photo ; null pour un catalogue PDF
+  productImage: string | null;
 };
 
-const itemImageUrl = (i: Item) => (i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : null);
+const itemImageUrl = (i: Item) => (i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : i.productImage);
 
 /** Ouvre le catalogue à la page de l'article, avec un repère à l'endroit touché par le client. */
 function itemCatalogHref(i: Item): string | null {
+  if (i.productImage) return `/catalogue/produits?ref=${encodeURIComponent(i.reference)}`;
   if (!i.catalogId) return null;
   const page = i.page && /^\d+$/.test(i.page) ? i.page : null;
   if (!page || i.posX == null || i.posY == null) return `/catalogue/${i.catalogId}${page ? `?page=${page}` : ""}`;
@@ -144,7 +147,9 @@ function QuoteForm({ order }: { order: Order }) {
         <p className="text-xs text-muted-foreground">
           {order.status === "QUOTED" && order.quotedAt
             ? `Envoyé le ${order.quotedAt} — en attente de la réponse du client.`
-            : "Renseignez les prix puis envoyez le devis au client."}
+            : order.items.some((i) => i.productImage)
+              ? "Les articles à prix affichés sont pré-remplis (prix du catalogue, fret + dédouanement dans les frais). Vérifiez puis envoyez le devis au client."
+              : "Renseignez les prix puis envoyez le devis au client."}
         </p>
       </div>
 
@@ -201,13 +206,28 @@ function QuoteForm({ order }: { order: Order }) {
                       </div>
                     </div>
                   ) : (
-                    <>
-                      <div className="font-medium">{i.designation}</div>
-                      <div className="font-mono text-xs text-muted-foreground">
-                        {i.reference}
-                        {i.page ? ` · p. ${i.page}` : ""}
+                    <div className="flex items-center gap-3">
+                      {i.productImage && (
+                        <a
+                          href={itemCatalogHref(i) ?? undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Voir l'article dans le catalogue"
+                          className="shrink-0"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={i.productImage} alt="" className="h-16 w-16 rounded-md border object-cover" />
+                        </a>
+                      )}
+                      <div>
+                        <div className="font-medium">{i.designation}</div>
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {i.reference}
+                          {i.page ? ` · p. ${i.page}` : ""}
+                        </div>
+                        {i.note && <div className="text-xs text-muted-foreground">Client : « {i.note} »</div>}
                       </div>
-                    </>
+                    </div>
                   )}
                 </TableCell>
                 <TableCell className="text-sm">

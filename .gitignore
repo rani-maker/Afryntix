@@ -20,3 +20,6 @@ out
 build
 dist
 coverage
+# Sources des catalogues (PDF fournisseurs, classeurs de prix avec prix d'usine, photos d'origine) : locales.
+# Ancré à la racine : sans le « / » initial, la règle masquerait aussi src/components/catalogues/.
+/catalogues/

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PublicHeader } from "@/components/public-header";
 import { useLang } from "@/components/public/public-language-provider";
-import { useCatalogCart, useSentRequests } from "@/lib/catalog-cart";
+import { useShopProductName } from "@/components/catalogues/use-shop-product-name";
+import { CART_MAX_QUANTITY, useCatalogCart, useSentRequests } from "@/lib/catalog-cart";
+import { getShopProduct, shopImageUrl, shopProductHref, shopTotals } from "@/lib/shop-products";
+import { formatXOF } from "@/lib/utils";
 import { createCartOrder } from "@/server/actions/catalog-cart";
 
 type Sent = { reference: string; trackPath: string | null; whatsappUrl: string | null; hasAccount: boolean };
@@ -17,15 +20,10 @@ const primaryButton =
 const secondaryButton =
   "inline-flex h-12 items-center justify-center gap-2 rounded-full border border-line-2 bg-surface px-6 text-[15px] font-medium text-ink transition-colors hover:border-mint-3";
 
-export function CartClient({
-  account,
-  isTeam,
-}: {
-  account: { phone: string; city: string } | null;
-  isTeam: boolean;
-}) {
+export function CartClient({ account, isTeam }: { account: { phone: string; city: string } | null; isTeam: boolean }) {
   const { t } = useLang();
   const cart = useCatalogCart();
+  const productName = useShopProductName();
   const sent = useSentRequests();
   // Le panier vit dans le navigateur : on attend le montage pour ne pas afficher « vide » à tort
   const [mounted, setMounted] = useState(false);
@@ -42,7 +40,24 @@ export function CartClient({
   const [done, setDone] = useState<Sent | null>(null);
 
   const setQuantity = (key: string, value: number) =>
-    cart.update(key, { quantity: Math.max(1, Math.min(100000, Math.round(value) || 1)) });
+    cart.update(key, { quantity: Math.max(1, Math.min(CART_MAX_QUANTITY, Math.round(value) || 1)) });
+
+  // Un article à prix affichés retiré du catalogue depuis son ajout quitte le panier
+  const { items, remove } = cart;
+  useEffect(() => {
+    for (const item of items) if (item.kind === "product" && !getShopProduct(item.ref)) remove(item.key);
+  }, [items, remove]);
+
+  const priced = useMemo(
+    () =>
+      items.flatMap((item) => {
+        const product = item.kind === "product" ? getShopProduct(item.ref) : null;
+        return product ? [{ product, quantity: item.quantity }] : [];
+      }),
+    [items],
+  );
+  const totals = shopTotals(priced);
+  const hasQuoteOnly = items.some((item) => item.kind !== "product");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,15 +66,20 @@ export function CartClient({
     let res: Awaited<ReturnType<typeof createCartOrder>>;
     try {
       res = await createCartOrder({
-        items: cart.items.map(({ catalogId, page, x, y, quantity, note, thumb }) => ({
-          catalogId,
-          page,
-          x,
-          y,
-          quantity,
-          note,
-          thumb,
-        })),
+        items: cart.items.map((item) =>
+          item.kind === "product"
+            ? { kind: "product", ref: item.ref, quantity: item.quantity, note: item.note }
+            : {
+                kind: "page",
+                catalogId: item.catalogId,
+                page: item.page,
+                x: item.x,
+                y: item.y,
+                quantity: item.quantity,
+                note: item.note,
+                thumb: item.thumb,
+              },
+        ),
         name,
         contactPhone: phone,
         email,
@@ -129,80 +149,135 @@ export function CartClient({
                 <p className="text-ink-2">{t("pcat.cart.lead")}</p>
 
                 <ul className="space-y-3">
-                  {cart.items.map((item) => (
-                    <li key={item.key} className="rounded-2xl border border-line bg-surface p-3">
-                      <div className="flex gap-3">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.thumb}
-                          alt=""
-                          className="h-24 w-24 shrink-0 rounded-xl border border-line object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold text-ink">{item.catalogTitle}</div>
-                              <div className="text-xs text-ink-3">
-                                {t("pcat.viewer.page")} {item.page}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => cart.remove(item.key)}
-                              aria-label={t("pcat.cart.remove")}
-                              title={t("pcat.cart.remove")}
-                              className="-mr-1 -mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setQuantity(item.key, item.quantity - 1)}
-                              aria-label={t("pcat.viewer.less")}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink hover:border-mint-3"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </button>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min={1}
-                              max={100000}
-                              step={1}
-                              required
-                              value={item.quantity}
-                              onChange={(e) => setQuantity(item.key, Number(e.target.value))}
-                              aria-label={t("pcat.viewer.quantity")}
-                              className="afx-num h-10 w-20 rounded-xl border border-line-2 bg-transparent text-center text-base text-ink outline-none focus:border-mint-3"
+                  {cart.items.map((item) => {
+                    const product = item.kind === "product" ? getShopProduct(item.ref) : null;
+                    if (item.kind === "product" && !product) return null;
+                    return (
+                      <li key={item.key} className="rounded-2xl border border-line bg-surface p-3">
+                        <div className="flex gap-3">
+                          {product ? (
+                            <Link href={shopProductHref(product.ref)} className="shrink-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={shopImageUrl(product.ref, "thumb")}
+                                alt=""
+                                className="h-24 w-24 rounded-xl border border-line bg-[#f3f5f4] object-contain"
+                              />
+                            </Link>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.kind === "product" ? undefined : item.thumb}
+                              alt=""
+                              className="h-24 w-24 shrink-0 rounded-xl border border-line object-cover"
                             />
-                            <button
-                              type="button"
-                              onClick={() => setQuantity(item.key, item.quantity + 1)}
-                              aria-label={t("pcat.viewer.more")}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink hover:border-mint-3"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                {product ? (
+                                  <>
+                                    <div className="text-sm font-semibold leading-snug text-ink">
+                                      {productName(product)}
+                                    </div>
+                                    <div className="font-mono text-[11px] tracking-wide text-ink-3">{product.ref}</div>
+                                    <div className="mt-0.5 text-xs text-ink-2">
+                                      <span className="afx-num text-ink">{formatXOF(product.price)}</span>{" "}
+                                      {t("pshop.cart.unit")} · {t("pshop.freight")} {formatXOF(product.freight)}
+                                    </div>
+                                  </>
+                                ) : (
+                                  item.kind !== "product" && (
+                                    <>
+                                      <div className="truncate text-sm font-semibold text-ink">{item.catalogTitle}</div>
+                                      <div className="text-xs text-ink-3">
+                                        {t("pcat.viewer.page")} {item.page} · {t("pshop.cart.quoteOnly")}
+                                      </div>
+                                    </>
+                                  )
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => cart.remove(item.key)}
+                                aria-label={t("pcat.cart.remove")}
+                                title={t("pcat.cart.remove")}
+                                className="-mr-1 -mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setQuantity(item.key, item.quantity - 1)}
+                                aria-label={t("pcat.viewer.less")}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink hover:border-mint-3"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </button>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={100000}
+                                step={1}
+                                required
+                                value={item.quantity}
+                                onChange={(e) => setQuantity(item.key, Number(e.target.value))}
+                                aria-label={t("pcat.viewer.quantity")}
+                                className="afx-num h-10 w-20 rounded-xl border border-line-2 bg-transparent text-center text-base text-ink outline-none focus:border-mint-3"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setQuantity(item.key, item.quantity + 1)}
+                                aria-label={t("pcat.viewer.more")}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink hover:border-mint-3"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                              {product && (
+                                <span className="afx-num ml-auto text-sm text-ink">
+                                  {formatXOF(product.price * item.quantity)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <input
-                        type="text"
-                        maxLength={200}
-                        value={item.note}
-                        onChange={(e) => cart.update(item.key, { note: e.target.value })}
-                        placeholder={t("pcat.viewer.note")}
-                        aria-label={t("pcat.viewer.note")}
-                        className="mt-3 h-10 w-full rounded-xl border border-line-2 bg-transparent px-3 text-sm text-ink outline-none placeholder:text-ink-4 focus:border-mint-3"
-                      />
-                    </li>
-                  ))}
+                        <input
+                          type="text"
+                          maxLength={200}
+                          value={item.note}
+                          onChange={(e) => cart.update(item.key, { note: e.target.value })}
+                          placeholder={t("pcat.viewer.note")}
+                          aria-label={t("pcat.viewer.note")}
+                          className="mt-3 h-10 w-full rounded-xl border border-line-2 bg-transparent px-3 text-sm text-ink outline-none placeholder:text-ink-4 focus:border-mint-3"
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
 
+                {priced.length > 0 && (
+                  <dl className="space-y-1.5 rounded-2xl border border-line bg-surface px-4 py-3 text-sm">
+                    <div className="flex justify-between gap-3 text-ink-2">
+                      <dt>{t("pshop.cart.items")}</dt>
+                      <dd className="afx-num text-ink">{formatXOF(totals.items)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-ink-2">
+                      <dt>{t("pshop.freight")}</dt>
+                      <dd className="afx-num text-ink">{formatXOF(totals.freight)}</dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-line-2 pt-2 font-semibold text-ink">
+                      <dt>{t("pshop.cart.total")}</dt>
+                      <dd className="afx-num text-xl">{formatXOF(totals.total)}</dd>
+                    </div>
+                    {hasQuoteOnly && <p className="pt-1 text-xs text-ink-3">{t("pshop.cart.mixed")}</p>}
+                  </dl>
+                )}
+
                 <Link
-                  href="/catalogue"
+                  href={priced.length > 0 && !hasQuoteOnly ? "/catalogue/produits" : "/catalogue"}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-mint-3 hover:underline"
                 >
                   <Plus className="h-4 w-4" /> {t("pcat.cart.addMore")}
@@ -328,7 +403,10 @@ export function CartClient({
             <ul className="mt-2 divide-y divide-line rounded-2xl border border-line bg-surface">
               {sent.requests.map((r) => (
                 <li key={r.reference}>
-                  <Link href={r.url} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-surface-2">
+                  <Link
+                    href={r.url}
+                    className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-surface-2"
+                  >
                     <span className="afx-num text-ink">{r.reference}</span>
                     <span className="inline-flex items-center gap-1 text-mint-3">
                       {t("pcat.cart.track")} <ArrowRight className="h-4 w-4" />
