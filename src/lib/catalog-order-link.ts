@@ -35,29 +35,42 @@ export function buildCatalogOrderWhatsAppUrl(args: {
   reference: string;
   totalAmount: number | null;
   publicUrl: string;
+  /** Commande passée aux prix affichés : déjà confirmée, rien à valider */
+  direct?: boolean;
 }): string | null {
   const number = args.phone ? toWhatsAppNumber(args.phone) : null;
   if (!number) return null;
-  const text = [
-    `Bonjour ${args.name},`,
-    "",
-    args.totalAmount != null
-      ? `Le devis de votre commande AFRYNTIX ${args.reference} est prêt : ${formatXOF(args.totalAmount)}.`
-      : `Nous avons bien reçu votre demande AFRYNTIX ${args.reference}. Nous préparons votre devis.`,
-    "",
-    args.totalAmount != null
-      ? `Consultez-le et validez-le ici : ${args.publicUrl}`
-      : `Suivez votre demande ici : ${args.publicUrl}`,
-    "",
-    `AFRYNTIX — ${COMPANY.phone}`,
-  ].join("\n");
+  const message =
+    args.direct && args.totalAmount != null
+      ? [
+          `Nous avons bien reçu votre commande AFRYNTIX ${args.reference} : ${formatXOF(args.totalAmount)} (articles, fret et dédouanement).`,
+          `Suivez-la ici : ${args.publicUrl}`,
+        ]
+      : args.totalAmount != null
+        ? [
+            `Le devis de votre commande AFRYNTIX ${args.reference} est prêt : ${formatXOF(args.totalAmount)}.`,
+            `Consultez-le et validez-le ici : ${args.publicUrl}`,
+          ]
+        : [
+            `Nous avons bien reçu votre demande AFRYNTIX ${args.reference}. Nous préparons votre devis.`,
+            `Suivez votre demande ici : ${args.publicUrl}`,
+          ];
+  const text = [`Bonjour ${args.name},`, "", message[0], "", message[1], "", `AFRYNTIX — ${COMPANY.phone}`].join("\n");
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
 
-/** Lien wa.me vers AFRYNTIX, pré-rempli avec la référence de la demande (côté client). */
-export function buildCompanyWhatsAppUrl(reference: string): string | null {
+/**
+ * Lien wa.me vers AFRYNTIX, pré-rempli avec la référence (côté client) : `order` pour une
+ * commande passée aux prix affichés, `quote` pour une demande de devis, les deux pour un panier mixte.
+ */
+export function buildCompanyWhatsAppUrl(refs: { order?: string | null; quote?: string | null }): string | null {
   const number = toWhatsAppNumber(COMPANY.phone);
   if (!number) return null;
-  const text = `Bonjour AFRYNTIX, je viens d'envoyer la demande de devis ${reference} depuis vos catalogues.`;
+  const parts = [
+    refs.order ? `de passer la commande ${refs.order} sur votre site` : null,
+    refs.quote ? `d'envoyer la demande de devis ${refs.quote} depuis vos catalogues` : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  const text = `Bonjour AFRYNTIX, je viens ${parts.join(" et ")}.`;
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }

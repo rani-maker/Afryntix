@@ -2,7 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { COMPANY } from "@/lib/company";
-import { CATALOG_CATEGORY_LABELS } from "@/lib/catalog-labels";
+import {
+  CATALOG_CATEGORY_LABELS,
+  DIRECT_ORDER_FEES_LABEL,
+  ORDER_FEES_LABEL,
+  isDirectOrder,
+  orderAmountsVisible,
+} from "@/lib/catalog-labels";
 import { formatDate, formatXOF } from "@/lib/utils";
 import { orderParty } from "@/lib/catalog-orders";
 import { shopOrderItemImage } from "@/lib/shop-products";
@@ -10,8 +16,10 @@ import { PrintActions } from "@/app/print/manifest/envoi/[id]/print-actions";
 
 /**
  * Document A4 d'une commande catalogue : « Bon de commande » tant que le
- * devis n'est pas envoyé, « Devis » ensuite. Accès : staff/admin, ou le
- * client propriétaire (qui ne voit les prix qu'une fois le devis envoyé).
+ * devis n'est pas envoyé, « Devis » ensuite. Une commande passée aux prix
+ * affichés (sans devis) reste un « Bon de commande », chiffré. Accès :
+ * staff/admin, ou le client propriétaire (qui ne voit les prix qu'une fois le
+ * devis envoyé ou la commande confirmée).
  */
 export default async function PrintDevisPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -30,7 +38,8 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
   const isTeam = session.user.role === "ADMIN" || session.user.role === "STAFF";
   if (!isTeam && order.clientId !== session.user.id) notFound();
 
-  const quoted = order.quotedAt != null && order.totalAmount != null && order.status !== "PENDING";
+  const quoted = orderAmountsVisible(order);
+  const direct = isDirectOrder(order);
   const party = orderParty(order);
   const subtotal = order.items.reduce((s, i) => s + (i.lineTotal ?? 0), 0);
 
@@ -54,11 +63,12 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
 
         <header className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">{quoted ? "DEVIS" : "BON DE COMMANDE"}</h1>
+            <h1 className="text-2xl font-bold">{quoted && !direct ? "DEVIS" : "BON DE COMMANDE"}</h1>
             <p className="text-sm font-mono">{order.reference}</p>
             <p className="text-xs text-gray-500 mt-1">
               Commande du {formatDate(order.createdAt)}
               {quoted && order.quotedAt ? ` · Devis du ${formatDate(order.quotedAt)}` : ""}
+              {direct && order.acceptedAt ? ` · Confirmée le ${formatDate(order.acceptedAt)}` : ""}
             </p>
           </div>
           <div className="text-right text-xs text-gray-600">
@@ -149,14 +159,14 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
                 {!!order.feesAmount && (
                   <tr>
                     <td colSpan={6} className="num">
-                      Frais annexes (transport, emballage…)
+                      {direct ? DIRECT_ORDER_FEES_LABEL : ORDER_FEES_LABEL}
                     </td>
                     <td className="num">{formatXOF(order.feesAmount)}</td>
                   </tr>
                 )}
                 <tr className="total">
                   <td colSpan={6} className="num">
-                    TOTAL DU DEVIS
+                    {direct ? "TOTAL DE LA COMMANDE" : "TOTAL DU DEVIS"}
                   </td>
                   <td className="num">{formatXOF(order.totalAmount ?? 0)}</td>
                 </tr>
@@ -175,6 +185,12 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
         {!quoted && (
           <p className="text-xs text-gray-600 mb-4">
             Bon de commande sans prix : le devis est établi par {COMPANY.name} après réception.
+          </p>
+        )}
+        {direct && quoted && (
+          <p className="text-xs text-gray-600 mb-4">
+            Commande ferme, passée aux prix affichés sur {COMPANY.website}. Règlement et livraison : {COMPANY.name} vous
+            contacte.
           </p>
         )}
 

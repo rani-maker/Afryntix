@@ -14,8 +14,10 @@ const monthKey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 
 
 /**
  * Statistiques des commandes catalogue (page /admin/statistics).
- * - « validée » = devis accepté et commande lancée (CONFIRMED → DELIVERED), hors annulations ;
- * - le taux d'acceptation porte sur les devis réellement envoyés au client (quotedAt).
+ * - « validée » = devis accepté, ou commande passée aux prix affichés, et commande lancée
+ *   (CONFIRMED → DELIVERED), hors annulations ;
+ * - le taux d'acceptation porte sur les devis réellement envoyés au client (quotedAt) : les
+ *   commandes passées aux prix affichés, sans devis, n'y entrent pas.
  */
 export async function getCatalogOrderStats(now = new Date()) {
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (MONTHS - 1), 1));

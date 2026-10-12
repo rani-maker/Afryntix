@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Printer, Send } from "lucide-react";
+import { PencilLine, Printer, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OrderLinesTable } from "@/components/catalogues/order-lines-table";
-import { saveCatalogQuote, updateCatalogOrderStatus } from "@/server/actions/catalogues";
+import { reopenCatalogOrder, saveCatalogQuote, updateCatalogOrderStatus } from "@/server/actions/catalogues";
 import {
   CATALOG_CATEGORY_LABELS,
   CATALOG_ORDER_STATUS_LABELS,
@@ -57,6 +57,10 @@ type Order = {
   feesAmount: number | null;
   totalAmount: number | null;
   quotedAt: string | null;
+  acceptedAt: string | null;
+  // Commande passée aux prix affichés : confirmée par le client dès le panier, sans devis
+  direct: boolean;
+  hasShipments: boolean;
   items: Item[];
 };
 
@@ -68,11 +72,20 @@ export function OrderEditor({ order }: { order: Order }) {
         <QuoteForm order={order} />
       ) : (
         <div className="space-y-3">
+          {order.direct && (
+            <p className="text-sm rounded-md bg-primary/5 border border-primary/20 px-3 py-2">
+              <span className="font-medium">Commande aux prix affichés, sans devis. </span>
+              Le client l&apos;a confirmée{order.acceptedAt ? ` le ${order.acceptedAt}` : ""} depuis le panier, aux prix
+              du catalogue (fret + dédouanement compris dans le total). Vérifiez la disponibilité, puis contactez-le
+              pour le règlement.
+            </p>
+          )}
           <OrderLinesTable
             items={order.items.map((i) => ({ ...i, imageUrl: itemImageUrl(i) }))}
             showPrices={order.totalAmount != null}
             feesAmount={order.feesAmount}
             totalAmount={order.totalAmount}
+            direct={order.direct}
           />
           {order.staffNotes && (
             <p className="text-sm rounded-md bg-primary/5 border border-primary/20 px-3 py-2">
@@ -80,9 +93,53 @@ export function OrderEditor({ order }: { order: Order }) {
               {order.staffNotes}
             </p>
           )}
+          {order.status === "CONFIRMED" && !order.hasShipments && <ReopenButton id={order.id} />}
         </div>
       )}
       <StatusForm order={order} />
+    </div>
+  );
+}
+
+/**
+ * Correction d'une commande confirmée (article indisponible, prix qui a changé) : elle
+ * repasse en devis à établir, et le client devra valider le nouveau devis.
+ */
+function ReopenButton({ id }: { id: string }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reopen() {
+    if (
+      !confirm(
+        "Corriger cette commande ? Elle repasse en « devis à établir » : vous modifiez les lignes ou les prix, puis le client devra valider le nouveau devis.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    const res = await reopenCatalogOrder(id);
+    setLoading(false);
+    if (!res.success) {
+      setError(res.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-muted-foreground">
+        Un article indisponible ou un prix qui a changé ? Corrigez la commande : le client devra valider le nouveau
+        devis.
+      </p>
+      <Button type="button" size="sm" variant="outline" disabled={loading} onClick={reopen}>
+        <PencilLine className="h-4 w-4" />
+        {loading ? "…" : "Corriger la commande"}
+      </Button>
+      {error && <p className="basis-full text-sm text-destructive">{error}</p>}
     </div>
   );
 }
@@ -389,7 +446,7 @@ function StatusForm({ order }: { order: Order }) {
           >
             {CATALOG_STAFF_STATUSES.map((s) => (
               <option key={s} value={s} disabled={noQuote && s !== "CANCELLED"}>
-                {CATALOG_ORDER_STATUS_LABELS[s]}
+                {s === "CONFIRMED" && order.direct ? "Commande confirmée" : CATALOG_ORDER_STATUS_LABELS[s]}
               </option>
             ))}
           </Select>
@@ -399,13 +456,14 @@ function StatusForm({ order }: { order: Order }) {
         </Button>
         <Button asChild variant="ghost">
           <Link href={`/print/devis/${order.id}`}>
-            <Printer className="h-4 w-4" /> {noQuote ? "Bon de commande" : "Devis"} imprimable
+            <Printer className="h-4 w-4" /> {noQuote || order.direct ? "Bon de commande" : "Devis"} imprimable
           </Link>
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Le client peut accepter lui-même le devis depuis son espace. Utilisez ce suivi pour confirmer à sa place, puis
-        indiquer la préparation, l&apos;expédition et la livraison.
+        {order.direct
+          ? "Commande déjà confirmée par le client. Utilisez ce suivi pour indiquer la préparation, l'expédition et la livraison."
+          : "Le client peut accepter lui-même le devis depuis son espace. Utilisez ce suivi pour confirmer à sa place, puis indiquer la préparation, l'expédition et la livraison."}
       </p>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </form>

@@ -11,9 +11,9 @@ import { useShopProductName } from "@/components/catalogues/use-shop-product-nam
 import { CART_MAX_QUANTITY, useCatalogCart, useSentRequests } from "@/lib/catalog-cart";
 import { getShopProduct, shopImageUrl, shopProductHref, shopTotals } from "@/lib/shop-products";
 import { formatXOF } from "@/lib/utils";
-import { createCartOrder } from "@/server/actions/catalog-cart";
+import { createCartOrder, type PlacedCartOrder } from "@/server/actions/catalog-cart";
 
-type Sent = { reference: string; trackPath: string | null; whatsappUrl: string | null; hasAccount: boolean };
+type Sent = { orders: PlacedCartOrder[]; whatsappUrl: string | null; hasAccount: boolean };
 
 const primaryButton =
   "inline-flex h-12 items-center justify-center gap-2 rounded-full bg-mint px-6 text-[15px] font-semibold text-[#0a0e0d] transition-colors hover:bg-mint-2 disabled:opacity-60";
@@ -58,6 +58,8 @@ export function CartClient({ account, isTeam }: { account: { phone: string; city
   );
   const totals = shopTotals(priced);
   const hasQuoteOnly = items.some((item) => item.kind !== "product");
+  // Articles à prix affichés : commande ferme, sans devis. Articles des catalogues PDF : devis.
+  const mode = priced.length === 0 ? "quote" : hasQuoteOnly ? "mixed" : "direct";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,8 +97,10 @@ export function CartClient({ account, isTeam }: { account: { phone: string; city
       setError(res.success ? "Envoi impossible. Réessayez." : res.error);
       return;
     }
-    if (!res.data.hasAccount && res.data.trackPath) {
-      sent.remember({ reference: res.data.reference, url: res.data.trackPath, sentAt: new Date().toISOString() });
+    if (!res.data.hasAccount) {
+      for (const o of res.data.orders) {
+        if (o.trackPath) sent.remember({ reference: o.reference, url: o.trackPath, sentAt: new Date().toISOString() });
+      }
     }
     cart.clear();
     setDone(res.data);
@@ -110,14 +114,51 @@ export function CartClient({ account, isTeam }: { account: { phone: string; city
         {done ? (
           <section className="rounded-2xl border border-line bg-surface p-6 text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-mint-3" />
-            <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink">{t("pcat.cart.sentTitle")}</h1>
-            <p className="mt-2 text-ink-2">{t("pcat.cart.sentBody")}</p>
-            <p className="afx-num mt-1 text-lg text-ink">{done.reference}</p>
-            {!done.hasAccount && done.trackPath && <p className="mt-3 text-sm text-ink-3">{t("pcat.cart.keepLink")}</p>}
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink">
+              {done.orders.length > 1
+                ? t("pshop.cart.done.mixedTitle")
+                : done.orders[0]?.direct
+                  ? t("pshop.cart.done.title")
+                  : t("pcat.cart.sentTitle")}
+            </h1>
+            <ul className="mt-4 space-y-3 text-left">
+              {done.orders.map((o) => (
+                <li key={o.reference} className="rounded-xl border border-line bg-surface-2 px-4 py-3">
+                  {done.orders.length > 1 && (
+                    <div className="text-xs font-semibold uppercase tracking-wider text-mint-3">
+                      {o.direct ? t("pshop.cart.done.title") : t("pshop.cart.done.quoteLabel")}
+                    </div>
+                  )}
+                  <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="afx-num text-lg text-ink">{o.reference}</span>
+                    {o.totalAmount != null && (
+                      <span className="text-sm text-ink-2">
+                        {t("pshop.cart.total")}{" "}
+                        <span className="afx-num text-lg text-ink">{formatXOF(o.totalAmount)}</span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-2">
+                    {o.direct ? t("pshop.cart.done.body") : t("pshop.cart.done.quoteBody")}
+                  </p>
+                  {!done.hasAccount && o.trackPath && (
+                    <>
+                      <p className="mt-2 text-xs text-ink-3">
+                        {o.direct ? t("pshop.cart.done.keepLink") : t("pcat.cart.keepLink")}
+                      </p>
+                      <Link href={o.trackPath} className={`${primaryButton} mt-3 w-full`}>
+                        {o.direct ? t("pshop.cart.done.track") : t("pcat.cart.track")}{" "}
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
             <div className="mt-5 flex flex-col gap-2">
-              {done.trackPath && (
-                <Link href={done.trackPath} className={primaryButton}>
-                  {done.hasAccount ? t("pcat.cart.orders") : t("pcat.cart.track")} <ArrowRight className="h-4 w-4" />
+              {done.hasAccount && (
+                <Link href="/dashboard/orders" className={primaryButton}>
+                  {t("pcat.cart.orders")} <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
               {done.whatsappUrl && (
@@ -146,7 +187,13 @@ export function CartClient({ account, isTeam }: { account: { phone: string; city
               </section>
             ) : (
               <form onSubmit={handleSubmit} className="mt-2 space-y-5">
-                <p className="text-ink-2">{t("pcat.cart.lead")}</p>
+                <p className="text-ink-2">
+                  {mode === "direct"
+                    ? t("pshop.cart.direct.lead")
+                    : mode === "mixed"
+                      ? t("pshop.cart.mixed.lead")
+                      : t("pcat.cart.lead")}
+                </p>
 
                 <ul className="space-y-3">
                   {cart.items.map((item) => {
@@ -382,14 +429,26 @@ export function CartClient({ account, isTeam }: { account: { phone: string; city
                       </p>
                     )}
                     <button type="submit" disabled={loading} className={`${primaryButton} w-full`}>
-                      {loading ? t("pcat.cart.sending") : t("pcat.cart.send")}
+                      {loading
+                        ? t("pcat.cart.sending")
+                        : mode === "direct"
+                          ? t("pshop.cart.direct.send")
+                          : mode === "mixed"
+                            ? t("pshop.cart.mixed.send")
+                            : t("pcat.cart.send")}
                       {!loading && (
                         <span className="afx-num inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#0a0e0d] px-1.5 text-xs text-white">
                           {cart.items.length}
                         </span>
                       )}
                     </button>
-                    <p className="text-center text-xs text-ink-3">{t("pcat.cart.noPrice")}</p>
+                    <p className="text-center text-xs text-ink-3">
+                      {mode === "direct"
+                        ? t("pshop.cart.direct.note")
+                        : mode === "mixed"
+                          ? t("pshop.cart.mixed.note")
+                          : t("pcat.cart.noPrice")}
+                    </p>
                   </>
                 )}
               </form>

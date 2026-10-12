@@ -65,7 +65,7 @@ export async function OrderStatistics() {
           href="/admin/orders?status=QUOTED"
         />
         <StatsCard
-          label="Montant des devis acceptés"
+          label="Montant des commandes validées"
           value={formatXOF(s.validatedAmount)}
           hint={`${s.validatedCount} commande${s.validatedCount > 1 ? "s" : ""} validée${s.validatedCount > 1 ? "s" : ""}`}
           tone="success"
@@ -96,7 +96,13 @@ export async function OrderStatistics() {
         monthly={s.monthly.map(({ month, received, validated }) => ({ month, received, validated }))}
         byStatus={s.byStatus.map((g) => ({
           // Vu de l'équipe, une commande « en préparation de devis » est un devis à établir
-          name: g.status === "PENDING" ? "Devis à établir" : CATALOG_ORDER_STATUS_LABELS[g.status],
+          // CONFIRMED regroupe les devis acceptés et les commandes passées aux prix affichés
+          name:
+            g.status === "PENDING"
+              ? "Devis à établir"
+              : g.status === "CONFIRMED"
+                ? "Confirmée"
+                : CATALOG_ORDER_STATUS_LABELS[g.status],
           value: g.count,
         }))}
       />

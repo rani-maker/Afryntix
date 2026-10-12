@@ -49,6 +49,8 @@ type OrderSummary = {
   createdAt: Date;
   itemCount: number;
   quotedAmount: number | null;
+  // Commande passée aux prix affichés : confirmée sans devis
+  direct: boolean;
   trackingNumbers: string[];
 };
 
@@ -178,12 +180,13 @@ export function DashboardHomeClient({
                     <div className="text-right space-y-1.5 shrink-0 ml-auto">
                       {st && (
                         <StatusPill tone={st.tone} pulse={o.status === "QUOTED"}>
-                          {t(st.label)}
+                          {t(o.direct && o.status === "CONFIRMED" ? "dash.home.orders.status.ordered" : st.label)}
                         </StatusPill>
                       )}
                       {o.quotedAmount != null && (
                         <div className="text-xs text-[var(--dash-text-dim)] tabular-nums">
-                          {t("dash.home.orders.quote")} {formatXOF(o.quotedAmount)}
+                          {t(o.direct ? "dash.home.orders.total" : "dash.home.orders.quote")}{" "}
+                          {formatXOF(o.quotedAmount)}
                         </div>
                       )}
                       {o.status === "QUOTED" && (

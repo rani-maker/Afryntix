@@ -4,7 +4,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { PublicHeader } from "@/components/public-header";
-import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
+import {
+  CATALOG_ORDER_STATUS_TONE,
+  DIRECT_ORDER_FEES_LABEL,
+  ORDER_FEES_LABEL,
+  catalogOrderStatusLabel,
+  isDirectOrder,
+  orderAmountsVisible,
+} from "@/lib/catalog-labels";
 import { buildCompanyWhatsAppUrl, verifyCatalogOrderSignature } from "@/lib/catalog-order-link";
 import { orderParty } from "@/lib/catalog-orders";
 import { shopOrderItemImage } from "@/lib/shop-products";
@@ -12,12 +19,13 @@ import { COMPANY } from "@/lib/company";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import { OrderLinkActions } from "./order-link-actions";
 
-// Suivi d'une demande de devis sans compte, via le lien signé remis au demandeur
-// (écran de confirmation du panier, WhatsApp ou email). Le devis s'y consulte et s'y valide.
+// Suivi d'une commande sans compte, via le lien signé remis au demandeur (écran de
+// confirmation du panier, WhatsApp ou email) : demande de devis, où le devis se consulte
+// et se valide, ou commande passée aux prix affichés, déjà confirmée.
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ k?: string }> };
 
 export const metadata: Metadata = {
-  title: { absolute: "Votre demande de devis | AFRYNTIX" },
+  title: { absolute: "Votre commande | AFRYNTIX" },
   robots: { index: false, follow: false },
 };
 
@@ -30,6 +38,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   DELIVERED: "Votre commande a été livrée. Merci de votre confiance.",
   CANCELLED: "Cette demande a été annulée.",
 };
+const DIRECT_CONFIRMED_MESSAGE =
+  "Commande confirmée aux prix affichés. AFRYNTIX vous contacte pour le règlement et la livraison.";
 
 export default async function OrderLinkPage({ params, searchParams }: Props) {
   const [{ id }, { k }] = await Promise.all([params, searchParams]);
@@ -45,10 +55,13 @@ export default async function OrderLinkPage({ params, searchParams }: Props) {
   });
   if (!order) notFound();
 
-  // Le devis n'est visible qu'une fois envoyé par AFRYNTIX
-  const quoted = order.quotedAt != null && order.totalAmount != null && order.status !== "PENDING";
+  // Les montants sont visibles une fois le devis envoyé par AFRYNTIX, ou tout de suite
+  // pour une commande passée aux prix affichés
+  const quoted = orderAmountsVisible(order);
+  const direct = isDirectOrder(order);
+  const totalLabel = direct ? "Total de la commande" : "Total du devis";
   const party = orderParty(order);
-  const whatsappUrl = buildCompanyWhatsAppUrl(order.reference);
+  const whatsappUrl = buildCompanyWhatsAppUrl(direct ? { order: order.reference } : { quote: order.reference });
 
   return (
     <main className="min-h-screen bg-[var(--afx-bg)]">
@@ -57,19 +70,23 @@ export default async function OrderLinkPage({ params, searchParams }: Props) {
         <section className="rounded-2xl border border-line bg-surface p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-mint-3">Demande de devis</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-mint-3">
+                {direct ? "Commande" : "Demande de devis"}
+              </div>
               <h1 className="afx-num mt-1 text-xl text-ink">{order.reference}</h1>
               <p className="mt-1 text-xs text-ink-3">
                 {party.name} · {formatDateTime(order.createdAt)}
                 {order.deliveryCity ? ` · Livraison : ${order.deliveryCity}` : ""}
               </p>
             </div>
-            <Badge variant={CATALOG_ORDER_STATUS_TONE[order.status]}>{CATALOG_ORDER_STATUS_LABELS[order.status]}</Badge>
+            <Badge variant={CATALOG_ORDER_STATUS_TONE[order.status]}>{catalogOrderStatusLabel(order)}</Badge>
           </div>
-          <p className="mt-4 text-sm text-ink-2">{STATUS_MESSAGES[order.status]}</p>
+          <p className="mt-4 text-sm text-ink-2">
+            {direct && order.status === "CONFIRMED" ? DIRECT_CONFIRMED_MESSAGE : STATUS_MESSAGES[order.status]}
+          </p>
           {quoted && (
             <div className="mt-4 flex items-end justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3">
-              <span className="text-sm text-ink-2">Total du devis</span>
+              <span className="text-sm text-ink-2">{totalLabel}</span>
               <span className="afx-num text-2xl text-ink">{formatXOF(order.totalAmount ?? 0)}</span>
             </div>
           )}
@@ -135,12 +152,12 @@ export default async function OrderLinkPage({ params, searchParams }: Props) {
             <dl className="space-y-1 border-t border-line px-5 py-4 text-sm">
               {!!order.feesAmount && (
                 <div className="flex justify-between gap-3 text-ink-2">
-                  <dt>Frais annexes (transport, emballage…)</dt>
+                  <dt>{direct ? DIRECT_ORDER_FEES_LABEL : ORDER_FEES_LABEL}</dt>
                   <dd className="afx-num">{formatXOF(order.feesAmount)}</dd>
                 </div>
               )}
               <div className="flex justify-between gap-3 font-semibold text-ink">
-                <dt>Total du devis</dt>
+                <dt>{totalLabel}</dt>
                 <dd className="afx-num">{formatXOF(order.totalAmount ?? 0)}</dd>
               </div>
             </dl>
@@ -161,7 +178,9 @@ export default async function OrderLinkPage({ params, searchParams }: Props) {
         )}
 
         <section className="flex flex-col items-center gap-2 pt-2 text-center text-sm text-ink-3">
-          <p>Une question sur votre demande ? {COMPANY.phone}</p>
+          <p>
+            Une question sur votre {direct ? "commande" : "demande"} ? {COMPANY.phone}
+          </p>
           {whatsappUrl && (
             <a
               href={whatsappUrl}

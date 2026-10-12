@@ -546,3 +546,41 @@ export async function updateCatalogOrderStatus(input: unknown): Promise<Result> 
   revalidateOrders(id);
   return { success: true };
 }
+
+/**
+ * Rouvre une commande confirmée pour la corriger (article indisponible, prix qui a changé) :
+ * elle repasse en devis à établir et le client devra valider le nouveau devis. C'est le seul
+ * moyen de modifier une commande passée aux prix affichés. Possible tant qu'aucun colis n'existe.
+ */
+export async function reopenCatalogOrder(id: string): Promise<Result> {
+  const session = await requireRole("STAFF", "ADMIN");
+  const order = await prisma.catalogOrder.findUnique({
+    where: { id },
+    select: { clientId: true, status: true, reference: true, _count: { select: { shipments: true } } },
+  });
+  if (!order) return { success: false, error: "Commande introuvable." };
+  if (order.status !== "CONFIRMED") {
+    return { success: false, error: "Seule une commande confirmée, pas encore en préparation, peut être corrigée." };
+  }
+  if (order._count.shipments > 0) {
+    return { success: false, error: "Un colis existe déjà pour cette commande : elle ne peut plus être corrigée." };
+  }
+
+  await prisma.catalogOrder.update({
+    where: { id },
+    data: { status: "PENDING", acceptedAt: null, handledById: session.user.id },
+  });
+  if (order.clientId) {
+    await notifyInApp({
+      userId: order.clientId,
+      template: "catalog_order_reopened",
+      title: "Votre commande est en cours de révision",
+      body: `AFRYNTIX ajuste la commande ${order.reference} (disponibilité ou prix). Vous recevrez un devis à valider.`,
+      link: "/dashboard/orders",
+    });
+  }
+
+  revalidateOrders(id);
+  revalidatePath(`/commande/${id}`);
+  return { success: true };
+}

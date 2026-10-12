@@ -6,7 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderLinesTable } from "@/components/catalogues/order-lines-table";
-import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
+import {
+  CATALOG_ORDER_STATUS_TONE,
+  catalogOrderStatusLabel,
+  isDirectOrder,
+  orderAmountsVisible,
+} from "@/lib/catalog-labels";
 import { shopOrderItemImage } from "@/lib/shop-products";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import { OrderClientActions } from "./order-client-actions";
@@ -51,8 +56,9 @@ export default async function ClientOrdersPage() {
         </div>
       ) : (
         orders.map((o) => {
-          // Le devis n'est visible qu'une fois envoyé par AFRYNTIX
-          const quoted = o.quotedAt != null && o.totalAmount != null && o.status !== "PENDING";
+          // Montants visibles une fois le devis envoyé, ou tout de suite pour une commande aux prix affichés
+          const quoted = orderAmountsVisible(o);
+          const direct = isDirectOrder(o);
           return (
             <Card key={o.id}>
               <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
@@ -64,7 +70,7 @@ export default async function ClientOrdersPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <Badge variant={CATALOG_ORDER_STATUS_TONE[o.status]}>{CATALOG_ORDER_STATUS_LABELS[o.status]}</Badge>
+                  <Badge variant={CATALOG_ORDER_STATUS_TONE[o.status]}>{catalogOrderStatusLabel(o)}</Badge>
                   {quoted && (
                     <div className="text-lg font-semibold tabular-nums mt-1">{formatXOF(o.totalAmount ?? 0)}</div>
                   )}
@@ -79,7 +85,13 @@ export default async function ClientOrdersPage() {
                   showPrices={quoted}
                   feesAmount={o.feesAmount}
                   totalAmount={o.totalAmount}
+                  direct={direct}
                 />
+                {direct && o.status === "CONFIRMED" && (
+                  <p className="text-sm text-muted-foreground">
+                    Commande confirmée aux prix affichés. AFRYNTIX vous contacte pour le règlement et la livraison.
+                  </p>
+                )}
                 {o.status === "PENDING" && (
                   <p className="text-sm text-muted-foreground">
                     Bon de commande reçu. Notre équipe prépare votre devis : vous serez notifié dès qu&apos;il est prêt.
@@ -117,7 +129,9 @@ export default async function ClientOrdersPage() {
                 )}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Button asChild size="sm" variant="ghost">
-                    <Link href={`/print/devis/${o.id}`}>{quoted ? "Imprimer le devis" : "Imprimer le bon de commande"}</Link>
+                    <Link href={`/print/devis/${o.id}`}>
+                      {quoted && !direct ? "Imprimer le devis" : "Imprimer le bon de commande"}
+                    </Link>
                   </Button>
                   {(o.status === "PENDING" || o.status === "QUOTED") && (
                     <OrderClientActions id={o.id} reference={o.reference} quoted={o.status === "QUOTED"} />
