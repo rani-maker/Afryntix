@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { Bath, FileText, Lamp, LayoutGrid, ShoppingBag, Sofa } from "lucide-react";
+import { ArrowRight, Bath, FileText, Lamp, LayoutGrid, ShoppingBag, Sofa } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicHeader } from "@/components/public-header";
 import { useLang } from "@/components/public/public-language-provider";
@@ -32,7 +32,10 @@ const CATEGORY_STYLE: Record<CatalogCategoryKey, { icon: typeof Bath; motif: str
 
 const HOW_KEYS: TKey[] = ["pcat.how.1", "pcat.how.2", "pcat.how.3"];
 
-export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] }) {
+/** Rayon du catalogue d'articles à prix affichés (/catalogue/produits), présenté en tête de page. */
+export type ShopEntry = { family: CatalogCategoryKey; slug: string; count: number; image: string };
+
+export function CataloguePublicClient({ catalogs, shop }: { catalogs: PublicCatalog[]; shop: ShopEntry[] }) {
   const { t } = useLang();
   const cartCount = useCatalogCart().items.length;
 
@@ -90,6 +93,60 @@ export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] 
 
       <div className="afx-motif-stripe h-2" />
 
+      {/* Articles à prix affichés */}
+      {shop.length > 0 && (
+        <section id="prix-affiches" className="container px-6 md:px-12 pt-12 scroll-mt-20">
+          <div className="rounded-3xl border border-line bg-surface p-5 md:p-8">
+            <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div className="flex max-w-2xl flex-col gap-2">
+                <span className="afx-kicker">{t("pshop.entry.kicker")}</span>
+                <h2 className="afx-h2 text-ink">{t("pshop.entry.title")}</h2>
+                <p className="leading-relaxed text-ink-2">{t("pshop.entry.desc")}</p>
+              </div>
+              <Button
+                asChild
+                size="lg"
+                className="h-12 rounded-full bg-mint px-6 text-[15px] font-semibold text-[#0a0e0d] hover:bg-mint-2"
+              >
+                <Link href="/catalogue/produits">
+                  {t("pshop.entry.cta")} <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {shop.map((entry) => {
+                const Icon = CATEGORY_STYLE[entry.family].icon;
+                return (
+                  <Link
+                    key={entry.family}
+                    href={`/catalogue/produits?famille=${entry.slug}`}
+                    className="group flex items-center gap-4 overflow-hidden rounded-2xl border border-line bg-surface-2 pr-4 transition-colors hover:border-mint-3"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={entry.image}
+                      alt=""
+                      loading="lazy"
+                      className="h-28 w-28 shrink-0 bg-[#f3f5f4] object-cover transition-transform duration-500 group-hover:scale-105 sm:h-32 sm:w-32"
+                    />
+                    <div className="min-w-0 flex-1 py-3">
+                      <div className="flex items-center gap-2 text-[18px] font-bold tracking-tight text-ink">
+                        <Icon className="h-4 w-4 shrink-0 text-mint-3" />
+                        {t(CATALOG_CATEGORY_I18N[entry.family].title)}
+                      </div>
+                      <div className="mt-1 text-sm text-ink-2">
+                        <span className="afx-num text-ink">{entry.count}</span> {t("pshop.count.many")}
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-ink-3 transition-transform group-hover:translate-x-1 group-hover:text-mint-3" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Catalogues par catégorie */}
       {CATALOG_CATEGORIES.map((cat) => {
         const style = CATEGORY_STYLE[cat];
@@ -134,9 +191,7 @@ export function CataloguePublicClient({ catalogs }: { catalogs: PublicCatalog[] 
                     <div className="p-5 flex flex-col gap-3 flex-1">
                       <div>
                         <h3 className="text-[18px] font-bold tracking-tight text-ink leading-snug">{c.title}</h3>
-                        {c.description && (
-                          <p className="text-sm text-ink-2 mt-1.5 leading-relaxed">{c.description}</p>
-                        )}
+                        {c.description && <p className="text-sm text-ink-2 mt-1.5 leading-relaxed">{c.description}</p>}
                       </div>
                       <div className="text-xs text-ink-3 inline-flex items-center gap-1.5">
                         <FileText className="h-3.5 w-3.5" /> PDF

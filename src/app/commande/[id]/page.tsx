@@ -7,6 +7,7 @@ import { PublicHeader } from "@/components/public-header";
 import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
 import { buildCompanyWhatsAppUrl, verifyCatalogOrderSignature } from "@/lib/catalog-order-link";
 import { orderParty } from "@/lib/catalog-orders";
+import { shopOrderItemImage } from "@/lib/shop-products";
 import { COMPANY } from "@/lib/company";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import { OrderLinkActions } from "./order-link-actions";
@@ -101,10 +102,12 @@ export default async function OrderLinkPage({ params, searchParams }: Props) {
           <ul className="mt-2 divide-y divide-line">
             {order.items.map((i) => (
               <li key={i.id} className="flex gap-3 px-5 py-3">
-                {i.posX != null && (
+                {(i.posX != null || shopOrderItemImage(i)) && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/catalogue/order-item/${i.id}/image?k=${k}`}
+                    src={
+                      i.posX != null ? `/api/catalogue/order-item/${i.id}/image?k=${k}` : (shopOrderItemImage(i) ?? "")
+                    }
                     alt=""
                     className="h-20 w-20 shrink-0 rounded-xl border border-line object-cover"
                   />

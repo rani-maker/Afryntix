@@ -3,12 +3,14 @@ import { useCallback, useSyncExternalStore } from "react";
 import { CART_MAX_ITEMS } from "@/lib/catalog-labels";
 
 /**
- * Panier des catalogues : articles choisis en touchant une page dans la
- * visionneuse. Gardé dans le navigateur (localStorage) — il survit à la
- * navigation entre catalogues et ne demande pas de compte.
+ * Panier des catalogues, gardé dans le navigateur (localStorage) : il survit à la
+ * navigation entre catalogues et ne demande pas de compte. Deux sortes de lignes :
+ * un article touché sur une page de catalogue PDF (sans prix, chiffré dans le devis)
+ * ou un article à prix affichés (/catalogue/produits).
  */
-export type CartItem = {
+export type CartPageItem = {
   key: string;
+  kind?: undefined;
   catalogId: string;
   catalogTitle: string;
   page: number;
@@ -21,6 +23,22 @@ export type CartItem = {
   thumb: string;
 };
 
+/**
+ * Article à prix affichés : seule la référence est gardée, le prix est relu à
+ * l'affichage (la page du panier retire une référence qui n'existe plus).
+ */
+export type CartProductItem = {
+  key: string;
+  kind: "product";
+  ref: string;
+  quantity: number;
+  note: string;
+};
+
+export type CartItem = CartPageItem | CartProductItem;
+
+export const CART_MAX_QUANTITY = 100000;
+
 /** Demande déjà envoyée depuis cet appareil (pour la retrouver sans compte). */
 export type SentRequest = { reference: string; url: string; sentAt: string };
 
@@ -31,15 +49,15 @@ const SENT_MAX = 10;
 function isCartItem(v: unknown): v is CartItem {
   if (!v || typeof v !== "object") return false;
   const i = v as Record<string, unknown>;
+  if (typeof i.key !== "string" || typeof i.quantity !== "number" || typeof i.note !== "string") return false;
+  if (i.kind === "product") return typeof i.ref === "string";
   return (
-    typeof i.key === "string" &&
+    i.kind === undefined &&
     typeof i.catalogId === "string" &&
     typeof i.catalogTitle === "string" &&
     typeof i.page === "number" &&
     typeof i.x === "number" &&
     typeof i.y === "number" &&
-    typeof i.quantity === "number" &&
-    typeof i.note === "string" &&
     typeof i.thumb === "string"
   );
 }
@@ -99,15 +117,28 @@ const sentStore = createStore<SentRequest>(SENT_KEY, (raw) =>
     : [],
 );
 
+const newKey = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
 export function useCatalogCart() {
   const items = useSyncExternalStore(cartStore.subscribe, cartStore.getSnapshot, cartStore.getServerSnapshot);
 
-  /** Ajoute un article ; false si le panier est plein. */
-  const add = useCallback((item: Omit<CartItem, "key">): boolean => {
+  /** Ajoute un article touché sur une page ; false si le panier est plein. */
+  const add = useCallback((item: Omit<CartPageItem, "key" | "kind">): boolean => {
     const current = cartStore.getSnapshot();
     if (current.length >= CART_MAX_ITEMS) return false;
-    const key = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    return cartStore.write([...current, { ...item, key }]);
+    return cartStore.write([...current, { ...item, key: newKey() }]);
+  }, []);
+
+  /** Ajoute un article à prix affichés (les quantités d'une même référence se cumulent) ; false si le panier est plein. */
+  const addProduct = useCallback((ref: string, quantity: number): boolean => {
+    const current = cartStore.getSnapshot();
+    const existing = current.find((i) => i.kind === "product" && i.ref === ref);
+    if (existing) {
+      const next = Math.min(CART_MAX_QUANTITY, existing.quantity + quantity);
+      return cartStore.write(current.map((i) => (i === existing ? { ...i, quantity: next } : i)));
+    }
+    if (current.length >= CART_MAX_ITEMS) return false;
+    return cartStore.write([...current, { key: newKey(), kind: "product", ref, quantity, note: "" }]);
   }, []);
 
   const update = useCallback((key: string, patch: Partial<Pick<CartItem, "quantity" | "note">>) => {
@@ -122,7 +153,7 @@ export function useCatalogCart() {
     cartStore.write([]);
   }, []);
 
-  return { items, add, update, remove, clear };
+  return { items, add, addProduct, update, remove, clear };
 }
 
 export function useSentRequests() {

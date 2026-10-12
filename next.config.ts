@@ -115,6 +115,12 @@ const nextConfig: NextConfig = {
         source: "/pdfjs/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      {
+        // Photos des articles à prix affichés : le dossier porte un numéro de version
+        // (voir shopImageUrl), une photo régénérée change donc d'adresse.
+        source: "/produits/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

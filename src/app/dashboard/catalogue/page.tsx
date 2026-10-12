@@ -45,6 +45,9 @@ export default async function ClientCataloguePage({
             <Link href="/dashboard/orders">Mes commandes</Link>
           </Button>
           <Button asChild variant="outline">
+            <Link href="/catalogue/produits">Articles à prix affichés</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href="/dashboard/catalogue/order">Commander par références</Link>
           </Button>
           <Button asChild>

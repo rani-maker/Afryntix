@@ -1,0 +1,3160 @@
+{
+ "categories": [
+  {
+   "code": "WC",
+   "family": "SANITAIRE",
+   "label": "WC",
+   "count": 28
+  },
+  {
+   "code": "ENS",
+   "family": "SANITAIRE",
+   "label": "Ensemble WC + lavabo",
+   "count": 5
+  },
+  {
+   "code": "LAV",
+   "family": "SANITAIRE",
+   "label": "Lavabo",
+   "count": 19
+  },
+  {
+   "code": "URI",
+   "family": "SANITAIRE",
+   "label": "Urinoir",
+   "count": 6
+  },
+  {
+   "code": "DOU",
+   "family": "SANITAIRE",
+   "label": "Colonne de douche",
+   "count": 29
+  },
+  {
+   "code": "ROB",
+   "family": "SANITAIRE",
+   "label": "Robinet de lavabo",
+   "count": 24
+  },
+  {
+   "code": "MIR",
+   "family": "SANITAIRE",
+   "label": "Miroir",
+   "count": 13
+  },
+  {
+   "code": "MEU",
+   "family": "SANITAIRE",
+   "label": "Meuble de salle de bain",
+   "count": 14
+  },
+  {
+   "code": "ACC",
+   "family": "SANITAIRE",
+   "label": "Set d'accessoires de salle de bain",
+   "count": 7
+  },
+  {
+   "code": "BAI",
+   "family": "SANITAIRE",
+   "label": "Baignoire",
+   "count": 4
+  },
+  {
+   "code": "BAL",
+   "family": "SANITAIRE",
+   "label": "Baignoire balnéo (massage)",
+   "count": 2
+  },
+  {
+   "code": "VAP",
+   "family": "SANITAIRE",
+   "label": "Cabine de douche vapeur",
+   "count": 2
+  },
+  {
+   "code": "CAB",
+   "family": "SANITAIRE",
+   "label": "Cabine de douche",
+   "count": 3
+  },
+  {
+   "code": "DCH",
+   "family": "SANITAIRE",
+   "label": "Douchette bidet",
+   "count": 3
+  },
+  {
+   "code": "SIP",
+   "family": "SANITAIRE",
+   "label": "Siphon de sol",
+   "count": 13
+  },
+  {
+   "code": "PLA",
+   "family": "DECO_LUMINAIRE",
+   "label": "Plafonnier LED",
+   "count": 79
+  },
+  {
+   "code": "SUS",
+   "family": "DECO_LUMINAIRE",
+   "label": "Suspension",
+   "count": 24
+  },
+  {
+   "code": "LUS",
+   "family": "DECO_LUMINAIRE",
+   "label": "Lustre",
+   "count": 21
+  },
+  {
+   "code": "APP",
+   "family": "DECO_LUMINAIRE",
+   "label": "Applique murale",
+   "count": 53
+  },
+  {
+   "code": "VEN",
+   "family": "DECO_LUMINAIRE",
+   "label": "Ventilateur lumineux",
+   "count": 14
+  }
+ ],
+ "products": [
+  {
+   "ref": "AFR-WC-001",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 1,
+   "price": 49400,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-002",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 2,
+   "price": 52700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-003",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 3,
+   "price": 57400,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-004",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 4,
+   "price": 76800,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-005",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 5,
+   "price": 52700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-006",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 6,
+   "price": 24700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-007",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 7,
+   "price": 34700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-008",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 8,
+   "price": 52100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-009",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 9,
+   "price": 104100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-010",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 10,
+   "price": 54100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-011",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 11,
+   "price": 108100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-012",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 12,
+   "price": 48100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-013",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 13,
+   "price": 56100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-014",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 14,
+   "price": 72100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-015",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 15,
+   "price": 58700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-016",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 16,
+   "price": 52700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-017",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 17,
+   "price": 166800,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-018",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 18,
+   "price": 100900,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-019",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 19,
+   "price": 102600,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-020",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 20,
+   "price": 140100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-021",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 21,
+   "price": 169500,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-022",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 22,
+   "price": 169500,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-023",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 23,
+   "price": 145500,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-024",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 24,
+   "eco": true,
+   "price": 24700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-025",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 25,
+   "eco": true,
+   "price": 34700,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-026",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 26,
+   "eco": true,
+   "price": 48100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-027",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 27,
+   "eco": true,
+   "price": 52100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-WC-028",
+   "family": "SANITAIRE",
+   "cat": "WC",
+   "n": 28,
+   "eco": true,
+   "price": 56100,
+   "freight": 50000
+  },
+  {
+   "ref": "AFR-ENS-001",
+   "family": "SANITAIRE",
+   "cat": "ENS",
+   "n": 1,
+   "price": 140100,
+   "freight": 70000
+  },
+  {
+   "ref": "AFR-ENS-002",
+   "family": "SANITAIRE",
+   "cat": "ENS",
+   "n": 2,
+   "price": 146800,
+   "freight": 70000
+  },
+  {
+   "ref": "AFR-ENS-003",
+   "family": "SANITAIRE",
+   "cat": "ENS",
+   "n": 3,
+   "price": 193500,
+   "freight": 70000
+  },
+  {
+   "ref": "AFR-ENS-004",
+   "family": "SANITAIRE",
+   "cat": "ENS",
+   "n": 4,
+   "eco": true,
+   "price": 116100,
+   "freight": 70000
+  },
+  {
+   "ref": "AFR-ENS-005",
+   "family": "SANITAIRE",
+   "cat": "ENS",
+   "n": 5,
+   "eco": true,
+   "price": 180100,
+   "freight": 70000
+  },
+  {
+   "ref": "AFR-LAV-001",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 1,
+   "price": 11400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-002",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 2,
+   "price": 22100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-003",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 3,
+   "price": 42700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-004",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 4,
+   "price": 24100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-005",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 5,
+   "price": 24100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-006",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 6,
+   "price": 21400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-007",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 7,
+   "price": 77400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-008",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 8,
+   "price": 26700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-009",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 9,
+   "price": 45400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-010",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 10,
+   "price": 26700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-011",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 11,
+   "price": 96100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-012",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 12,
+   "price": 73400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-013",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 13,
+   "price": 320200,
+   "freight": 40000
+  },
+  {
+   "ref": "AFR-LAV-014",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 14,
+   "price": 86800,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-015",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 15,
+   "price": 99400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-016",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 16,
+   "price": 370900,
+   "freight": 40000
+  },
+  {
+   "ref": "AFR-LAV-017",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 17,
+   "eco": true,
+   "price": 11400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-018",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 18,
+   "eco": true,
+   "price": 21400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-LAV-019",
+   "family": "SANITAIRE",
+   "cat": "LAV",
+   "n": 19,
+   "eco": true,
+   "price": 26700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-URI-001",
+   "family": "SANITAIRE",
+   "cat": "URI",
+   "n": 1,
+   "price": 22700,
+   "freight": 16000
+  },
+  {
+   "ref": "AFR-URI-002",
+   "family": "SANITAIRE",
+   "cat": "URI",
+   "n": 2,
+   "price": 54100,
+   "freight": 16000
+  },
+  {
+   "ref": "AFR-URI-003",
+   "family": "SANITAIRE",
+   "cat": "URI",
+   "n": 3,
+   "price": 59500,
+   "freight": 16000
+  },
+  {
+   "ref": "AFR-URI-004",
+   "family": "SANITAIRE",
+   "cat": "URI",
+   "n": 4,
+   "price": 59500,
+   "freight": 16000
+  },
+  {
+   "ref": "AFR-URI-005",
+   "family": "SANITAIRE",
+   "cat": "URI",
+   "n": 5,
+   "price": 47800,
+   "freight": 16000
+  },
+  {
+   "ref": "AFR-URI-006",
+   "family": "SANITAIRE",
+   "cat": "URI",
+   "n": 6,
+   "price": 74500,
+   "freight": 16000
+  },
+  {
+   "ref": "AFR-DOU-001",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 1,
+   "price": 26100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-002",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 2,
+   "price": 26500,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-003",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 3,
+   "price": 46700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-004",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 4,
+   "price": 53400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-005",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 5,
+   "price": 60100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-006",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 6,
+   "price": 52100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-007",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 7,
+   "price": 52100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-008",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 8,
+   "price": 34700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-009",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 9,
+   "price": 91800,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-010",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 10,
+   "price": 69200,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-011",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 11,
+   "price": 80100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-012",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 12,
+   "price": 79400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-013",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 13,
+   "price": 102500,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-014",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 14,
+   "price": 72800,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-015",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 15,
+   "price": 84600,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-016",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 16,
+   "price": 76600,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-017",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 17,
+   "price": 103300,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-018",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 18,
+   "price": 150800,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-019",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 19,
+   "price": 95600,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-020",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 20,
+   "price": 106800,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-021",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 21,
+   "price": 112100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-022",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 22,
+   "price": 104100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-023",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 23,
+   "price": 87400,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-024",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 24,
+   "eco": true,
+   "price": 20100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-025",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 25,
+   "eco": true,
+   "price": 26700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-026",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 26,
+   "eco": true,
+   "price": 36900,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-027",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 27,
+   "eco": true,
+   "price": 36100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-028",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 28,
+   "eco": true,
+   "price": 48100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-DOU-029",
+   "family": "SANITAIRE",
+   "cat": "DOU",
+   "n": 29,
+   "eco": true,
+   "price": 58700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ROB-001",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 1,
+   "price": 8700,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-002",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 2,
+   "price": 16600,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-003",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 3,
+   "price": 8700,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-004",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 4,
+   "price": 6200,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-005",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 5,
+   "price": 9100,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-006",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 6,
+   "price": 4100,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-007",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 7,
+   "price": 7900,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-008",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 8,
+   "price": 9000,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-009",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 9,
+   "price": 12600,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-010",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 10,
+   "price": 7300,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-011",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 11,
+   "price": 10600,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-012",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 12,
+   "price": 7800,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-013",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 13,
+   "price": 42200,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-014",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 14,
+   "price": 45300,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-015",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 15,
+   "price": 47700,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-016",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 16,
+   "price": 47700,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-017",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 17,
+   "price": 37100,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-018",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 18,
+   "price": 36900,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-019",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 19,
+   "price": 36900,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-020",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 20,
+   "price": 36900,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-021",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 21,
+   "eco": true,
+   "price": 6500,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-022",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 22,
+   "eco": true,
+   "price": 6300,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-023",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 23,
+   "eco": true,
+   "price": 8700,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-ROB-024",
+   "family": "SANITAIRE",
+   "cat": "ROB",
+   "n": 24,
+   "eco": true,
+   "price": 8600,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-MIR-001",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 1,
+   "price": 30700,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-002",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 2,
+   "price": 34700,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-003",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 3,
+   "price": 33400,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-004",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 4,
+   "price": 43700,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-005",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 5,
+   "price": 37400,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-006",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 6,
+   "price": 40100,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-007",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 7,
+   "price": 96100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-MIR-008",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 8,
+   "price": 96100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-MIR-009",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 9,
+   "price": 96100,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-MIR-010",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 10,
+   "price": 11900,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-011",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 11,
+   "price": 11900,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-012",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 12,
+   "price": 11900,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MIR-013",
+   "family": "SANITAIRE",
+   "cat": "MIR",
+   "n": 13,
+   "price": 11900,
+   "freight": 10000
+  },
+  {
+   "ref": "AFR-MEU-001",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 1,
+   "price": 326900,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-002",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 2,
+   "price": 213500,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-003",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 3,
+   "price": 246800,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-004",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 4,
+   "price": 64100,
+   "freight": 40000
+  },
+  {
+   "ref": "AFR-MEU-005",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 5,
+   "price": 37100,
+   "freight": 40000
+  },
+  {
+   "ref": "AFR-MEU-006",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 6,
+   "price": 110800,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-007",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 7,
+   "price": 246800,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-008",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 8,
+   "price": 153500,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-009",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 9,
+   "price": 346900,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-010",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 10,
+   "eco": true,
+   "price": 34700,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-011",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 11,
+   "eco": true,
+   "price": 112100,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-012",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 12,
+   "eco": true,
+   "price": 52100,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-013",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 13,
+   "eco": true,
+   "price": 150800,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-MEU-014",
+   "family": "SANITAIRE",
+   "cat": "MEU",
+   "n": 14,
+   "eco": true,
+   "price": 226800,
+   "freight": 60000
+  },
+  {
+   "ref": "AFR-ACC-001",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 1,
+   "price": 213500,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ACC-002",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 2,
+   "price": 193500,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ACC-003",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 3,
+   "price": 34700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ACC-004",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 4,
+   "price": 34700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ACC-005",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 5,
+   "price": 34700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ACC-006",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 6,
+   "price": 34700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-ACC-007",
+   "family": "SANITAIRE",
+   "cat": "ACC",
+   "n": 7,
+   "price": 34700,
+   "freight": 20000
+  },
+  {
+   "ref": "AFR-BAI-001",
+   "family": "SANITAIRE",
+   "cat": "BAI",
+   "n": 1,
+   "price": 1199300,
+   "freight": 200000
+  },
+  {
+   "ref": "AFR-BAI-002",
+   "family": "SANITAIRE",
+   "cat": "BAI",
+   "n": 2,
+   "price": 464300,
+   "freight": 200000
+  },
+  {
+   "ref": "AFR-BAI-003",
+   "family": "SANITAIRE",
+   "cat": "BAI",
+   "n": 3,
+   "price": 306900,
+   "freight": 200000
+  },
+  {
+   "ref": "AFR-BAI-004",
+   "family": "SANITAIRE",
+   "cat": "BAI",
+   "n": 4,
+   "price": 426900,
+   "freight": 200000
+  },
+  {
+   "ref": "AFR-BAL-001",
+   "family": "SANITAIRE",
+   "cat": "BAL",
+   "n": 1,
+   "price": 600300,
+   "freight": 240000
+  },
+  {
+   "ref": "AFR-BAL-002",
+   "family": "SANITAIRE",
+   "cat": "BAL",
+   "n": 2,
+   "price": 440300,
+   "freight": 240000
+  },
+  {
+   "ref": "AFR-VAP-001",
+   "family": "SANITAIRE",
+   "cat": "VAP",
+   "n": 1,
+   "price": 660400,
+   "freight": 300000
+  },
+  {
+   "ref": "AFR-VAP-002",
+   "family": "SANITAIRE",
+   "cat": "VAP",
+   "n": 2,
+   "price": 1280700,
+   "freight": 300000
+  },
+  {
+   "ref": "AFR-CAB-001",
+   "family": "SANITAIRE",
+   "cat": "CAB",
+   "n": 1,
+   "price": 125400,
+   "freight": 100000
+  },
+  {
+   "ref": "AFR-CAB-002",
+   "family": "SANITAIRE",
+   "cat": "CAB",
+   "n": 2,
+   "price": 132100,
+   "freight": 100000
+  },
+  {
+   "ref": "AFR-CAB-003",
+   "family": "SANITAIRE",
+   "cat": "CAB",
+   "n": 3,
+   "price": 166800,
+   "freight": 100000
+  },
+  {
+   "ref": "AFR-DCH-001",
+   "family": "SANITAIRE",
+   "cat": "DCH",
+   "n": 1,
+   "price": 5800,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-DCH-002",
+   "family": "SANITAIRE",
+   "cat": "DCH",
+   "n": 2,
+   "price": 7700,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-DCH-003",
+   "family": "SANITAIRE",
+   "cat": "DCH",
+   "n": 3,
+   "price": 9000,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-SIP-001",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 1,
+   "price": 1100,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-002",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 2,
+   "price": 4100,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-003",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 3,
+   "price": 6600,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-004",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 4,
+   "price": 7300,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-005",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 5,
+   "price": 11800,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-006",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 6,
+   "price": 3800,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-007",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 7,
+   "price": 6500,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-008",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 8,
+   "price": 8700,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-009",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 9,
+   "price": 3800,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-010",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 10,
+   "price": 17100,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-011",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 11,
+   "price": 3800,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-012",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 12,
+   "price": 8600,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-SIP-013",
+   "family": "SANITAIRE",
+   "cat": "SIP",
+   "n": 13,
+   "price": 30100,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-PLA-001",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 1,
+   "spec": "120W · Ø50 cm",
+   "price": 20800,
+   "freight": 5600
+  },
+  {
+   "ref": "AFR-PLA-002",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 2,
+   "spec": "120W · Ø50 cm",
+   "price": 23200,
+   "freight": 5600
+  },
+  {
+   "ref": "AFR-PLA-003",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 3,
+   "spec": "120W · Ø50 cm",
+   "price": 13700,
+   "freight": 5600
+  },
+  {
+   "ref": "AFR-PLA-004",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 4,
+   "spec": "120W · Ø50 cm",
+   "price": 16100,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-005",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 5,
+   "spec": "120W · Ø50 cm",
+   "price": 18400,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-006",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 6,
+   "spec": "240W · 65×95 cm",
+   "price": 46700,
+   "freight": 18700
+  },
+  {
+   "ref": "AFR-PLA-007",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 7,
+   "spec": "120W · Ø50 cm",
+   "price": 13700,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-008",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 8,
+   "spec": "120W · Ø50 cm",
+   "price": 16100,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-009",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 9,
+   "spec": "96W · Ø50 cm",
+   "price": 17700,
+   "freight": 5800
+  },
+  {
+   "ref": "AFR-PLA-010",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 10,
+   "spec": "96W · Ø50 cm",
+   "price": 23200,
+   "freight": 7500
+  },
+  {
+   "ref": "AFR-PLA-011",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 11,
+   "spec": "96W · Ø50 cm",
+   "price": 17700,
+   "freight": 5800
+  },
+  {
+   "ref": "AFR-PLA-012",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 12,
+   "spec": "96W · Ø50 cm",
+   "price": 25500,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-013",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 13,
+   "spec": "120W · Ø50 cm",
+   "price": 23200,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-014",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 14,
+   "spec": "120W · Ø50 cm",
+   "price": 22400,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-015",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 15,
+   "spec": "Ø50 cm",
+   "price": 17700,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-016",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 16,
+   "spec": "Ø50 cm",
+   "price": 30700,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-017",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 17,
+   "spec": "Ø50 cm",
+   "price": 17700,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-018",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 18,
+   "spec": "50×50 cm",
+   "price": 18900,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-019",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 19,
+   "spec": "Ø50 cm",
+   "price": 16100,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-020",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 20,
+   "spec": "Ø50 cm",
+   "price": 16100,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-021",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 21,
+   "spec": "Ø50 cm",
+   "price": 16100,
+   "freight": 28300
+  },
+  {
+   "ref": "AFR-PLA-022",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 22,
+   "spec": "Ø50 cm",
+   "price": 49500,
+   "freight": 23400
+  },
+  {
+   "ref": "AFR-PLA-023",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 23,
+   "spec": "Ø50 cm",
+   "price": 49500,
+   "freight": 23400
+  },
+  {
+   "ref": "AFR-PLA-024",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 24,
+   "spec": "480W · 110×70 cm",
+   "price": 101300,
+   "freight": 26700
+  },
+  {
+   "ref": "AFR-PLA-025",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 25,
+   "spec": "200W · 50×50 cm",
+   "price": 56100,
+   "freight": 9000
+  },
+  {
+   "ref": "AFR-PLA-026",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 26,
+   "spec": "500 200W 800 360W",
+   "price": 56100,
+   "freight": 9000
+  },
+  {
+   "ref": "AFR-PLA-027",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 27,
+   "spec": "64W · 30×5.5 cm",
+   "price": 26000,
+   "freight": 4300
+  },
+  {
+   "ref": "AFR-PLA-028",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 28,
+   "spec": "100W · 40×5.5 cm",
+   "price": 34900,
+   "freight": 6700
+  },
+  {
+   "ref": "AFR-PLA-029",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 29,
+   "spec": "128W · 50×5.5 cm",
+   "price": 40500,
+   "freight": 9600
+  },
+  {
+   "ref": "AFR-PLA-030",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 30,
+   "spec": "40W · 30×4 cm",
+   "price": 33000,
+   "freight": 4300
+  },
+  {
+   "ref": "AFR-PLA-031",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 31,
+   "spec": "54W · 40×4 cm",
+   "price": 42000,
+   "freight": 6700
+  },
+  {
+   "ref": "AFR-PLA-032",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 32,
+   "spec": "68W · 50×4 cm",
+   "price": 44800,
+   "freight": 9600
+  },
+  {
+   "ref": "AFR-PLA-033",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 33,
+   "spec": "40W · Ø85 cm",
+   "price": 36800,
+   "freight": 6900
+  },
+  {
+   "ref": "AFR-PLA-034",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 34,
+   "spec": "292W",
+   "price": 65600,
+   "freight": 25600
+  },
+  {
+   "ref": "AFR-PLA-035",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 35,
+   "spec": "200W · 55×9 cm",
+   "price": 35400,
+   "freight": 10300
+  },
+  {
+   "ref": "AFR-PLA-036",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 36,
+   "spec": "480W",
+   "price": 50700,
+   "freight": 24600
+  },
+  {
+   "ref": "AFR-PLA-037",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 37,
+   "spec": "200W",
+   "price": 35400,
+   "freight": 10300
+  },
+  {
+   "ref": "AFR-PLA-038",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 38,
+   "spec": "420W · 11×7.2 cm",
+   "price": 70700,
+   "freight": 26700
+  },
+  {
+   "ref": "AFR-PLA-039",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 39,
+   "spec": "160W · Ø50 cm",
+   "price": 21200,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-040",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 40,
+   "spec": "183W · Ø50 cm",
+   "price": 22400,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-041",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 41,
+   "spec": "420W · 11×7 cm",
+   "price": 70300,
+   "freight": 35700
+  },
+  {
+   "ref": "AFR-PLA-042",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 42,
+   "spec": "160W · Ø50 cm",
+   "price": 36600,
+   "freight": 12500
+  },
+  {
+   "ref": "AFR-PLA-043",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 43,
+   "spec": "183W · Ø50 cm",
+   "price": 37700,
+   "freight": 12500
+  },
+  {
+   "ref": "AFR-PLA-044",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 44,
+   "spec": "160W · Ø50 cm",
+   "price": 32600,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-045",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 45,
+   "spec": "160W",
+   "price": 36600,
+   "freight": 12500
+  },
+  {
+   "ref": "AFR-PLA-046",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 46,
+   "spec": "160W",
+   "price": 37700,
+   "freight": 12500
+  },
+  {
+   "ref": "AFR-PLA-047",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 47,
+   "spec": "160W",
+   "price": 37700,
+   "freight": 12500
+  },
+  {
+   "ref": "AFR-PLA-048",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 48,
+   "spec": "160W",
+   "price": 39600,
+   "freight": 12500
+  },
+  {
+   "ref": "AFR-PLA-049",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 49,
+   "spec": "183W",
+   "price": 20100,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-050",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 50,
+   "spec": "160W",
+   "price": 18900,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-051",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 51,
+   "spec": "160W",
+   "price": 23600,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-052",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 52,
+   "spec": "160W",
+   "price": 23600,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-053",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 53,
+   "spec": "160W",
+   "price": 18900,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-054",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 54,
+   "spec": "160W",
+   "price": 22400,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-055",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 55,
+   "spec": "183W",
+   "price": 24800,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-056",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 56,
+   "spec": "183W",
+   "price": 24800,
+   "freight": 6200
+  },
+  {
+   "ref": "AFR-PLA-057",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 57,
+   "spec": "108W",
+   "price": 57800,
+   "freight": 21400
+  },
+  {
+   "ref": "AFR-PLA-058",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 58,
+   "spec": "100W",
+   "price": 32600,
+   "freight": 8200
+  },
+  {
+   "ref": "AFR-PLA-059",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 59,
+   "spec": "Ø50 cm",
+   "price": 65100,
+   "freight": 1500
+  },
+  {
+   "ref": "AFR-PLA-060",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 60,
+   "spec": "Ø60 cm",
+   "price": 74200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-PLA-061",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 61,
+   "spec": "Ø80 cm",
+   "price": 97800,
+   "freight": 3400
+  },
+  {
+   "ref": "AFR-PLA-062",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 62,
+   "spec": "Ø100 cm",
+   "price": 144900,
+   "freight": 4200
+  },
+  {
+   "ref": "AFR-PLA-063",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 63,
+   "spec": "Ø40 cm",
+   "price": 50700,
+   "freight": 7400
+  },
+  {
+   "ref": "AFR-PLA-064",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 64,
+   "spec": "Ø50 cm",
+   "price": 55400,
+   "freight": 11100
+  },
+  {
+   "ref": "AFR-PLA-065",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 65,
+   "spec": "230W · 110×60 cm",
+   "price": 107200,
+   "freight": 17300
+  },
+  {
+   "ref": "AFR-PLA-066",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 66,
+   "spec": "55W · Ø50 cm",
+   "price": 57800,
+   "freight": 7400
+  },
+  {
+   "ref": "AFR-PLA-067",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 67,
+   "spec": "50W · Ø50 cm",
+   "price": 55400,
+   "freight": 7400
+  },
+  {
+   "ref": "AFR-PLA-068",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 68,
+   "spec": "45×35 cm",
+   "price": 11500,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-069",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 69,
+   "price": 11500,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-070",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 70,
+   "spec": "45×35 cm",
+   "price": 11500,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-071",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 71,
+   "price": 11500,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-072",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 72,
+   "spec": "45×35 cm",
+   "price": 11500,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-073",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 73,
+   "spec": "45×35 cm",
+   "price": 11500,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-074",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 74,
+   "price": 11800,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-075",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 75,
+   "spec": "45×35 cm",
+   "price": 11800,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-076",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 76,
+   "spec": "Ø45 cm",
+   "price": 11800,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-077",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 77,
+   "price": 11800,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-078",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 78,
+   "spec": "45×35 cm",
+   "price": 14200,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-PLA-079",
+   "family": "DECO_LUMINAIRE",
+   "cat": "PLA",
+   "n": 79,
+   "spec": "Ø45 cm",
+   "price": 10600,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-SUS-001",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 1,
+   "spec": "60W · 50×120 cm",
+   "price": 27900,
+   "freight": 10300
+  },
+  {
+   "ref": "AFR-SUS-002",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 2,
+   "spec": "120W",
+   "price": 11400,
+   "freight": 9300
+  },
+  {
+   "ref": "AFR-SUS-003",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 3,
+   "price": 188500,
+   "freight": 27900
+  },
+  {
+   "ref": "AFR-SUS-004",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 4,
+   "price": 33000,
+   "freight": 12200
+  },
+  {
+   "ref": "AFR-SUS-005",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 5,
+   "price": 18600,
+   "freight": 8000
+  },
+  {
+   "ref": "AFR-SUS-006",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 6,
+   "price": 21700,
+   "freight": 17300
+  },
+  {
+   "ref": "AFR-SUS-007",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 7,
+   "price": 29000,
+   "freight": 6700
+  },
+  {
+   "ref": "AFR-SUS-008",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 8,
+   "price": 29500,
+   "freight": 3800
+  },
+  {
+   "ref": "AFR-SUS-009",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 9,
+   "price": 33000,
+   "freight": 7400
+  },
+  {
+   "ref": "AFR-SUS-010",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 10,
+   "price": 31800,
+   "freight": 7000
+  },
+  {
+   "ref": "AFR-SUS-011",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 11,
+   "price": 35400,
+   "freight": 13000
+  },
+  {
+   "ref": "AFR-SUS-012",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 12,
+   "price": 34200,
+   "freight": 7000
+  },
+  {
+   "ref": "AFR-SUS-013",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 13,
+   "price": 35400,
+   "freight": 7000
+  },
+  {
+   "ref": "AFR-SUS-014",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 14,
+   "price": 38900,
+   "freight": 6000
+  },
+  {
+   "ref": "AFR-SUS-015",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 15,
+   "price": 38900,
+   "freight": 4200
+  },
+  {
+   "ref": "AFR-SUS-016",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 16,
+   "price": 38900,
+   "freight": 7700
+  },
+  {
+   "ref": "AFR-SUS-017",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 17,
+   "price": 46000,
+   "freight": 5400
+  },
+  {
+   "ref": "AFR-SUS-018",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 18,
+   "price": 29500,
+   "freight": 2500
+  },
+  {
+   "ref": "AFR-SUS-019",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 19,
+   "price": 40100,
+   "freight": 9100
+  },
+  {
+   "ref": "AFR-SUS-020",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 20,
+   "price": 37700,
+   "freight": 10100
+  },
+  {
+   "ref": "AFR-SUS-021",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 21,
+   "price": 33000,
+   "freight": 5300
+  },
+  {
+   "ref": "AFR-SUS-022",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 22,
+   "price": 57800,
+   "freight": 7900
+  },
+  {
+   "ref": "AFR-SUS-023",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 23,
+   "price": 42400,
+   "freight": 5400
+  },
+  {
+   "ref": "AFR-SUS-024",
+   "family": "DECO_LUMINAIRE",
+   "cat": "SUS",
+   "n": 24,
+   "price": 15400,
+   "freight": 500
+  },
+  {
+   "ref": "AFR-LUS-001",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 1,
+   "price": 155500,
+   "freight": 36900
+  },
+  {
+   "ref": "AFR-LUS-002",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 2,
+   "price": 139000,
+   "freight": 23200
+  },
+  {
+   "ref": "AFR-LUS-003",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 3,
+   "price": 101300,
+   "freight": 39900
+  },
+  {
+   "ref": "AFR-LUS-004",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 4,
+   "price": 103700,
+   "freight": 26700
+  },
+  {
+   "ref": "AFR-LUS-005",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 5,
+   "price": 93800,
+   "freight": 27600
+  },
+  {
+   "ref": "AFR-LUS-006",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 6,
+   "price": 91900,
+   "freight": 22700
+  },
+  {
+   "ref": "AFR-LUS-007",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 7,
+   "price": 99000,
+   "freight": 23300
+  },
+  {
+   "ref": "AFR-LUS-008",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 8,
+   "price": 95000,
+   "freight": 22600
+  },
+  {
+   "ref": "AFR-LUS-009",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 9,
+   "price": 115500,
+   "freight": 13000
+  },
+  {
+   "ref": "AFR-LUS-010",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 10,
+   "price": 48000,
+   "freight": 19000
+  },
+  {
+   "ref": "AFR-LUS-011",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 11,
+   "price": 168400,
+   "freight": 52900
+  },
+  {
+   "ref": "AFR-LUS-012",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 12,
+   "price": 587700,
+   "freight": 57100
+  },
+  {
+   "ref": "AFR-LUS-013",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 13,
+   "price": 1454400,
+   "freight": 121100
+  },
+  {
+   "ref": "AFR-LUS-014",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 14,
+   "price": 160200,
+   "freight": 34900
+  },
+  {
+   "ref": "AFR-LUS-015",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 15,
+   "price": 268700,
+   "freight": 26700
+  },
+  {
+   "ref": "AFR-LUS-016",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 16,
+   "price": 116600,
+   "freight": 16400
+  },
+  {
+   "ref": "AFR-LUS-017",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 17,
+   "price": 159000,
+   "freight": 16400
+  },
+  {
+   "ref": "AFR-LUS-018",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 18,
+   "price": 717200,
+   "freight": 19400
+  },
+  {
+   "ref": "AFR-LUS-019",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 19,
+   "price": 51900,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-LUS-020",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 20,
+   "price": 129600,
+   "freight": 26000
+  },
+  {
+   "ref": "AFR-LUS-021",
+   "family": "DECO_LUMINAIRE",
+   "cat": "LUS",
+   "n": 21,
+   "price": 124900,
+   "freight": 14400
+  },
+  {
+   "ref": "AFR-APP-001",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 1,
+   "spec": "12W · 25.5×4 cm",
+   "price": 21200,
+   "freight": 3400
+  },
+  {
+   "ref": "AFR-APP-002",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 2,
+   "spec": "12W · 25.5×4 cm",
+   "price": 21200,
+   "freight": 3400
+  },
+  {
+   "ref": "AFR-APP-003",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 3,
+   "spec": "12×60 cm",
+   "price": 9500,
+   "freight": 2500
+  },
+  {
+   "ref": "AFR-APP-004",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 4,
+   "spec": "12×55 cm",
+   "price": 9500,
+   "freight": 2500
+  },
+  {
+   "ref": "AFR-APP-005",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 5,
+   "price": 9000,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-APP-006",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 6,
+   "price": 10200,
+   "freight": 4000
+  },
+  {
+   "ref": "AFR-APP-007",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 7,
+   "spec": "10W",
+   "price": 7600,
+   "freight": 700
+  },
+  {
+   "ref": "AFR-APP-008",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 8,
+   "spec": "15W",
+   "price": 9500,
+   "freight": 2300
+  },
+  {
+   "ref": "AFR-APP-009",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 9,
+   "spec": "4W",
+   "price": 6700,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-010",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 10,
+   "spec": "8W",
+   "price": 7600,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-011",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 11,
+   "spec": "6W",
+   "price": 6700,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-012",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 12,
+   "spec": "14W",
+   "price": 8300,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-013",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 13,
+   "spec": "14W",
+   "price": 8300,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-014",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 14,
+   "spec": "6W",
+   "price": 11400,
+   "freight": 2300
+  },
+  {
+   "ref": "AFR-APP-015",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 15,
+   "spec": "10W",
+   "price": 9000,
+   "freight": 700
+  },
+  {
+   "ref": "AFR-APP-016",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 16,
+   "spec": "7W",
+   "price": 10600,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-017",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 17,
+   "spec": "4W",
+   "price": 6200,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-018",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 18,
+   "spec": "6W",
+   "price": 8300,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-019",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 19,
+   "spec": "8W",
+   "price": 9900,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-APP-020",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 20,
+   "spec": "12W",
+   "price": 10600,
+   "freight": 900
+  },
+  {
+   "ref": "AFR-APP-021",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 21,
+   "spec": "5W",
+   "price": 10600,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-APP-022",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 22,
+   "spec": "5W",
+   "price": 9000,
+   "freight": 600
+  },
+  {
+   "ref": "AFR-APP-023",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 23,
+   "spec": "19W",
+   "price": 7100,
+   "freight": 900
+  },
+  {
+   "ref": "AFR-APP-024",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 24,
+   "price": 13000,
+   "freight": 2000
+  },
+  {
+   "ref": "AFR-APP-025",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 25,
+   "price": 13000,
+   "freight": 2000
+  },
+  {
+   "ref": "AFR-APP-026",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 26,
+   "price": 13900,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-027",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 27,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-028",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 28,
+   "price": 8700,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-029",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 29,
+   "price": 8700,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-030",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 30,
+   "price": 7600,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-031",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 31,
+   "price": 31800,
+   "freight": 300
+  },
+  {
+   "ref": "AFR-APP-032",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 32,
+   "price": 29500,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-033",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 33,
+   "price": 31800,
+   "freight": 400
+  },
+  {
+   "ref": "AFR-APP-034",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 34,
+   "price": 24800,
+   "freight": 500
+  },
+  {
+   "ref": "AFR-APP-035",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 35,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-036",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 36,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-037",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 37,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-038",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 38,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-039",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 39,
+   "price": 11100,
+   "freight": 900
+  },
+  {
+   "ref": "AFR-APP-040",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 40,
+   "price": 11100,
+   "freight": 900
+  },
+  {
+   "ref": "AFR-APP-041",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 41,
+   "price": 11100,
+   "freight": 900
+  },
+  {
+   "ref": "AFR-APP-042",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 42,
+   "price": 11100,
+   "freight": 900
+  },
+  {
+   "ref": "AFR-APP-043",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 43,
+   "price": 9900,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-044",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 44,
+   "price": 9900,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-045",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 45,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-046",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 46,
+   "price": 9200,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-047",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 47,
+   "price": 8700,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-048",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 48,
+   "price": 8700,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-049",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 49,
+   "price": 13400,
+   "freight": 5100
+  },
+  {
+   "ref": "AFR-APP-050",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 50,
+   "price": 15400,
+   "freight": 1700
+  },
+  {
+   "ref": "AFR-APP-051",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 51,
+   "price": 10600,
+   "freight": 2100
+  },
+  {
+   "ref": "AFR-APP-052",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 52,
+   "price": 10600,
+   "freight": 4100
+  },
+  {
+   "ref": "AFR-APP-053",
+   "family": "DECO_LUMINAIRE",
+   "cat": "APP",
+   "n": 53,
+   "price": 20100,
+   "freight": 4400
+  },
+  {
+   "ref": "AFR-VEN-001",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 1,
+   "price": 63200,
+   "freight": 18700
+  },
+  {
+   "ref": "AFR-VEN-002",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 2,
+   "price": 106000,
+   "freight": 47200
+  },
+  {
+   "ref": "AFR-VEN-003",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 3,
+   "price": 91500,
+   "freight": 28800
+  },
+  {
+   "ref": "AFR-VEN-004",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 4,
+   "price": 49100,
+   "freight": 23400
+  },
+  {
+   "ref": "AFR-VEN-005",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 5,
+   "price": 58600,
+   "freight": 24200
+  },
+  {
+   "ref": "AFR-VEN-006",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 6,
+   "spec": "120W",
+   "price": 46000,
+   "freight": 18100
+  },
+  {
+   "ref": "AFR-VEN-007",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 7,
+   "spec": "120W",
+   "price": 51400,
+   "freight": 18100
+  },
+  {
+   "ref": "AFR-VEN-008",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 8,
+   "spec": "138W",
+   "price": 53800,
+   "freight": 18100
+  },
+  {
+   "ref": "AFR-VEN-009",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 9,
+   "spec": "120W",
+   "price": 50700,
+   "freight": 18100
+  },
+  {
+   "ref": "AFR-VEN-010",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 10,
+   "spec": "120W",
+   "price": 53800,
+   "freight": 18100
+  },
+  {
+   "ref": "AFR-VEN-011",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 11,
+   "price": 46000,
+   "freight": 18100
+  },
+  {
+   "ref": "AFR-VEN-012",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 12,
+   "spec": "120W",
+   "price": 70300,
+   "freight": 18700
+  },
+  {
+   "ref": "AFR-VEN-013",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 13,
+   "price": 70300,
+   "freight": 23400
+  },
+  {
+   "ref": "AFR-VEN-014",
+   "family": "DECO_LUMINAIRE",
+   "cat": "VEN",
+   "n": 14,
+   "spec": "95×56 cm",
+   "price": 117500,
+   "freight": 33500
+  }
+ ]
+}

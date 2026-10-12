@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderLinesTable } from "@/components/catalogues/order-lines-table";
 import { CATALOG_ORDER_STATUS_LABELS, CATALOG_ORDER_STATUS_TONE } from "@/lib/catalog-labels";
+import { shopOrderItemImage } from "@/lib/shop-products";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import { OrderClientActions } from "./order-client-actions";
 import { ShipmentStatusBadge } from "@/components/dashboard/status-badge";
@@ -73,7 +74,7 @@ export default async function ClientOrdersPage() {
                 <OrderLinesTable
                   items={o.items.map((i) => ({
                     ...i,
-                    imageUrl: i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : null,
+                    imageUrl: i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : shopOrderItemImage(i),
                   }))}
                   showPrices={quoted}
                   feesAmount={o.feesAmount}

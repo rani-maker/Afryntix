@@ -5,6 +5,7 @@ import { COMPANY } from "@/lib/company";
 import { CATALOG_CATEGORY_LABELS } from "@/lib/catalog-labels";
 import { formatDate, formatXOF } from "@/lib/utils";
 import { orderParty } from "@/lib/catalog-orders";
+import { shopOrderItemImage } from "@/lib/shop-products";
 import { PrintActions } from "@/app/print/manifest/envoi/[id]/print-actions";
 
 /**
@@ -114,10 +115,10 @@ export default async function PrintDevisPage({ params }: { params: Promise<{ id:
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
-                    {i.posX != null && (
+                    {(i.posX != null || shopOrderItemImage(i)) && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={`/api/catalogue/order-item/${i.id}/image`}
+                        src={i.posX != null ? `/api/catalogue/order-item/${i.id}/image` : (shopOrderItemImage(i) ?? "")}
                         alt=""
                         style={{ width: 44, height: 44, objectFit: "cover", border: "1px solid #d1d5db" }}
                       />
