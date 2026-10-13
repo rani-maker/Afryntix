@@ -584,3 +584,25 @@ export async function reopenCatalogOrder(id: string): Promise<Result> {
   revalidatePath(`/commande/${id}`);
   return { success: true };
 }
+
+/**
+ * Supprime définitivement une commande catalogue (ADMIN uniquement), quel que soit son statut.
+ * Ses lignes et leurs photos partent avec elle ; les colis déjà créés sont conservés, détachés
+ * de la commande (`Shipment.catalogOrder` est en `onDelete: SetNull`).
+ */
+export async function deleteCatalogOrder(id: string): Promise<Result> {
+  await requireRole("ADMIN");
+  const order = await prisma.catalogOrder.findUnique({ where: { id }, select: { id: true } });
+  if (!order) return { success: false, error: "Commande introuvable." };
+
+  await prisma.$transaction([
+    // Les rappels de la cloche de l'équipe mèneraient à une page qui n'existe plus
+    prisma.notification.deleteMany({ where: { channel: "IN_APP", link: `/staff/orders/${id}` } }),
+    prisma.catalogOrder.delete({ where: { id } }),
+  ]);
+
+  revalidateOrders(id);
+  revalidatePath(`/commande/${id}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
