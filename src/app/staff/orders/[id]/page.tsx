@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { orderParty } from "@/lib/catalog-orders";
 import { shopOrderItemImage } from "@/lib/shop-products";
 import { buildCatalogOrderWhatsAppUrl, getCatalogOrderPublicUrl } from "@/lib/catalog-order-link";
 import { CopyLinkButton } from "@/components/catalogues/copy-link-button";
+import { DeleteOrderButton } from "@/components/catalogues/delete-order-button";
 
 export default async function StaffCatalogOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,6 +37,8 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
   });
   if (!order) notFound();
 
+  // La suppression d'une commande est réservée à l'administrateur
+  const isAdmin = (await auth())?.user?.role === "ADMIN";
   const party = orderParty(order);
   const quoted = orderAmountsVisible(order);
   // Commande passée aux prix affichés : confirmée par le client dès le panier, sans devis
@@ -193,6 +197,24 @@ export default async function StaffCatalogOrderPage({ params }: { params: Promis
               </ul>
             )}
           </section>
+          {isAdmin && (
+            <section className="rounded-md border border-destructive/30 p-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 basis-64">
+                <h3 className="text-sm font-semibold">Supprimer la commande</h3>
+                <p className="text-xs text-muted-foreground">
+                  Réservé à l&apos;administrateur. La commande, ses articles et ses montants sont effacés
+                  définitivement, et le client ne la voit plus.
+                  {order.shipments.length > 0 ? " Les colis déjà créés sont conservés dans les expéditions." : ""}
+                </p>
+              </div>
+              <DeleteOrderButton
+                id={order.id}
+                reference={order.reference}
+                shipmentCount={order.shipments.length}
+                redirectTo="/staff/orders"
+              />
+            </section>
+          )}
         </CardContent>
       </Card>
     </div>

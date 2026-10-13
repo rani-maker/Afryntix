@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/catalog-labels";
 import { formatDateTime, formatXOF } from "@/lib/utils";
 import { orderParty } from "@/lib/catalog-orders";
+import { DeleteOrderButton } from "@/components/catalogues/delete-order-button";
 
 export default async function StaffCatalogOrdersPage({
   searchParams,
@@ -23,12 +25,15 @@ export default async function StaffCatalogOrdersPage({
     ? (rawStatus as CatalogOrderStatusKey)
     : undefined;
 
+  // La suppression d'une commande est réservée à l'administrateur
+  const isAdmin = (await auth())?.user?.role === "ADMIN";
+
   const [orders, counts] = await Promise.all([
     prisma.catalogOrder.findMany({
       where: status ? { status } : undefined,
       include: {
         client: { select: { name: true, phone: true, whatsapp: true } },
-        _count: { select: { items: true } },
+        _count: { select: { items: true, shipments: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 200,
@@ -74,12 +79,17 @@ export default async function StaffCatalogOrdersPage({
                 <TableHead className="text-right">Montant</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Reçue</TableHead>
+                {isAdmin && (
+                  <TableHead className="w-10">
+                    <span className="sr-only">Supprimer</span>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-6">
                     Aucune commande.
                   </TableCell>
                 </TableRow>
@@ -107,6 +117,16 @@ export default async function StaffCatalogOrdersPage({
                       <Badge variant={CATALOG_ORDER_STATUS_TONE[o.status]}>{catalogOrderStatusLabel(o)}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</TableCell>
+                    {isAdmin && (
+                      <TableCell className="py-1">
+                        <DeleteOrderButton
+                          id={o.id}
+                          reference={o.reference}
+                          shipmentCount={o._count.shipments}
+                          compact
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
